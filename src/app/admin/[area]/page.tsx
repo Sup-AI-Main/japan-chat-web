@@ -51,7 +51,7 @@ export default async function AdminAreaPage({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {categories.map((cat) => (
             <Link
-              key={cat.id}
+              key={cat.code}
               href={`/admin/${area}/${cat.code.toLowerCase()}`}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{

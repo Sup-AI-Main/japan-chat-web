@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getCommonCategories } from "@/lib/google-sheets";
 import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 
+export const dynamic = "force-dynamic";
+
 export default async function GuidePage() {
   const commonCategories = await getCommonCategories();
 
@@ -21,7 +23,7 @@ export default async function GuidePage() {
         <div className="grid grid-cols-2 gap-3">
           {commonCategories.map((cat) => (
             <Link
-              key={cat.id}
+              key={cat.code}
               href={`/guide/${cat.code.toLowerCase()}`}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{

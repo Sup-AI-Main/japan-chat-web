@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getActiveAreas, getCommonCategories } from "@/lib/google-sheets";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const areas = (await getActiveAreas()).filter(
     (a) => a.code !== "ALL"
@@ -19,7 +21,7 @@ export default async function HomePage() {
         <div className="flex flex-col gap-4 mb-10">
           {areas.map((area) => (
             <Link
-              key={area.id}
+              key={area.code}
               href={`/${area.code.toLowerCase()}`}
               className="block bg-surface border border-border rounded-[12px] p-6 text-center hover:border-primary hover:bg-primary-soft transition-colors"
             >
@@ -44,7 +46,7 @@ export default async function HomePage() {
             <div className="grid grid-cols-2 gap-3">
               {commonCategories.map((cat) => (
                 <Link
-                  key={cat.id}
+                  key={cat.code}
                   href={`/guide/${cat.code.toLowerCase()}`}
                   className="block bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary transition-colors"
                 >

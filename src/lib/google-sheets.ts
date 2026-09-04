@@ -41,16 +41,27 @@ export function invalidateCache(prefix?: string) {
 // Google Sheets client
 function getSheetsClient() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
-  if (!email || !key || !sheetId) {
+  // Private key 정규화
+  // Vercel 대시보드에서 env 설정 시 따옴표가 포함될 수 있으므로 제거
+  // \n (literal backslash+n) → 실제 줄바꿈 변환
+  let privateKey = process.env.GOOGLE_PRIVATE_KEY || "";
+  privateKey = privateKey.trim();
+  // 선행/후행 따옴표 제거 (작은따옴표, 큰따옴표)
+  if ((privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+      (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+    privateKey = privateKey.slice(1, -1);
+  }
+  privateKey = privateKey.replace(/\\n/g, "\n");
+
+  if (!email || !privateKey || !sheetId) {
     throw new Error("Google Sheets credentials not configured");
   }
 
   const auth = new google.auth.JWT({
     email,
-    key,
+    key: privateKey,
     scopes: [
       "https://www.googleapis.com/auth/spreadsheets.readonly",
       "https://www.googleapis.com/auth/spreadsheets",

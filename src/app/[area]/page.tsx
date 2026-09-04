@@ -57,7 +57,7 @@ export default async function AreaPage({
         <div className="grid grid-cols-2 gap-3 mb-8">
           {categoryLinks.map((cat) => (
             <Link
-              key={cat.id}
+              key={cat.code}
               href={`/${area}/${cat.slug}`}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{

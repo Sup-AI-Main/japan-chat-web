@@ -34,7 +34,7 @@ export default async function AdminHomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {areas.map((area) => (
             <Link
-              key={area.id}
+              key={area.code}
               href={`/admin/${area.code.toLowerCase()}`}
               className="bg-surface border border-border rounded-[12px] p-6 text-center hover:border-primary hover:bg-primary-soft transition-colors min-h-[44px]"
             >
