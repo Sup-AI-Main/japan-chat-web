@@ -12,9 +12,10 @@ export default async function HomePage() {
   const commonCategories = await getCommonCategories();
 
   return (
-    <main className="page-bg bg-main min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <>
       <AdminLoginButton />
-      <div className="w-full max-w-[720px] mx-auto text-center">
+      <main className="page-bg bg-main min-h-screen flex flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-[720px] mx-auto text-center">
         <h1 className="text-[28px] font-bold text-text mb-2">
           🇯🇵 일본 골프 여행 가이드
         </h1>
@@ -61,6 +62,7 @@ export default async function HomePage() {
           </div>
         )}
       </div>
-    </main>
-  );
+      </main>
+    </>
+    );
 }
