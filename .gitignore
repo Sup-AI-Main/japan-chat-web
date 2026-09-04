@@ -37,6 +37,9 @@ env/
 # vercel
 .vercel
 
+# background originals (PNG/SVG backup - too large for git)
+/background
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

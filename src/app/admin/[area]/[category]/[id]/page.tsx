@@ -10,54 +10,33 @@ import {
 } from "@/lib/google-sheets";
 import FaqForm from "../FaqForm";
 
-const VALID_AREAS = ["dos", "beppu", "all"];
-const AREA_LABELS: Record<string, string> = {
-  dos: "도스",
-  beppu: "벳푸",
-  all: "공통",
-};
-
-const CATEGORY_SLUG_MAP: Record<string, string> = {
-  golf: "GOLF",
-  hotel: "HOTEL",
-  onsen: "ONSEN",
-  driver: "DRIVER",
-  restaurant: "RESTAURANT",
-  general: "GENERAL",
-  refund: "REFUND",
-  money: "MONEY",
-  extra_payment: "EXTRA_PAYMENT",
-};
-
-const RELATED_TYPE_MAP: Record<string, string[]> = {
-  GOLF: ["GOLF"],
-  HOTEL: ["HOTEL"],
-  ONSEN: ["HOTEL"],
-  DRIVER: ["GOLF", "HOTEL"],
-  RESTAURANT: ["RESTAURANT"],
-  GENERAL: [],
-  REFUND: [],
-  MONEY: [],
-  EXTRA_PAYMENT: ["GOLF", "HOTEL"],
-};
-
 export default async function EditFaqPage({
   params,
 }: {
   params: Promise<{ area: string; category: string; id: string }>;
 }) {
   const { area, category, id } = await params;
-  if (!VALID_AREAS.includes(area)) notFound();
-
-  const categoryCode = CATEGORY_SLUG_MAP[category];
-  if (!categoryCode) notFound();
 
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
 
-  const areaCode = area.toUpperCase();
+  const options = await getAdminOptions();
 
-  // Get existing FAQ
+  const currentArea = options.find(
+    (o) => o.option_type === "AREA" && o.code.toLowerCase() === area && o.active !== "FALSE"
+  );
+  if (!currentArea) notFound();
+
+  const currentCategory = options.find(
+    (o) => o.option_type === "CATEGORY" && o.code.toLowerCase() === category && o.active !== "FALSE"
+  );
+  if (!currentCategory) notFound();
+
+  const areaCode = currentArea.code;
+  const categoryCode = currentCategory.code;
+  const areaLabel = currentArea.label;
+  const categoryLabel = currentCategory.label;
+
   let faq;
   try {
     faq = await getFaqById(id);
@@ -66,21 +45,20 @@ export default async function EditFaqPage({
   }
   if (!faq) notFound();
 
-  // Get category label
-  let categoryLabel = category;
-  try {
-    const options = await getAdminOptions();
-    const catOption = options.find(
-      (o) => o.option_type === "CATEGORY" && o.code === categoryCode
-    );
-    if (catOption) categoryLabel = catOption.label;
-  } catch {
-    // fallback
-  }
+  const RELATED_TYPE_MAP: Record<string, string[]> = {
+    GOLF: ["GOLF"],
+    HOTEL: ["HOTEL"],
+    ONSEN: ["HOTEL"],
+    DRIVER: ["GOLF", "HOTEL"],
+    RESTAURANT: ["RESTAURANT"],
+    GENERAL: [],
+    REFUND: [],
+    MONEY: [],
+    EXTRA_PAYMENT: ["GOLF", "HOTEL"],
+  };
 
   const relatedTypes = RELATED_TYPE_MAP[categoryCode] || [];
 
-  // Get place options
   const places: { type: string; id: string; name: string }[] = [];
   try {
     if (relatedTypes.includes("GOLF")) {
@@ -110,9 +88,9 @@ export default async function EditFaqPage({
       <div className="max-w-[900px] mx-auto">
         <Link
           href={`/admin/${area}/${category}`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {AREA_LABELS[area]} &gt; {categoryLabel}
+          ← {areaLabel} &gt; {categoryLabel}
         </Link>
 
         <h1 className="text-[24px] font-bold text-text mb-6">질문 수정</h1>
@@ -122,7 +100,7 @@ export default async function EditFaqPage({
           category={category}
           categoryCode={categoryCode}
           categoryLabel={categoryLabel}
-          areaLabel={AREA_LABELS[area]}
+          areaLabel={areaLabel}
           relatedTypes={relatedTypes}
           places={places}
           initialData={{

@@ -17,7 +17,7 @@
 구현 시작 전에 반드시 아래 버전을 확인하고 맞춰라.
 
 ```text
-Node.js: 24 LTS
+Node.js: 22 LTS
 Next.js: 16.3.3 이상 / 16.x Active LTS
 TypeScript: 5.x stable
 Tailwind CSS: 4.x stable
@@ -30,8 +30,8 @@ Database: 사용하지 않음
 반드시:
 
 ```text
-.nvmrc = 24
-package.json engines.node = 24.x
+.nvmrc = 22
+package.json engines.node = 22.x
 package-lock.json 커밋
 ```
 

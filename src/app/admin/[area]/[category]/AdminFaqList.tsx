@@ -3,15 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { FaqItem } from "@/lib/types";
+import { getCategoryBorder } from "@/lib/display";
 
 interface Props {
   area: string;
   category: string;
   faqs: FaqItem[];
   categoryLabel: string;
+  categoryCode: string;
 }
 
-export default function AdminFaqList({ area, category, faqs: initialFaqs, categoryLabel }: Props) {
+export default function AdminFaqList({ area, category, faqs: initialFaqs, categoryLabel, categoryCode }: Props) {
   const [faqs, setFaqs] = useState(initialFaqs);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
@@ -109,7 +111,7 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
           <p className="text-muted mb-4">등록된 질문이 없습니다.</p>
           <Link
             href={`/admin/${area}/${category}/new`}
-            className="text-primary hover:underline"
+            className="text-primary hover:underline inline-flex items-center min-h-[44px] px-2"
           >
             첫 질문 추가하기
           </Link>
@@ -119,7 +121,8 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
           {filtered.map((faq, index) => (
             <div
               key={faq.id}
-              className="bg-surface border border-border rounded-[12px] p-4"
+              className="bg-surface rounded-[12px] p-4"
+              style={{ borderWidth: "2px", borderStyle: "solid", borderColor: getCategoryBorder(categoryCode) }}
             >
               <div className="flex justify-between items-start gap-3">
                 <div className="flex-1 min-w-0">

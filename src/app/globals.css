@@ -56,3 +56,66 @@ details summary::-webkit-details-marker {
 details[open] summary .chevron-icon {
   transform: rotate(180deg);
 }
+
+/* ── Responsive Background Images ── */
+/* Mobile First: default loads mobile WebP */
+.page-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.page-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.78);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.page-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Main background */
+.bg-main {
+  background-image: url("/background/main-background-mobile.webp");
+}
+
+/* Dos (도스) background */
+.bg-dos {
+  background-image: url("/background/sub-background-1-mobile.webp");
+}
+
+/* Beppu (벳푸) background */
+.bg-beppu {
+  background-image: url("/background/sub-background-2-mobile.webp");
+}
+
+/* Tablet: ≥768px */
+@media (min-width: 768px) {
+  .bg-main {
+    background-image: url("/background/main-background-tablet.webp");
+  }
+  .bg-dos {
+    background-image: url("/background/sub-background-1-tablet.webp");
+  }
+  .bg-beppu {
+    background-image: url("/background/sub-background-2-tablet.webp");
+  }
+}
+
+/* Desktop: ≥1280px */
+@media (min-width: 1280px) {
+  .bg-main {
+    background-image: url("/background/main-background-desktop.webp");
+  }
+  .bg-dos {
+    background-image: url("/background/sub-background-1-desktop.webp");
+  }
+  .bg-beppu {
+    background-image: url("/background/sub-background-2-desktop.webp");
+  }
+}

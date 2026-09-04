@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getGolfCourses } from "@/lib/google-sheets";
+import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 
 const VALID_AREAS = ["dos", "beppu"];
 const AREA_LABELS: Record<string, string> = { dos: "도스", beppu: "벳푸" };
@@ -32,12 +33,12 @@ export default async function GolfListPage({
       <div className="max-w-[720px] mx-auto">
         <Link
           href={`/${area}`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {AREA_LABELS[area]}
+          ← {getAreaEmoji(areaCode)} {AREA_LABELS[area]}
         </Link>
         <h1 className="text-[24px] font-bold text-text mb-6">
-          {AREA_LABELS[area]} 골프장
+          {getAreaEmoji(areaCode)} {AREA_LABELS[area]} {getCategoryEmoji("GOLF")} 골프장
         </h1>
 
         {courses.length === 0 ? (

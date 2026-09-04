@@ -40,7 +40,7 @@
 이 프로젝트는 운영 안정성과 재현성을 위해 아래 개발환경을 기준으로 고정한다.
 
 ```text
-Runtime: Node.js 24 LTS
+Runtime: Node.js 22 LTS
 Framework: Next.js 16.x Active LTS
 Minimum Next.js: 16.3.3 이상
 Language: TypeScript 5.x stable
@@ -65,7 +65,7 @@ Database: 사용하지 않음
 프로젝트 루트에 `.nvmrc`를 생성한다.
 
 ```text
-24
+22
 ```
 
 `package.json`에는 Node 엔진을 명시한다.
@@ -73,7 +73,7 @@ Database: 사용하지 않음
 ```json
 {
   "engines": {
-    "node": "24.x"
+    "node": "22.x"
   }
 }
 ```
@@ -512,3 +512,88 @@ Agent는 완료 후 아래만 보고:
 - CMS 프레임워크 추가
 
 사용자가 별도 요청하기 전에는 하지 않는다.
+
+---
+
+# 29. 이모지 + 색상 시스템
+
+`src/lib/display.ts`에서 모든 이모지와 색상을 관리한다.
+
+```ts
+getAreaEmoji(code)        // 지역 이모지
+getCategoryEmoji(code)    // 카테고리 이모지
+getCategoryColor(code)    // 텍스트 색상
+getCategoryBg(code)       // 배경 색상
+getCategoryBorder(code)   // 테두리 색상
+getCategoryConfig(code)   // 전체 설정
+```
+
+카테고리별 고유 색상으로 카드, accordion, 제목에 적용한다.
+
+---
+
+# 30. 반응형 배경 이미지
+
+고객 페이지에는 지역별 반응형 배경 이미지를 적용한다.
+
+## 파일
+
+`public/background/`에 9개 WebP 파일:
+
+- main-background-{mobile,tablet,desktop}.webp
+- sub-background-1-{mobile,tablet,desktop}.webp
+- sub-background-2-{mobile,tablet,desktop}.webp
+
+## CSS 클래스
+
+`globals.css`에 정의:
+
+- `.page-bg`: 배경 크기/위치/overlay
+- `.bg-main`: 메인 배경
+- `.bg-dos`: 도스 배경
+- `.bg-beppu`: 벳푸 배경
+
+## 적용
+
+- `src/app/page.tsx`: 메인에 `page-bg bg-main` 적용
+- `src/app/[area]/layout.tsx`: 지역별 배경 자동 적용
+
+모든 하위 페이지는 layout을 통해 배경을 상속한다.
+
+## Overlay
+
+`rgba(255, 255, 255, 0.78)` 반투명 흰색 overlay.
+
+---
+
+# 31. 동적 지역/카테고리
+
+`admin_options` Google Sheet 탭을 기반으로 지역과 카테고리를 동적으로 관리한다.
+
+## API
+
+```text
+GET  /api/admin/options          - 목록 조회
+POST /api/admin/options          - 새 옵션 추가
+PUT  /api/admin/options          - 옵션 수정
+PATCH /api/admin/options/toggle  - 활성/비활성 토글
+PATCH /api/admin/options/sort    - 정렬 변경
+```
+
+## 데이터 함수
+
+```ts
+getAdminOptions()      // 전체 옵션
+getActiveAreas()       // 활성 지역만
+getActiveCategories()  // 활성 카테고리만
+appendAdminOption()    // 추가
+updateAdminOption()    // 수정
+updateAdminOptionSort() // 정렬
+```
+
+## 적용
+
+- 관리자 홈: 동적 지역 목록
+- 관리자 카테고리: 동적 카테고리 목록
+- 고객 홈: 동적 지역 목록 (ALL 제외)
+- 고객 지역 페이지: 동적 카테고리 목록

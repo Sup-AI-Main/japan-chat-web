@@ -1,18 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFaq } from "@/lib/google-sheets";
-
-const VALID_AREAS = ["dos", "beppu"];
-const AREA_LABELS: Record<string, string> = { dos: "도스", beppu: "벳푸" };
-
-const CATEGORY_MAP: Record<string, { code: string; label: string }> = {
-  onsen: { code: "ONSEN", label: "온천" },
-  driver: { code: "DRIVER", label: "차량" },
-  refund: { code: "REFUND", label: "환불" },
-  money: { code: "MONEY", label: "환전" },
-  extra_payment: { code: "EXTRA_PAYMENT", label: "추가결제" },
-  general: { code: "GENERAL", label: "기타" },
-};
+import { getFaq, getActiveAreas, getActiveCategories } from "@/lib/google-sheets";
+import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 
 export default async function FaqCategoryPage({
   params,
@@ -20,15 +9,23 @@ export default async function FaqCategoryPage({
   params: Promise<{ area: string; category: string }>;
 }) {
   const { area, category } = await params;
-  if (!VALID_AREAS.includes(area)) notFound();
 
-  const catInfo = CATEGORY_MAP[category];
-  if (!catInfo) notFound();
+  const areas = (await getActiveAreas()).filter((a) => a.code !== "ALL");
+  const currentArea = areas.find((a) => a.code.toLowerCase() === area);
+  if (!currentArea) notFound();
 
-  const areaCode = area.toUpperCase();
+  const categories = await getActiveCategories();
+  const currentCategory = categories.find((c) => c.code.toLowerCase() === category);
+  if (!currentCategory) notFound();
+
+  const areaCode = currentArea.code;
+  const categoryCode = currentCategory.code;
+  const areaLabel = currentArea.label;
+  const categoryLabel = currentCategory.label;
+
   let faqs;
   try {
-    faqs = await getFaq(areaCode, catInfo.code);
+    faqs = await getFaq(areaCode, categoryCode);
   } catch {
     return (
       <main className="min-h-screen px-4 py-6">
@@ -39,7 +36,6 @@ export default async function FaqCategoryPage({
     );
   }
 
-  // Only show AREA scope or empty scope (common for this area)
   const displayFaqs = faqs.filter(
     (f) => f.question_scope === "AREA" || !f.related_id
   );
@@ -49,12 +45,12 @@ export default async function FaqCategoryPage({
       <div className="max-w-[720px] mx-auto">
         <Link
           href={`/${area}`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {AREA_LABELS[area]}
+          ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
-        <h1 className="text-[24px] font-bold text-text mb-6">
-          {catInfo.label}
+        <h1 className="text-[24px] font-bold mb-6" style={{ color: getCategoryColor(categoryCode) }}>
+          {getCategoryEmoji(categoryCode)} {categoryLabel}
         </h1>
 
         {displayFaqs.length === 0 ? (
@@ -66,7 +62,12 @@ export default async function FaqCategoryPage({
             {displayFaqs.map((faq) => (
               <details
                 key={faq.id}
-                className="bg-surface border border-border rounded-[12px] group"
+                className="bg-surface rounded-[12px] group"
+                style={{
+                  borderWidth: "2px",
+                  borderStyle: "solid",
+                  borderColor: getCategoryBorder(categoryCode),
+                }}
               >
                 <summary className="p-4 flex justify-between items-center font-medium text-[15px] text-text cursor-pointer">
                   <span>Q. {faq.question}</span>
@@ -74,7 +75,7 @@ export default async function FaqCategoryPage({
                     ▼
                   </span>
                 </summary>
-                <div className="px-4 pb-4 text-[15px] text-text leading-[1.6] border-t border-border pt-3">
+                <div className="px-4 pb-4 text-[15px] text-text leading-[1.6] border-t pt-3" style={{ borderColor: getCategoryBorder(categoryCode) }}>
                   {faq.answer}
                 </div>
               </details>

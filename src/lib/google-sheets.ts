@@ -289,9 +289,163 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
     id: r.id || "",
     option_type: r.option_type || "",
     code: r.code || "",
-    label: r.label || "",
+    label: r.label || r["관리자 화면 표시명"] || "",
+    description: r.description || r["설명"] || "",
+    active: r.active || "TRUE",
     sort: toNumber(r.sort),
   }));
+}
+
+export async function getActiveAreas(): Promise<AdminOption[]> {
+  const options = await getAdminOptions();
+  return options
+    .filter((o) => o.option_type === "AREA" && isActive(o.active))
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export async function getActiveCategories(): Promise<AdminOption[]> {
+  const options = await getAdminOptions();
+  return options
+    .filter((o) => o.option_type === "CATEGORY" && isActive(o.active))
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export async function appendAdminOption(
+  data: Record<string, string | number>
+): Promise<boolean> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z1",
+    });
+    const headers = headerResponse.data.values?.[0] || [];
+    const row = headers.map(
+      (h: string) => String(data[h.toLowerCase().trim()] ?? "")
+    );
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "admin_options!A:A",
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    });
+
+    invalidateCache("admin_options");
+    return true;
+  } catch (error) {
+    console.error("Failed to append admin option", error);
+    return false;
+  }
+}
+
+export async function updateAdminOption(
+  data: Record<string, string | number>
+): Promise<boolean> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z1",
+    });
+    const headers = headerResponse.data.values?.[0] || [];
+
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z500",
+    });
+    const rows = allData.data.values || [];
+
+    const idColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "id"
+    );
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][idColIndex] === data.id) {
+        targetRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) return false;
+
+    const row = headers.map(
+      (h: string) => String(data[h.toLowerCase().trim()] ?? rows[targetRowIndex - 1][headers.indexOf(h)] ?? "")
+    );
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `admin_options!A${targetRowIndex}:Z${targetRowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    });
+
+    invalidateCache("admin_options");
+    return true;
+  } catch (error) {
+    console.error("Failed to update admin option", error);
+    return false;
+  }
+}
+
+export async function updateAdminOptionSort(
+  optionType: string,
+  ids: string[]
+): Promise<boolean> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z500",
+    });
+    const rows = allData.data.values || [];
+    const headers = rows[0] || [];
+
+    const idColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "id"
+    );
+    const sortColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "sort"
+    );
+    const typeColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "option_type"
+    );
+
+    if (idColIndex === -1 || sortColIndex === -1) return false;
+
+    const updates: { range: string; values: string[][] }[] = [];
+    ids.forEach((id, index) => {
+      for (let i = 1; i < rows.length; i++) {
+        if (
+          rows[i][idColIndex] === id &&
+          (!optionType || rows[i][typeColIndex]?.toUpperCase() === optionType.toUpperCase())
+        ) {
+          const rowNum = i + 1;
+          const colLetter = String.fromCharCode(65 + sortColIndex);
+          updates.push({
+            range: `admin_options!${colLetter}${rowNum}`,
+            values: [[String(index + 1)]],
+          });
+          break;
+        }
+      }
+    });
+
+    for (const update of updates) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: update.range,
+        valueInputOption: "RAW",
+        requestBody: { values: update.values },
+      });
+    }
+
+    invalidateCache("admin_options");
+    return true;
+  } catch (error) {
+    console.error("Failed to update admin option sort", error);
+    return false;
+  }
 }
 
 // Write operations for admin

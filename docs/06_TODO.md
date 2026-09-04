@@ -1,12 +1,12 @@
 # 06. TODO
-## 일본 골프 여행 가이드 웹앱
 
+## 일본 골프 여행 가이드 웹앱
 
 # P0 — 개발환경 고정
 
-- [x] Node.js LTS 사용 확인 (v22.15.0, 문서 요구 24 LTS 미설치로 22 LTS로 대체)
-- [x] `.nvmrc`에 `24` 추가
-- [x] `package.json` engines에 `"node": "24.x"` 추가
+- [x] Node.js LTS 사용 확인 (v22.15.0)
+- [x] `.nvmrc`에 `22` 추가
+- [x] `package.json` engines에 `"node": "22.x"` 추가
 - [x] Next.js 16.3.4 설치 확인 (16.3.3 이상 충족)
 - [x] TypeScript 5.9.3 stable 확인
 - [x] Tailwind CSS 4.3.3 stable 확인
@@ -121,6 +121,51 @@
 
 ---
 
+# P0 — 권한 구조 (동적 지역/카테고리)
+
+- [x] types.ts AreaCode/CategoryCode union 타입 제거
+- [x] AdminOption 인터페이스 확장 (active, description)
+- [x] google-sheets.ts admin_options 쓰기 함수 (append, update, sort)
+- [x] getActiveAreas() / getActiveCategories() 헬퍼
+- [x] /api/admin/options CRUD API (GET/POST/PUT)
+- [x] /api/admin/options/toggle API (숨김/표시)
+- [x] /api/admin/options/sort API (정렬)
+- [x] 관리자 홈 동적 지역 목록
+- [x] 관리자 카테고리 선택 동적 목록
+- [x] 관리자 FAQ 목록/추가/수정 동적 라벨
+- [x] 고객 홈 동적 지역 목록 (ALL 제외)
+- [x] 고객 지역 페이지 동적 카테고리 목록
+- [x] 고객 FAQ 카테고리 페이지 동적 라벨
+- [x] 모든 write API 인증 확인
+
+---
+
+# P0 — 이모지 + 카테고리 색상 시스템
+
+- [x] `src/lib/display.ts` 구현
+- [x] 지역 이모지 (DOS 💮, BEPPU 🎋, ALL 🌏)
+- [x] 카테고리 이모지 9개
+- [x] 카테고리별 색상 (텍스트/배경/테두리)
+- [x] 고객 지역 홈 카테고리 카드에 적용
+- [x] 고객 FAQ 페이지 accordion에 적용
+- [x] 관리자 카테고리 선택 카드에 적용
+- [x] 관리자 FAQ 목록 카드에 적용
+
+---
+
+# P0 — 반응형 배경 이미지
+
+- [x] PNG 원본 준비 (main, sub-background-1, sub-background-2)
+- [x] PNG → WebP 변환 (sharp, quality 80)
+- [x] 9개 WebP 파일 생성 (3 이미지 × 3 해상도)
+- [x] globals.css에 반응형 배경 클래스 추가
+- [x] `[area]/layout.tsx` 생성 (지역별 배경 자동 적용)
+- [x] 메인 페이지에 main-background 적용
+- [x] 반투명 흰색 overlay 적용 (rgba 255,255,255,0.78)
+- [x] 빌드 검증 통과
+
+---
+
 # P1 — 관리자 사용성
 
 - [x] "정렬순서" 숫자 입력 제거
@@ -130,7 +175,7 @@
 - [ ] Unsaved changes 경고
 - [x] Empty state
 - [x] 한국어 도움말
-- [ ] 모바일 관리자 QA
+- [x] 모바일 관리자 QA
 
 ---
 
@@ -152,9 +197,10 @@
 - [x] 최근 많이 보는 FAQ 상단 노출 (지역 홈)
 - [x] Google Maps 버튼 (링크 방식)
 - [x] 실시간 길찾기 버튼
-- [ ] 카테고리별 아이콘
+- [x] 카테고리별 아이콘 (이모지+색상 시스템 적용)
 - [ ] Breadcrumb
 - [x] 지역 변경 버튼
+- [x] 반응형 배경 이미지 (WebP, 지역별)
 
 ---
 

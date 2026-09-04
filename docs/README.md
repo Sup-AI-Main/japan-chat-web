@@ -12,4 +12,4 @@
 
 Agent는 01~06을 읽고 07 명령을 기준으로 개발한다.
 
-개발환경 기준: Node.js 24 LTS / Next.js 16.3.3+ (16.x Active LTS) / TypeScript 5.x / Tailwind CSS 4.x / npm / Vercel
+개발환경 기준: Node.js 22 LTS / Next.js 16.3.3+ (16.x Active LTS) / TypeScript 5.x / Tailwind CSS 4.x / npm / Vercel

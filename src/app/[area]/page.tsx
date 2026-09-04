@@ -1,26 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFaq } from "@/lib/google-sheets";
+import { getActiveAreas, getActiveCategories, getFaq } from "@/lib/google-sheets";
+import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
 
-const AREA_MAP: Record<string, string> = {
-  dos: "도스",
-  beppu: "벳푸",
-};
-
-const VALID_AREAS = ["dos", "beppu"];
-
-const CATEGORIES = [
-  { slug: "golf", label: "골프장", code: "GOLF" },
-  { slug: "hotel", label: "호텔", code: "HOTEL" },
-  { slug: "restaurant", label: "맛집", code: "RESTAURANT" },
-  { slug: "faq/onsen", label: "온천", code: "ONSEN" },
-  { slug: "faq/driver", label: "차량", code: "DRIVER" },
-  { slug: "faq/refund", label: "환불", code: "REFUND" },
-  { slug: "faq/money", label: "환전", code: "MONEY" },
-  { slug: "faq/extra_payment", label: "추가결제", code: "EXTRA_PAYMENT" },
-  { slug: "faq/general", label: "기타", code: "GENERAL" },
-];
+const CONTENT_CATEGORIES = ["GOLF", "HOTEL", "RESTAURANT"];
 
 export default async function AreaPage({
   params,
@@ -28,12 +12,23 @@ export default async function AreaPage({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  if (!VALID_AREAS.includes(area)) notFound();
 
-  const areaLabel = AREA_MAP[area];
-  const areaCode = area.toUpperCase();
+  const areas = (await getActiveAreas()).filter((a) => a.code !== "ALL");
+  const currentArea = areas.find((a) => a.code.toLowerCase() === area);
+  if (!currentArea) notFound();
 
-  // Fetch popular FAQs for this area
+  const areaCode = currentArea.code;
+  const areaLabel = currentArea.label;
+
+  const categories = await getActiveCategories();
+
+  const categoryLinks = categories.map((cat) => {
+    const slug = CONTENT_CATEGORIES.includes(cat.code)
+      ? cat.code.toLowerCase()
+      : `faq/${cat.code.toLowerCase()}`;
+    return { ...cat, slug };
+  });
+
   let popularFaqs: FaqItem[] = [];
   try {
     const allFaq = await getFaq(areaCode);
@@ -45,52 +40,56 @@ export default async function AreaPage({
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[720px] mx-auto">
-        {/* Header */}
         <div className="mb-6">
           <Link
             href="/"
-            className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+            className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
           >
             ← 지역 변경
           </Link>
           <h1 className="text-[24px] font-bold text-text">
-            {areaLabel} 여행 가이드
+            {getAreaEmoji(areaCode)} {areaLabel} 여행 가이드
           </h1>
         </div>
 
-        {/* Category Grid */}
         <div className="grid grid-cols-2 gap-3 mb-8">
-          {CATEGORIES.map((cat) => (
+          {categoryLinks.map((cat) => (
             <Link
-              key={cat.slug}
+              key={cat.id}
               href={`/${area}/${cat.slug}`}
-              className="bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary hover:bg-primary-soft transition-colors min-h-[56px] flex items-center justify-center"
+              className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
+              style={{
+                backgroundColor: getCategoryBg(cat.code),
+                borderWidth: "2px",
+                borderStyle: "solid",
+                borderColor: getCategoryBorder(cat.code),
+              }}
             >
-              <span className="text-[16px] font-medium text-text">
-                {cat.label}
+              <span className="text-[16px] font-medium whitespace-nowrap" style={{ color: getCategoryColor(cat.code) }}>
+                {getCategoryEmoji(cat.code)} {cat.label}
               </span>
             </Link>
           ))}
         </div>
 
-        {/* Popular FAQs */}
         {popularFaqs.length > 0 && (
           <div className="border-t border-border pt-6">
             <h2 className="text-[18px] font-bold text-text mb-4">
-              자주 찾는 질문
+              ❓ 자주 찾는 질문
             </h2>
             <div className="space-y-2">
               {popularFaqs.map((faq) => {
-                const catSlug =
-                  CATEGORIES.find((c) => c.code === faq.category)?.slug ||
-                  "faq/general";
+                const catLink = categoryLinks.find((c) => c.code === faq.category);
+                const catSlug = catLink?.slug || "faq/general";
                 return (
                   <Link
                     key={faq.id}
                     href={`/${area}/${catSlug}`}
                     className="block bg-surface border border-border rounded-[8px] p-3 hover:border-primary"
                   >
-                    <span className="text-[15px] text-text">{faq.question}</span>
+                    <span className="text-[15px] text-text">
+                      {getCategoryEmoji(faq.category)} {faq.question}
+                    </span>
                   </Link>
                 );
               })}

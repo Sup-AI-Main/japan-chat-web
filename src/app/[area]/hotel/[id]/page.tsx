@@ -7,6 +7,7 @@ import {
   getRestaurants,
 } from "@/lib/google-sheets";
 import type { TravelTime, FaqItem, Restaurant } from "@/lib/types";
+import { getCategoryEmoji } from "@/lib/display";
 
 export default async function HotelDetailPage({
   params,
@@ -76,9 +77,9 @@ export default async function HotelDetailPage({
       <div className="max-w-[720px] mx-auto">
         <Link
           href={`/${area}/hotel`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← 호텔 목록
+          ← {getCategoryEmoji("HOTEL")} 호텔 목록
         </Link>
 
         <h1 className="text-[24px] font-bold text-text mb-4">

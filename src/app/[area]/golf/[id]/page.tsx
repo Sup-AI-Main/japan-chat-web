@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getGolfCourseById, getFaq, getRestaurants } from "@/lib/google-sheets";
 import type { FaqItem, Restaurant } from "@/lib/types";
+import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 
 export default async function GolfDetailPage({
   params,
@@ -60,9 +61,9 @@ export default async function GolfDetailPage({
       <div className="max-w-[720px] mx-auto">
         <Link
           href={`/${area}/golf`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← 골프장 목록
+          ← {getCategoryEmoji("GOLF")} 골프장 목록
         </Link>
 
         <h1 className="text-[24px] font-bold text-text mb-1">

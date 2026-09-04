@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRestaurantById } from "@/lib/google-sheets";
+import { getCategoryEmoji } from "@/lib/display";
 
 export default async function RestaurantDetailPage({
   params,
@@ -29,9 +30,9 @@ export default async function RestaurantDetailPage({
       <div className="max-w-[720px] mx-auto">
         <Link
           href={`/${area}/restaurant`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-block"
+          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← 맛집 목록
+          ← {getCategoryEmoji("RESTAURANT")} 맛집 목록
         </Link>
 
         <h1 className="text-[24px] font-bold text-text mb-4">
