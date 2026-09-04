@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getActiveAreas, getCommonCategories } from "@/lib/google-sheets";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
+import AdminLoginButton from "@/components/AdminLoginButton";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export default async function HomePage() {
 
   return (
     <main className="page-bg bg-main min-h-screen flex flex-col items-center justify-center px-4 py-12">
+      <AdminLoginButton />
       <div className="w-full max-w-[720px] mx-auto text-center">
         <h1 className="text-[28px] font-bold text-text mb-2">
           🇯🇵 일본 골프 여행 가이드

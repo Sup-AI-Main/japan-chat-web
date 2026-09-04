@@ -37,7 +37,7 @@ export default function AdminPage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-[400px]">
         <h1 className="text-[24px] font-bold text-text text-center mb-8">
-          관리자
+          🔐 관리자 로그인
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
