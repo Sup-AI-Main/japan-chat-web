@@ -72,6 +72,8 @@
 - [x] GOLF 목록 자동 로드
 - [x] HOTEL 목록 자동 로드
 - [x] RESTAURANT 목록 자동 로드
+- [x] TRAVEL_TIME (차량이동시간) AREA 카테고리 추가
+- [x] 호텔×골프장 이동 질문을 GOLF → TRAVEL_TIME으로 이동 (question_scope=AREA)
 - [x] 관리자에게 internal id 숨김
 - [x] 관리자에게 영어 코드 숨김
 

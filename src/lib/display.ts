@@ -14,6 +14,7 @@ const CATEGORY_CONFIG: Record<string, { emoji: string; color: string; bg: string
   REFUND: { emoji: "💰", color: "#e65100", bg: "#fff3e0", border: "#ffb74d" },
   MONEY: { emoji: "💱", color: "#2e7d32", bg: "#e8f5e9", border: "#a5d6a7" },
   EXTRA_PAYMENT: { emoji: "💳", color: "#4527a0", bg: "#ede7f6", border: "#b39ddb" },
+  TRAVEL_TIME: { emoji: "🚗", color: "#0277bd", bg: "#e1f5fe", border: "#4fc3f7" },
 };
 
 const DEFAULT_CATEGORY = { emoji: "📌", color: "#546e7a", bg: "#eceff1", border: "#90a4ae" };
