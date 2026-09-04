@@ -40,6 +40,24 @@ export interface Hotel {
   active: string;
   sort: number;
   last_verified: string;
+  name_kr: string;
+  name_jp: string;
+  address_kr: string;
+  address_jp: string;
+  checkin_time: string;
+  checkout_time: string;
+  breakfast_place: string;
+  breakfast_time: string;
+  breakfast_last_entry: string;
+  dinner_place: string;
+  dinner_time: string;
+  dinner_last_entry: string;
+  has_public_bath: string;
+  has_outdoor_onsen: string;
+  has_sauna: string;
+  bath_spa_hours: string;
+  tattoo_policy: string;
+  other_info: string;
 }
 
 // Travel Time
@@ -75,6 +93,17 @@ export interface Restaurant {
   active: string;
   sort: number;
   last_verified: string;
+  name_kr: string;
+  name_jp: string;
+  menu_kr: string;
+  menu_jp: string;
+  menu_price: string;
+  closed_days: string;
+  distance_km: string;
+  drive_minutes: string;
+  walk_minutes: string;
+  description: string;
+  recommended: string;
 }
 
 // FAQ

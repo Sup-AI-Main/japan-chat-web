@@ -178,6 +178,24 @@ export async function getHotels(area?: string): Promise<Hotel[]> {
       active: r.active || "",
       sort: toNumber(r.sort),
       last_verified: r.last_verified || "",
+      name_kr: r.name_kr || "",
+      name_jp: r.name_jp || "",
+      address_kr: r.address_kr || "",
+      address_jp: r.address_jp || "",
+      checkin_time: r.checkin_time || "",
+      checkout_time: r.checkout_time || "",
+      breakfast_place: r.breakfast_place || "",
+      breakfast_time: r.breakfast_time || "",
+      breakfast_last_entry: r.breakfast_last_entry || "",
+      dinner_place: r.dinner_place || "",
+      dinner_time: r.dinner_time || "",
+      dinner_last_entry: r.dinner_last_entry || "",
+      has_public_bath: r.has_public_bath || "",
+      has_outdoor_onsen: r.has_outdoor_onsen || "",
+      has_sauna: r.has_sauna || "",
+      bath_spa_hours: r.bath_spa_hours || "",
+      tattoo_policy: r.tattoo_policy || "",
+      other_info: r.other_info || "",
     }))
     .sort((a, b) => a.sort - b.sort);
 }
@@ -230,6 +248,17 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
       active: r.active || "",
       sort: toNumber(r.sort),
       last_verified: r.last_verified || "",
+      name_kr: r.name_kr || "",
+      name_jp: r.name_jp || "",
+      menu_kr: r.menu_kr || "",
+      menu_jp: r.menu_jp || "",
+      menu_price: r.menu_price || "",
+      closed_days: r.closed_days || "",
+      distance_km: r.distance_km || "",
+      drive_minutes: r.drive_minutes || "",
+      walk_minutes: r.walk_minutes || "",
+      description: r.description || "",
+      recommended: r.recommended || "",
     }))
     .sort((a, b) => a.sort - b.sort);
 }
@@ -784,4 +813,190 @@ export async function deleteFaq(id: string): Promise<boolean> {
     console.error("Failed to delete FAQ", error);
     return false;
   }
+}
+
+// --- Generic helpers ---
+
+/** 컬럼 인덱스 → 스프레드시트 열 문자 (0→A, 25→Z, 26→AA ...) */
+function colIndexToLetter(index: number): string {
+  let letter = "";
+  let i = index;
+  while (i >= 0) {
+    letter = String.fromCharCode(65 + (i % 26)) + letter;
+    i = Math.floor(i / 26) - 1;
+  }
+  return letter;
+}
+
+async function appendRow(
+  tabName: string,
+  headers: string[],
+  data: Record<string, string>
+): Promise<void> {
+  const { sheets, sheetId } = getSheetsClient();
+  const lastCol = colIndexToLetter(headers.length - 1);
+  const headerResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A1:${lastCol}1`,
+  });
+  const sheetHeaders: string[] = headerResponse.data.values?.[0] || [];
+  const row = sheetHeaders.map(
+    (h: string) => String(data[h.toLowerCase().trim()] ?? "")
+  );
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A:A`,
+    valueInputOption: "RAW",
+    requestBody: { values: [row] },
+  });
+}
+
+async function updateRowById(
+  tabName: string,
+  id: string,
+  data: Record<string, string>
+): Promise<boolean> {
+  const { sheets, sheetId } = getSheetsClient();
+
+  // 1) 먼저 헤더 행을 읽어 실제 컬럼 수 파악
+  const headerResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A1:AZ1`,
+  });
+  const sheetHeaders: string[] = headerResponse.data.values?.[0] || [];
+  if (sheetHeaders.length === 0) return false;
+  const lastCol = colIndexToLetter(sheetHeaders.length - 1);
+
+  // 2) 전체 데이터 읽기
+  const allData = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A1:${lastCol}1000`,
+  });
+  const rows = allData.data.values || [];
+  const headers: string[] = rows[0] || [];
+
+  const idColIndex = headers.findIndex(
+    (h: string) => h.toLowerCase().trim() === "id"
+  );
+  if (idColIndex === -1) return false;
+
+  let targetRowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][idColIndex] === id) {
+      targetRowIndex = i + 1;
+      break;
+    }
+  }
+  if (targetRowIndex === -1) return false;
+
+  const row = headers.map((h: string) => {
+    const key = h.toLowerCase().trim();
+    if (key in data) return String(data[key] ?? "");
+    return String(rows[targetRowIndex - 1][headers.indexOf(h)] ?? "");
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A${targetRowIndex}:${lastCol}${targetRowIndex}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [row] },
+  });
+  return true;
+}
+
+async function deleteRowById(
+  tabName: string,
+  id: string
+): Promise<boolean> {
+  const { sheets, sheetId } = getSheetsClient();
+
+  const allData = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${tabName}!A1:Z1000`,
+  });
+  const rows = allData.data.values || [];
+  const headers: string[] = rows[0] || [];
+
+  const idColIndex = headers.findIndex(
+    (h: string) => h.toLowerCase().trim() === "id"
+  );
+  if (idColIndex === -1) return false;
+
+  let targetRowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][idColIndex] === id) {
+      targetRowIndex = i; // 0-based
+      break;
+    }
+  }
+  if (targetRowIndex === -1) return false;
+
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const sheet = spreadsheet.data.sheets?.find(
+    (s) => s.properties?.title === tabName
+  );
+  if (!sheet?.properties?.sheetId) return false;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: "ROWS",
+              startIndex: targetRowIndex,
+              endIndex: targetRowIndex + 1,
+            },
+          },
+        },
+      ],
+    },
+  });
+  return true;
+}
+
+// --- Hotel CRUD ---
+export async function appendHotel(data: Record<string, string>): Promise<string> {
+  const id = `hotel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const headers = ["id", "area", "official_name", "address", "phone", "check_in", "check_out", "breakfast", "bath_spa", "hotel_dining", "atm_payment", "transport", "google_maps_url", "source_url", "status", "active", "sort", "last_verified", "name_kr", "name_jp", "address_kr", "address_jp", "checkin_time", "checkout_time", "breakfast_place", "breakfast_time", "breakfast_last_entry", "dinner_place", "dinner_time", "dinner_last_entry", "has_public_bath", "has_outdoor_onsen", "has_sauna", "bath_spa_hours", "tattoo_policy", "other_info"];
+  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", ...data };
+  await appendRow("hotels", headers, row);
+  invalidateCache("hotels");
+  return id;
+}
+
+export async function updateHotel(id: string, data: Record<string, string>): Promise<boolean> {
+  const result = await updateRowById("hotels", id, data);
+  if (result) invalidateCache("hotels");
+  return result;
+}
+
+export async function deleteHotel(id: string): Promise<boolean> {
+  const result = await deleteRowById("hotels", id);
+  if (result) invalidateCache("hotels");
+  return result;
+}
+
+// --- Restaurant CRUD ---
+export async function appendRestaurant(data: Record<string, string>): Promise<string> {
+  const id = `rest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const headers = ["id", "area", "near_type", "near_id", "name", "category", "distance", "address", "hours", "price_range", "phone", "google_maps_url", "source_url", "status", "active", "sort", "last_verified", "name_kr", "name_jp", "menu_kr", "menu_jp", "menu_price", "closed_days", "distance_km", "drive_minutes", "walk_minutes", "description", "recommended"];
+  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", ...data };
+  await appendRow("restaurants", headers, row);
+  invalidateCache("restaurants");
+  return id;
+}
+
+export async function updateRestaurant(id: string, data: Record<string, string>): Promise<boolean> {
+  const result = await updateRowById("restaurants", id, data);
+  if (result) invalidateCache("restaurants");
+  return result;
+}
+
+export async function deleteRestaurantRow(id: string): Promise<boolean> {
+  const result = await deleteRowById("restaurants", id);
+  if (result) invalidateCache("restaurants");
+  return result;
 }
