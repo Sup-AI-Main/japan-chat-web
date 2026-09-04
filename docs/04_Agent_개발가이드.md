@@ -138,12 +138,11 @@ npm run build
 - TypeScript 5.x stable
 - Tailwind CSS 4.x stable
 - Google Sheets API
+- Zustand (클라이언트 캐시용, `src/store/guide-store.ts`)
 
 추가 라이브러리는 최소화.
 
-상태관리 라이브러리 불필요.
-
-상태관리 라이브러리 불필요.
+Zustand은 지역별 데이터(호텔, 골프장, 맛집)의 클라이언트 캐싱에만 사용한다.
 
 ---
 
@@ -180,6 +179,14 @@ getTravelTimes(area)
 getRestaurants(area)
 getFaq(area, category)
 getAdminOptions()
+
+// 구조화된 데이터 쓰기
+appendHotel(data)
+updateHotel(id, data)
+deleteHotel(id)
+appendRestaurant(data)
+updateRestaurant(id, data)
+deleteRestaurantRow(id)
 ```
 
 ---
@@ -501,8 +508,8 @@ Agent는 완료 후 아래만 보고:
 - Supabase 추가
 - Prisma 추가
 - 별도 DB 추가
-- Redis 필수화
-- Redux/Zustand 추가
+- Redux 추가
+- Zustand을 캐시 외 다른 용도로 사용
 - 관리자 멀티권한
 - 고객 로그인
 - 결제
@@ -611,3 +618,98 @@ migrateGroupColumn()   // group 컬럼 마이그레이션
 - 고객 홈: 동적 지역 목록 (ALL 제외) + 공통 안내 카테고리
 - 고객 지역 페이지: group=AREA 카테고리만
 - 고객 공통 안내: group=COMMON 카테고리만
+
+---
+
+# 32. 구조화된 호텔/맛집 CRUD API
+
+## 호텔 API
+
+`/api/admin/hotel` — 관리자 인증 필요
+
+```text
+GET    ?area=DOS           → 호텔 목록
+POST   body: HotelData     → 호텔 추가 (id 반환)
+PUT    body: { id, ... }   → 호텔 수정
+DELETE ?id=xxx             → 호텔 삭제 (행 삭제)
+```
+
+## 맛집 API
+
+`/api/admin/restaurant` — 관리자 인증 필요
+
+```text
+GET    ?area=DOS               → 맛집 목록
+POST   body: RestaurantData    → 맛집 추가 (id 반환)
+PUT    body: { id, ... }       → 맛집 수정
+DELETE ?id=xxx                 → 맛집 삭제 (행 삭제)
+```
+
+## 골프장 API
+
+`/api/admin/golf` — 관리자 인증 필요
+
+```text
+GET    ?area=DOS           → 골프장 목록
+```
+
+## 관리자 확인 API
+
+`/api/admin/check`
+
+```text
+GET → { isAdmin: boolean }
+```
+
+---
+
+# 33. Zustand 클라이언트 캐시
+
+파일: `src/store/guide-store.ts`
+
+용도: 인라인 CMS 수정/삭제 후 서버 재호출 없이 즉시 UI 갱신.
+
+```text
+areaCache: Record<string, {
+  hotels: Hotel[];
+  golfCourses: GolfCourse[];
+  restaurants: Restaurant[];
+  fetchedAt: number;
+}>
+```
+
+TTL: 30분.
+
+핵심 메서드:
+
+- `getAreaData(area)` / `setAreaData(area, data)`
+- `isCacheValid(area)` / `invalidateArea(area)`
+- `updateHotel` / `addHotel` / `deleteHotel`
+- `updateRestaurant` / `addRestaurant` / `deleteRestaurant`
+- `setAdmin(isAdmin)`
+
+---
+
+# 34. 인라인 CMS 컴포넌트
+
+관리자가 고객 페이지에서 직접 호텔/맛집을 편집할 수 있다.
+
+## 파일 구조
+
+```text
+src/components/inline-cms/
+├─ index.ts              # barrel export
+├─ EditToolbar.tsx        # ✏️/🗑️ 버튼 + ＋ 추가 버튼
+├─ ConfirmModal.tsx       # 삭제 확인 모달
+├─ HotelEditModal.tsx     # 호텔 수정/추가 모달
+└─ RestaurantEditModal.tsx # 맛집 수정/추가 모달
+
+src/hooks/use-admin.ts    # 관리자 인증 훅
+```
+
+## 동작
+
+- `useAdmin()` 훅이 `/api/admin/check`를 호출하여 관리자 여부 확인
+- 관리자일 때만 EditToolbar(✏️/🗑️)와 AddButton(＋) 렌더링
+- 수정 클릭 → 전용 모달 열기 → 저장 시 API 호출 + Zustand 캐시 갱신
+- 삭제 클릭 → ConfirmModal → 확인 시 DELETE API + Zustand 캐시 갱신

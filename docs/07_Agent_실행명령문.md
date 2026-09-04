@@ -24,7 +24,8 @@ Tailwind CSS: 4.x stable
 Package Manager: npm
 Deployment: Vercel
 CMS: Google Sheets API
-Database: 사용하지 않음
+Client Cache: Zustand (지역별 데이터 캐싱, 30분 TTL)
+Database: 사용하지
 ```
 
 반드시:
@@ -73,6 +74,34 @@ Google Sheet:
 - admin_options
 
 를 사용한다.
+
+## 신규 의존성
+
+- `zustand`: 클라이언트 캐시용 (`src/store/guide-store.ts`)
+
+## 신규 API 라우트
+
+```text
+/api/admin/hotel       - 호텔 CRUD (GET/POST/PUT/DELETE)
+/api/admin/restaurant  - 맛집 CRUD (GET/POST/PUT/DELETE)
+/api/admin/golf        - 골프장 목록 조회 (GET)
+/api/admin/check       - 관리자 인증 확인 (GET)
+```
+
+## 인라인 CMS
+
+관리자가 고객 페이지에서 직접 호텔/맛집을 편집할 수 있다.
+
+```text
+src/components/inline-cms/
+├─ EditToolbar.tsx
+├─ ConfirmModal.tsx
+├─ HotelEditModal.tsx
+└─ RestaurantEditModal.tsx
+
+src/hooks/use-admin.ts
+src/store/guide-store.ts
+```
 
 관리자는 컴퓨터를 거의 모르는 사용자라고 가정한다.
 
@@ -128,9 +157,12 @@ Google Sheet:
 6. FAQ CRUD
 7. 정렬
 8. 캐시 무효화
-9. 모바일 QA
-10. 성능 QA
-11. 문서 업데이트
+9. 호텔/맛집 구조화된 데이터
+10. 인라인 CMS (HotelEditModal, RestaurantEditModal)
+11. Zustand 클라이언트 캐시
+12. 모바일 QA
+13. 성능 QA
+14. 문서 업데이트
 
 ## 수정 원칙
 

@@ -180,6 +180,25 @@
 
 ---
 
+# P1 — 구조화된 데이터 + 인라인 CMS
+
+- [x] 호텔 구조화된 필드 (name_kr/jp, 조식/석식 장소/시간/마감, 온천/스파 상세)
+- [x] 맛집 구조화된 필드 (name_kr/jp, 메뉴\_kr/jp/가격, 거리km/차량분/도보분, 추천)
+- [x] `src/store/guide-store.ts` Zustand 캐시 (30분 TTL)
+- [x] `src/hooks/use-admin.ts` 관리자 인증 훅
+- [x] `/api/admin/hotel` CRUD (GET/POST/PUT/DELETE)
+- [x] `/api/admin/restaurant` CRUD (GET/POST/PUT/DELETE)
+- [x] `/api/admin/golf` 목록 조회 (GET)
+- [x] `/api/admin/check` 인증 확인 (GET)
+- [x] `src/components/inline-cms/EditToolbar.tsx` (✏️/🗑️/＋)
+- [x] `src/components/inline-cms/ConfirmModal.tsx`
+- [x] `src/components/inline-cms/HotelEditModal.tsx`
+- [x] `src/components/inline-cms/RestaurantEditModal.tsx`
+- [x] 인라인 CMS로 고객 페이지에서 호텔/맛집 편집 가능
+- [x] 수정/삭제 후 Zustand 캐시 즉시 갱신
+
+---
+
 # P1 — 관리자 사용성
 
 - [x] "정렬순서" 숫자 입력 제거
@@ -237,9 +256,9 @@
 
 # P2 — 향후 선택
 
-- [ ] 관리자 골프장 기본정보 편집
-- [ ] 관리자 호텔 기본정보 편집
-- [ ] 관리자 맛집 CRUD
+- [x] 관리자 골프장 기본정보 편집 (골프장 목록 API)
+- [x] 관리자 호텔 기본정보 편집 (인라인 CMS + HotelEditModal)
+- [x] 관리자 맛집 CRUD (인라인 CMS + RestaurantEditModal)
 - [ ] 관리자 이동시간 편집
 - [ ] Sheet 데이터 미리보기
 - [ ] 캐시 수동 새로고침
@@ -256,7 +275,8 @@
 - [x] AI 챗봇 넣지 말 것
 - [x] 복잡한 역할 권한 만들지 말 것
 - [x] DB 추가하지 말 것
-- [x] Redux/Zustand 등 상태관리 추가하지 말 것
+- [x] Redux 추가하지 말 것
+- [x] Zustand은 클라이언트 캐시 용도로만 허용
 - [x] Google Maps iframe 기본 로딩하지 말 것
 
 ---
