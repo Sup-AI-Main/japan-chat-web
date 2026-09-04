@@ -31,7 +31,7 @@ function getDistanceText(r: Restaurant): string {
     if (r.drive_minutes) parts.push(`차량 약 ${r.drive_minutes}분`);
     return parts.join(" · ");
   }
-  if (r.distance) return `차량 약 ${r.distance}`;
+  if (r.distance) return r.distance.startsWith("차량") ? r.distance : `차량 약 ${r.distance}`;
   return "";
 }
 

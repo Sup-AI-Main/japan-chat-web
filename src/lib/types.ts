@@ -18,6 +18,7 @@ export interface GolfCourse {
   active: string;
   sort: number;
   last_verified: string;
+  updated_at: string;
 }
 
 // Hotel
@@ -58,6 +59,7 @@ export interface Hotel {
   bath_spa_hours: string;
   tattoo_policy: string;
   other_info: string;
+  updated_at: string;
 }
 
 // Travel Time
@@ -104,6 +106,7 @@ export interface Restaurant {
   walk_minutes: string;
   description: string;
   recommended: string;
+  updated_at: string;
 }
 
 // FAQ
@@ -123,6 +126,19 @@ export interface FaqItem {
   sort: number;
 }
 
+// Include/Exclude
+export interface IncludeExclude {
+  id: string;
+  parent_type: string; // "HOTEL" | "GOLF"
+  parent_id: string;
+  type: string; // "INCLUDED" | "EXCLUDED"
+  text_kr: string;
+  text_jp: string;
+  sort_order: number;
+  is_visible: string; // "TRUE" | "FALSE"
+  updated_at: string;
+}
+
 // Admin Options
 export interface AdminOption {
   id: string;
@@ -133,4 +149,12 @@ export interface AdminOption {
   group: string; // "AREA" (지역별) or "COMMON" (공통 안내)
   active: string;
   sort: number;
+}
+
+// Concurrency control error
+export class ConflictError extends Error {
+  constructor(message = "다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.") {
+    super(message);
+    this.name = "ConflictError";
+  }
 }

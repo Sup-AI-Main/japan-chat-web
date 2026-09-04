@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getHotels } from "@/lib/google-sheets";
-import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
+import { getHotels, getActiveAreas } from "@/lib/google-sheets";
+import { getAreaEmoji } from "@/lib/display";
+import HotelListClient from "./HotelListClient";
 
 const VALID_AREAS = ["dos", "beppu"];
-const AREA_LABELS: Record<string, string> = { dos: "도스", beppu: "벳푸" };
 
 export default async function HotelListPage({
   params,
@@ -15,6 +15,10 @@ export default async function HotelListPage({
   if (!VALID_AREAS.includes(area)) notFound();
 
   const areaCode = area.toUpperCase();
+  const areas = await getActiveAreas();
+  const currentArea = areas.find((a) => a.code.toUpperCase() === areaCode);
+  const areaLabel = currentArea?.label || area;
+
   let hotels;
   try {
     hotels = await getHotels(areaCode);
@@ -35,37 +39,14 @@ export default async function HotelListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaCode)} {AREA_LABELS[area]}
+          ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
-        <h1 className="text-[24px] font-bold text-text mb-6">
-          {getAreaEmoji(areaCode)} {AREA_LABELS[area]} {getCategoryEmoji("HOTEL")} 호텔
-        </h1>
-
-        {hotels.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted">등록된 호텔이 없습니다.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {hotels.map((hotel) => (
-              <Link
-                key={hotel.id}
-                href={`/${area}/hotel/${hotel.id}`}
-                className="block bg-surface border border-border rounded-[12px] p-4 hover:border-primary transition-colors"
-              >
-                <h2 className="text-[18px] font-bold text-text mb-1">
-                  {hotel.official_name}
-                </h2>
-                {hotel.address && (
-                  <p className="text-[14px] text-muted">{hotel.address}</p>
-                )}
-                <span className="text-[13px] text-primary mt-2 inline-block">
-                  자세히 보기 →
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
+        <HotelListClient
+          hotels={hotels}
+          area={area}
+          areaLabel={areaLabel}
+          areaEmoji={getAreaEmoji(areaCode)}
+        />
       </div>
     </main>
   );

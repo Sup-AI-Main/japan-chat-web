@@ -1,33 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useGuideStore } from "@/store/guide-store";
 
 export function useAdmin(): boolean {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const isAdmin = useGuideStore((s) => s.isAdmin);
+  const setAdmin = useGuideStore((s) => s.setAdmin);
 
   useEffect(() => {
-    let cancelled = false;
+    if (isAdmin !== null) return;
+    fetch("/api/admin/check", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setAdmin(d.isAdmin === true))
+      .catch(() => setAdmin(false));
+  }, [isAdmin, setAdmin]);
 
-    async function check() {
-      try {
-        const res = await fetch("/api/admin/faq?area=ALL&category=GENERAL", {
-          cache: "no-store",
-        });
-        if (!cancelled) {
-          setIsAdmin(res.ok);
-        }
-      } catch {
-        if (!cancelled) {
-          setIsAdmin(false);
-        }
-      }
-    }
-
-    check();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return isAdmin;
+  return isAdmin ?? false;
 }

@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurants } from "@/lib/google-sheets";
+import { getRestaurants, getActiveAreas } from "@/lib/google-sheets";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import RestaurantListClient from "./RestaurantListClient";
 
 const VALID_AREAS = ["dos", "beppu"];
-const AREA_LABELS: Record<string, string> = { dos: "도스", beppu: "벳푸" };
 
 export default async function RestaurantListPage({
   params,
@@ -16,6 +15,10 @@ export default async function RestaurantListPage({
   if (!VALID_AREAS.includes(area)) notFound();
 
   const areaCode = area.toUpperCase();
+  const areas = await getActiveAreas();
+  const currentArea = areas.find((a) => a.code.toUpperCase() === areaCode);
+  const areaLabel = currentArea?.label || area;
+
   let restaurants;
   try {
     restaurants = await getRestaurants(areaCode);
@@ -36,16 +39,16 @@ export default async function RestaurantListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaCode)} {AREA_LABELS[area]}
+          ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
         <h1 className="text-[24px] font-bold text-text mb-6">
-          {getAreaEmoji(areaCode)} {AREA_LABELS[area]} {getCategoryEmoji("RESTAURANT")} 맛집
+          {getAreaEmoji(areaCode)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 맛집
         </h1>
 
         <RestaurantListClient
           restaurants={restaurants}
           area={area}
-          areaLabel={AREA_LABELS[area]}
+          areaLabel={areaLabel}
           areaEmoji={getAreaEmoji(areaCode)}
         />
       </div>

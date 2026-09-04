@@ -6,7 +6,9 @@ import type {
   Restaurant,
   FaqItem,
   AdminOption,
+  IncludeExclude,
 } from "./types";
+import { ConflictError } from "./types";
 
 // Cache with TTL
 const cache = new Map<string, { data: unknown; expiry: number }>();
@@ -145,6 +147,7 @@ export async function getGolfCourses(area?: string): Promise<GolfCourse[]> {
       active: r.active || "",
       sort: toNumber(r.sort),
       last_verified: r.last_verified || "",
+      updated_at: r.updated_at || "",
     }))
     .sort((a, b) => a.sort - b.sort);
 }
@@ -196,6 +199,7 @@ export async function getHotels(area?: string): Promise<Hotel[]> {
       bath_spa_hours: r.bath_spa_hours || "",
       tattoo_policy: r.tattoo_policy || "",
       other_info: r.other_info || "",
+      updated_at: r.updated_at || "",
     }))
     .sort((a, b) => a.sort - b.sort);
 }
@@ -259,6 +263,7 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
       walk_minutes: r.walk_minutes || "",
       description: r.description || "",
       recommended: r.recommended || "",
+      updated_at: r.updated_at || "",
     }))
     .sort((a, b) => a.sort - b.sort);
 }
@@ -472,6 +477,136 @@ export async function migrateGroupColumn(): Promise<{ success: boolean; message:
   } catch (error) {
     console.error("Failed to migrate group column", error);
     return { success: false, message: String(error) };
+  }
+}
+
+// updated_at 컬럼 마이그레이션: 각 탭에 updated_at 컬럼 추가 및 기존 행 채우기
+export async function migrateUpdatedAt(): Promise<{ success: boolean; message: string; details: Record<string, number> }> {
+  const tabs = ["hotels", "restaurants", "golf_courses", "includes_excludes"];
+  const details: Record<string, number> = {};
+
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const now = new Date().toISOString();
+
+    for (const tab of tabs) {
+      // 1) 헤더 읽기
+      const headerResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${tab}!A1:AZ1`,
+      });
+      const headers: string[] = headerResponse.data.values?.[0] || [];
+      if (headers.length === 0) continue;
+
+      const lastCol = colIndexToLetter(headers.length);
+      const updatedAtColIndex = headers.findIndex(
+        (h: string) => h.toLowerCase().trim() === "updated_at"
+      );
+
+      // 2) updated_at 컬럼이 없으면 추가
+      if (updatedAtColIndex === -1) {
+        const newColIndex = headers.length;
+        const colLetter = colIndexToLetter(newColIndex);
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `${tab}!${colLetter}1`,
+          valueInputOption: "RAW",
+          requestBody: { values: [["updated_at"]] },
+        });
+        console.log(`Added updated_at column to ${tab} at ${colLetter}`);
+
+        // 헤더 다시 읽기
+        const updatedHeaderResponse = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `${tab}!A1:AZ1`,
+        });
+        const updatedHeaders: string[] = updatedHeaderResponse.data.values?.[0] || [];
+        const newUpdatedAtCol = updatedHeaders.findIndex(
+          (h: string) => h.toLowerCase().trim() === "updated_at"
+        );
+
+        if (newUpdatedAtCol === -1) continue;
+
+        // 전체 데이터 읽기
+        const allData = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `${tab}!A1:${lastCol}1000`,
+        });
+        const rows = allData.data.values || [];
+        const colLetterNew = colIndexToLetter(newUpdatedAtCol);
+
+        // updated_at이 비어있는 행에 타임스탬프 설정
+        let count = 0;
+        const updates: { range: string; values: string[][] }[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row[newUpdatedAtCol]) {
+            updates.push({
+              range: `${tab}!${colLetterNew}${i + 1}`,
+              values: [[now]],
+            });
+            count++;
+          }
+        }
+
+        for (const update of updates) {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: update.range,
+            valueInputOption: "RAW",
+            requestBody: { values: update.values },
+          });
+        }
+
+        details[tab] = count;
+      } else {
+        // updated_at 컬럼이 이미 있는 경우: 비어있는 행만 채우기
+        const allData = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `${tab}!A1:${lastCol}1000`,
+        });
+        const rows = allData.data.values || [];
+        const colLetter = colIndexToLetter(updatedAtColIndex);
+
+        let count = 0;
+        const updates: { range: string; values: string[][] }[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row[updatedAtColIndex]) {
+            updates.push({
+              range: `${tab}!${colLetter}${i + 1}`,
+              values: [[now]],
+            });
+            count++;
+          }
+        }
+
+        for (const update of updates) {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: update.range,
+            valueInputOption: "RAW",
+            requestBody: { values: update.values },
+          });
+        }
+
+        details[tab] = count;
+      }
+    }
+
+    // 캐시 무효화
+    for (const tab of tabs) {
+      invalidateCache(tab);
+    }
+
+    return {
+      success: true,
+      message: `updated_at 마이그레이션 완료.`,
+      details,
+    };
+  } catch (error) {
+    console.error("Failed to migrate updated_at", error);
+    return { success: false, message: String(error), details };
   }
 }
 
@@ -854,7 +989,8 @@ async function appendRow(
 async function updateRowById(
   tabName: string,
   id: string,
-  data: Record<string, string>
+  data: Record<string, string>,
+  expectedUpdatedAt?: string
 ): Promise<boolean> {
   const { sheets, sheetId } = getSheetsClient();
 
@@ -880,6 +1016,10 @@ async function updateRowById(
   );
   if (idColIndex === -1) return false;
 
+  const updatedAtColIndex = headers.findIndex(
+    (h: string) => h.toLowerCase().trim() === "updated_at"
+  );
+
   let targetRowIndex = -1;
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][idColIndex] === id) {
@@ -889,11 +1029,24 @@ async function updateRowById(
   }
   if (targetRowIndex === -1) return false;
 
+  // 낙관적 동시성 제어: expectedUpdatedAt이 제공된 경우 현재 값과 비교
+  if (expectedUpdatedAt && updatedAtColIndex !== -1) {
+    const currentUpdatedAt = rows[targetRowIndex - 1][updatedAtColIndex] || "";
+    if (currentUpdatedAt !== expectedUpdatedAt) {
+      throw new ConflictError();
+    }
+  }
+
   const row = headers.map((h: string) => {
     const key = h.toLowerCase().trim();
     if (key in data) return String(data[key] ?? "");
     return String(rows[targetRowIndex - 1][headers.indexOf(h)] ?? "");
   });
+
+  // updated_at 컬럼이 있으면 현재 타임스탬프로 갱신
+  if (updatedAtColIndex !== -1) {
+    row[updatedAtColIndex] = new Date().toISOString();
+  }
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: sheetId,
@@ -961,14 +1114,14 @@ async function deleteRowById(
 export async function appendHotel(data: Record<string, string>): Promise<string> {
   const id = `hotel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const headers = ["id", "area", "official_name", "address", "phone", "check_in", "check_out", "breakfast", "bath_spa", "hotel_dining", "atm_payment", "transport", "google_maps_url", "source_url", "status", "active", "sort", "last_verified", "name_kr", "name_jp", "address_kr", "address_jp", "checkin_time", "checkout_time", "breakfast_place", "breakfast_time", "breakfast_last_entry", "dinner_place", "dinner_time", "dinner_last_entry", "has_public_bath", "has_outdoor_onsen", "has_sauna", "bath_spa_hours", "tattoo_policy", "other_info"];
-  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", ...data };
+  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("hotels", headers, row);
   invalidateCache("hotels");
   return id;
 }
 
-export async function updateHotel(id: string, data: Record<string, string>): Promise<boolean> {
-  const result = await updateRowById("hotels", id, data);
+export async function updateHotel(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
+  const result = await updateRowById("hotels", id, data, expectedUpdatedAt);
   if (result) invalidateCache("hotels");
   return result;
 }
@@ -983,14 +1136,14 @@ export async function deleteHotel(id: string): Promise<boolean> {
 export async function appendRestaurant(data: Record<string, string>): Promise<string> {
   const id = `rest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const headers = ["id", "area", "near_type", "near_id", "name", "category", "distance", "address", "hours", "price_range", "phone", "google_maps_url", "source_url", "status", "active", "sort", "last_verified", "name_kr", "name_jp", "menu_kr", "menu_jp", "menu_price", "closed_days", "distance_km", "drive_minutes", "walk_minutes", "description", "recommended"];
-  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", ...data };
+  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("restaurants", headers, row);
   invalidateCache("restaurants");
   return id;
 }
 
-export async function updateRestaurant(id: string, data: Record<string, string>): Promise<boolean> {
-  const result = await updateRowById("restaurants", id, data);
+export async function updateRestaurant(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
+  const result = await updateRowById("restaurants", id, data, expectedUpdatedAt);
   if (result) invalidateCache("restaurants");
   return result;
 }
@@ -998,5 +1151,73 @@ export async function updateRestaurant(id: string, data: Record<string, string>)
 export async function deleteRestaurantRow(id: string): Promise<boolean> {
   const result = await deleteRowById("restaurants", id);
   if (result) invalidateCache("restaurants");
+  return result;
+}
+
+// --- Golf CRUD ---
+const GOLF_HEADERS = ["id", "area", "display_name", "official_name", "address", "phone", "course_summary", "play_cart", "clubhouse_dining", "bath_shower", "rental", "dress_code", "google_maps_url", "source_url", "status", "active", "sort", "last_verified"];
+
+export async function appendGolfCourse(data: Record<string, string>): Promise<string> {
+  const id = `golf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", updated_at: new Date().toISOString(), ...data };
+  await appendRow("golf_courses", GOLF_HEADERS, row);
+  invalidateCache("golf_courses");
+  return id;
+}
+
+export async function updateGolfCourse(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
+  const result = await updateRowById("golf_courses", id, data, expectedUpdatedAt);
+  if (result) invalidateCache("golf_courses");
+  return result;
+}
+
+export async function deleteGolfCourse(id: string): Promise<boolean> {
+  const result = await deleteRowById("golf_courses", id);
+  if (result) invalidateCache("golf_courses");
+  return result;
+}
+
+// --- IncludeExclude CRUD ---
+
+export async function getIncludesExcludes(
+  parentType?: string,
+  parentId?: string
+): Promise<IncludeExclude[]> {
+  const rows = await readSheet("includes_excludes");
+  return rows
+    .filter((r) => !parentType || r.parent_type?.toUpperCase() === parentType.toUpperCase())
+    .filter((r) => !parentId || r.parent_id === parentId)
+    .map((r) => ({
+      id: r.id || "",
+      parent_type: r.parent_type || "",
+      parent_id: r.parent_id || "",
+      type: r.type || "",
+      text_kr: r.text_kr || "",
+      text_jp: r.text_jp || "",
+      sort_order: toNumber(r.sort_order),
+      is_visible: r.is_visible || "TRUE",
+      updated_at: r.updated_at || "",
+    }))
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+export async function appendIncludeExclude(data: Record<string, string>): Promise<string> {
+  const id = `ie_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const headers = ["id", "parent_type", "parent_id", "type", "text_kr", "text_jp", "sort_order", "is_visible"];
+  const row: Record<string, string> = { id, is_visible: "TRUE", sort_order: "99", updated_at: new Date().toISOString(), ...data };
+  await appendRow("includes_excludes", headers, row);
+  invalidateCache("includes_excludes");
+  return id;
+}
+
+export async function updateIncludeExclude(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
+  const result = await updateRowById("includes_excludes", id, data, expectedUpdatedAt);
+  if (result) invalidateCache("includes_excludes");
+  return result;
+}
+
+export async function deleteIncludeExclude(id: string): Promise<boolean> {
+  const result = await deleteRowById("includes_excludes", id);
+  if (result) invalidateCache("includes_excludes");
   return result;
 }

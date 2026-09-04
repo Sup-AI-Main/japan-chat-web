@@ -99,7 +99,7 @@ export default function RestaurantDetailClient({
         .filter(Boolean)
         .join(" · ")
     : restaurant.distance
-      ? `차량 약 ${restaurant.distance}`
+      ? (restaurant.distance.startsWith("차량") ? restaurant.distance : `차량 약 ${restaurant.distance}`)
       : "";
 
   return (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { getHotels, appendHotel, updateHotel, deleteHotel } from "@/lib/google-sheets";
+import { ConflictError } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
@@ -22,10 +23,17 @@ export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json();
-  const { id, ...data } = body;
+  const { id, updated_at, ...data } = body;
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  const ok = await updateHotel(id, data);
-  return NextResponse.json({ success: ok });
+  try {
+    const ok = await updateHotel(id, data, updated_at);
+    return NextResponse.json({ success: ok });
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    throw err;
+  }
 }
 
 export async function DELETE(req: NextRequest) {

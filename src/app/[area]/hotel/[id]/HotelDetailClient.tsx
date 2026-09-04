@@ -10,6 +10,8 @@ import {
   ConfirmModal,
   HotelEditModal,
   RestaurantEditModal,
+  IncludeExcludeSection,
+  IncludeExcludeSummary,
 } from "@/components/inline-cms";
 
 interface HotelDetailClientProps {
@@ -141,6 +143,7 @@ function editDataToHotel(id: string, area: string, data: HotelData): Hotel {
     active: "",
     sort: 0,
     last_verified: "",
+    updated_at: "",
   };
 }
 
@@ -199,6 +202,7 @@ function editDataToRestaurant(data: RestaurantData): Restaurant {
     active: "",
     sort: 0,
     last_verified: "",
+    updated_at: "",
   };
 }
 
@@ -450,6 +454,9 @@ export function HotelDetailClient({
           </div>
         )}
 
+        {/* 포함/불포함 사항 */}
+        <IncludeExcludeSection parentType="HOTEL" parentId={hotel.id} />
+
         {/* 골프장 이동시간 */}
         {travelTimes.length > 0 && (
           <div className="border-t border-border pt-6 mb-6">
@@ -503,6 +510,9 @@ export function HotelDetailClient({
           </div>
         )}
 
+        {/* 예약 전 확인 요약 */}
+        <IncludeExcludeSummary parentType="HOTEL" parentId={hotel.id} />
+
         {/* 주변 맛집 */}
         <div className="border-t border-border pt-6">
           <div className="flex items-center justify-between mb-4">
@@ -550,7 +560,7 @@ export function HotelDetailClient({
                   )}
                   {rest.distance && (
                     <p className="text-[14px] text-muted mt-1">
-                      차량 약 {rest.distance}
+                      {rest.distance.startsWith("차량") ? rest.distance : `차량 약 ${rest.distance}`}
                     </p>
                   )}
                   {rest.google_maps_url && (

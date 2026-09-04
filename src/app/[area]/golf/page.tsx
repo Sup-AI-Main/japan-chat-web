@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getGolfCourses } from "@/lib/google-sheets";
-import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
+import { getGolfCourses, getActiveAreas } from "@/lib/google-sheets";
+import { getAreaEmoji } from "@/lib/display";
+import GolfListClient from "./GolfListClient";
 
 const VALID_AREAS = ["dos", "beppu"];
-const AREA_LABELS: Record<string, string> = { dos: "도스", beppu: "벳푸" };
 
 export default async function GolfListPage({
   params,
@@ -15,6 +15,10 @@ export default async function GolfListPage({
   if (!VALID_AREAS.includes(area)) notFound();
 
   const areaCode = area.toUpperCase();
+  const areas = await getActiveAreas();
+  const currentArea = areas.find((a) => a.code.toUpperCase() === areaCode);
+  const areaLabel = currentArea?.label || area;
+
   let courses;
   try {
     courses = await getGolfCourses(areaCode);
@@ -35,39 +39,14 @@ export default async function GolfListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaCode)} {AREA_LABELS[area]}
+          ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
-        <h1 className="text-[24px] font-bold text-text mb-6">
-          {getAreaEmoji(areaCode)} {AREA_LABELS[area]} {getCategoryEmoji("GOLF")} 골프장
-        </h1>
-
-        {courses.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted">등록된 골프장이 없습니다.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {courses.map((course) => (
-              <Link
-                key={course.id}
-                href={`/${area}/golf/${course.id}`}
-                className="block bg-surface border border-border rounded-[12px] p-4 hover:border-primary transition-colors"
-              >
-                <h2 className="text-[18px] font-bold text-text mb-1">
-                  {course.display_name || course.official_name}
-                </h2>
-                {course.course_summary && (
-                  <p className="text-[14px] text-muted line-clamp-2">
-                    {course.course_summary}
-                  </p>
-                )}
-                <span className="text-[13px] text-primary mt-2 inline-block">
-                  자세히 보기 →
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
+        <GolfListClient
+          courses={courses}
+          area={area}
+          areaLabel={areaLabel}
+          areaEmoji={getAreaEmoji(areaCode)}
+        />
       </div>
     </main>
   );
