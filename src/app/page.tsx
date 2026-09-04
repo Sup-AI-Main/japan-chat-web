@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { getActiveAreas } from "@/lib/google-sheets";
-import { getAreaEmoji } from "@/lib/display";
+import { getAreaEmoji, getCategoryEmoji, COMMON_CATEGORIES } from "@/lib/display";
+import { getActiveCategories } from "@/lib/google-sheets";
 
 export default async function HomePage() {
   const areas = (await getActiveAreas()).filter(
     (a) => a.code !== "ALL"
   );
+  const allCategories = await getActiveCategories();
+  const commonCategories = allCategories.filter((c) => COMMON_CATEGORIES.includes(c.code));
 
   return (
     <main className="page-bg bg-main min-h-screen flex flex-col items-center justify-center px-4 py-12">
@@ -13,9 +16,9 @@ export default async function HomePage() {
         <h1 className="text-[28px] font-bold text-text mb-2">
           🇯🇵 일본 골프 여행 가이드
         </h1>
-        <p className="text-muted text-[16px] mb-12">여행 지역을 선택하세요</p>
+        <p className="text-muted text-[16px] mb-8">여행 지역을 선택하세요</p>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 mb-10">
           {areas.map((area) => (
             <Link
               key={area.id}
@@ -34,6 +37,27 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
+
+        {commonCategories.length > 0 && (
+          <div className="border-t border-border pt-8">
+            <h2 className="text-[18px] font-bold text-text mb-4">
+              📋 공통 안내
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {commonCategories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/guide/${cat.code.toLowerCase()}`}
+                  className="block bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary transition-colors"
+                >
+                  <span className="text-[16px] font-medium text-text">
+                    {getCategoryEmoji(cat.code)} {cat.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

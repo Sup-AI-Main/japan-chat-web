@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getActiveAreas, getActiveCategories, getFaq } from "@/lib/google-sheets";
-import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
+import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder, AREA_CATEGORIES, isAreaCategory } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
-
-const CONTENT_CATEGORIES = ["GOLF", "HOTEL", "RESTAURANT"];
 
 export default async function AreaPage({
   params,
@@ -20,14 +18,14 @@ export default async function AreaPage({
   const areaCode = currentArea.code;
   const areaLabel = currentArea.label;
 
-  const categories = await getActiveCategories();
+  const allCategories = await getActiveCategories();
+  // 지역별 카테고리만 표시 (골프장, 호텔, 맛집)
+  const categories = allCategories.filter((c) => AREA_CATEGORIES.includes(c.code));
 
-  const categoryLinks = categories.map((cat) => {
-    const slug = CONTENT_CATEGORIES.includes(cat.code)
-      ? cat.code.toLowerCase()
-      : `faq/${cat.code.toLowerCase()}`;
-    return { ...cat, slug };
-  });
+  const categoryLinks = categories.map((cat) => ({
+    ...cat,
+    slug: cat.code.toLowerCase(),
+  }));
 
   let popularFaqs: FaqItem[] = [];
   try {
@@ -79,12 +77,14 @@ export default async function AreaPage({
             </h2>
             <div className="space-y-2">
               {popularFaqs.map((faq) => {
-                const catLink = categoryLinks.find((c) => c.code === faq.category);
-                const catSlug = catLink?.slug || "faq/general";
+                const isArea = isAreaCategory(faq.category);
+                const faqLink = isArea
+                  ? `/${area}/${faq.category.toLowerCase()}`
+                  : `/guide/${faq.category.toLowerCase()}`;
                 return (
                   <Link
                     key={faq.id}
-                    href={`/${area}/${catSlug}`}
+                    href={faqLink}
                     className="block bg-surface border border-border rounded-[8px] p-3 hover:border-primary"
                   >
                     <span className="text-[15px] text-text">
