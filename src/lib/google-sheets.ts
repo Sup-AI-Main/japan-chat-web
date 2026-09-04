@@ -246,8 +246,26 @@ export async function getFaq(
   category?: string
 ): Promise<FaqItem[]> {
   const rows = await readSheet("faq");
+  return parseFaqRows(rows, area, category, true);
+}
+
+/** 관리자용: 숨김(active=FALSE) 포함 전체 조회 */
+export async function getAdminFaqs(
+  area?: string,
+  category?: string
+): Promise<FaqItem[]> {
+  const rows = await readSheet("faq");
+  return parseFaqRows(rows, area, category, false);
+}
+
+function parseFaqRows(
+  rows: Record<string, string>[],
+  area?: string,
+  category?: string,
+  activeOnly = false
+): FaqItem[] {
   return rows
-    .filter((r) => isActive(r.active))
+    .filter((r) => !activeOnly || isActive(r.active))
     .filter(
       (r) =>
         !area ||
@@ -700,6 +718,70 @@ export async function updateFaqSort(
     return true;
   } catch (error) {
     console.error("Failed to update FAQ sort", error);
+    return false;
+  }
+}
+
+/** 원본 시트에서 실제 행 삭제 */
+export async function deleteFaq(id: string): Promise<boolean> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+
+    // 1. 전체 데이터를 읽어서 대상 행 찾기
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "faq!A1:Z1000",
+    });
+    const rows = allData.data.values || [];
+    const headers = rows[0] || [];
+
+    const idColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "id"
+    );
+    if (idColIndex === -1) return false;
+
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][idColIndex] === id) {
+        targetRowIndex = i; // 0-based (시트에서는 1-based = i+1)
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) return false;
+
+    // 2. sheetId (탭 고유 ID) 조회
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+    });
+    const faqSheet = spreadsheet.data.sheets?.find(
+      (s) => s.properties?.title === "faq"
+    );
+    if (!faqSheet?.properties?.sheetId) return false;
+
+    // 3. deleteDimension로 행 삭제 (0-based startIndex, endIndex exclusive)
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: faqSheet.properties.sheetId,
+                dimension: "ROWS",
+                startIndex: targetRowIndex,
+                endIndex: targetRowIndex + 1,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    invalidateCache("faq");
+    return true;
+  } catch (error) {
+    console.error("Failed to delete FAQ", error);
     return false;
   }
 }

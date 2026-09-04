@@ -1,7 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { appendFaq, updateFaq, getAdminOptions } from "@/lib/google-sheets";
+import { appendFaq, updateFaq, deleteFaq, getAdminFaqs, getAdminOptions } from "@/lib/google-sheets";
 import crypto from "crypto";
+
+/** GET: 관리자용 전체 질문 조회 (숨김 포함) */
+export async function GET(request: NextRequest) {
+  const authed = await isAuthenticated();
+  if (!authed) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const area = searchParams.get("area") || undefined;
+    const category = searchParams.get("category") || undefined;
+
+    if (!area || !category) {
+      return NextResponse.json({ error: "area, category 파라미터가 필요합니다" }, { status: 400 });
+    }
+
+    const options = await getAdminOptions();
+    const currentArea = options.find(
+      (o) => o.option_type === "AREA" && o.code.toLowerCase() === area && o.active !== "FALSE"
+    );
+    if (!currentArea) {
+      return NextResponse.json({ error: "존재하지 않는 지역입니다" }, { status: 404 });
+    }
+
+    const currentCategory = options.find(
+      (o) => o.option_type === "CATEGORY" && o.code.toLowerCase() === category && o.active !== "FALSE"
+    );
+    if (!currentCategory) {
+      return NextResponse.json({ error: "존재하지 않는 카테고리입니다" }, { status: 404 });
+    }
+
+    const areaCode = currentArea.code;
+    const categoryCode = currentCategory.code;
+
+    const faqs = await getAdminFaqs(areaCode === "ALL" ? undefined : areaCode, categoryCode);
+    const filtered = areaCode === "ALL" ? faqs.filter((f) => f.area === "ALL") : faqs;
+
+    return NextResponse.json({ faqs: filtered });
+  } catch {
+    return NextResponse.json({ error: "질문 목록 조회에 실패했습니다" }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   const authed = await isAuthenticated();
@@ -25,47 +68,9 @@ export async function POST(request: NextRequest) {
     const id = `faq_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
     // Get max sort for this group
-    let sortValue = 1;
-    try {
-      const { google } = await import("googleapis");
-      const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-      const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-      const sheetId = process.env.GOOGLE_SHEET_ID;
-
-      if (email && key && sheetId) {
-        const auth = new google.auth.JWT({
-          email,
-          key,
-          scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-        });
-        const sheets = google.sheets({ version: "v4", auth });
-        const response = await sheets.spreadsheets.values.get({
-          spreadsheetId: sheetId,
-          range: "faq!A1:Z1000",
-        });
-        const rows = response.data.values || [];
-        if (rows.length > 1) {
-          const headers = rows[0].map((h: string) => h.toLowerCase().trim());
-          const areaIdx = headers.indexOf("area");
-          const catIdx = headers.indexOf("category");
-          const sortIdx = headers.indexOf("sort");
-
-          let maxSort = 0;
-          for (let i = 1; i < rows.length; i++) {
-            if (
-              rows[i][areaIdx]?.toUpperCase() === area.toUpperCase() &&
-              rows[i][catIdx]?.toUpperCase() === category.toUpperCase()
-            ) {
-              const s = parseInt(rows[i][sortIdx] || "0", 10);
-              if (s > maxSort) maxSort = s;
-            }
-          }
-          sortValue = maxSort + 1;
-        }
-      }
-    } catch {
-      sortValue = 1;
-    }
+    const { getFaq } = await import("@/lib/google-sheets");
+    const existingFaqs = await getFaq(area.toUpperCase() === "ALL" ? undefined : area.toUpperCase(), category.toUpperCase());
+    const maxSort = existingFaqs.reduce((max, f) => Math.max(max, f.sort), 0);
 
     const data: Record<string, string | number> = {
       id,
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
       question,
       answer,
       active: active || "TRUE",
-      sort: sortValue,
+      sort: maxSort + 1,
       related_type: related_type || "",
       related_id: related_id || "",
       related_name: related_name || "",
@@ -146,5 +151,30 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "저장에 실패했습니다" }, { status: 500 });
   } catch {
     return NextResponse.json({ error: "저장 중 문제가 발생했습니다" }, { status: 500 });
+  }
+}
+
+/** DELETE: 질문 원본 시트에서 실제 삭제 */
+export async function DELETE(request: NextRequest) {
+  const authed = await isAuthenticated();
+  if (!authed) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "id가 필요합니다" }, { status: 400 });
+    }
+
+    const success = await deleteFaq(id);
+    if (success) {
+      return NextResponse.json({ success: true });
+    }
+    return NextResponse.json({ error: "삭제 대상을 찾을 수 없습니다" }, { status: 404 });
+  } catch {
+    return NextResponse.json({ error: "삭제 중 문제가 발생했습니다" }, { status: 500 });
   }
 }

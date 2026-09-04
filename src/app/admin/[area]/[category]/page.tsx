@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
-import { getFaq, getAdminOptions } from "@/lib/google-sheets";
+import { getAdminFaqs, getAdminOptions } from "@/lib/google-sheets";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
 import AdminFaqList from "./AdminFaqList";
@@ -35,7 +35,7 @@ export default async function AdminCategoryPage({
 
   let faqs: FaqItem[] = [];
   try {
-    faqs = await getFaq(areaCode === "ALL" ? undefined : areaCode, categoryCode);
+    faqs = await getAdminFaqs(areaCode === "ALL" ? undefined : areaCode, categoryCode);
     if (areaCode === "ALL") {
       faqs = faqs.filter((f) => f.area === "ALL");
     }
