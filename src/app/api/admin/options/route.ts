@@ -24,10 +24,15 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { option_type, label } = body;
+    const { option_type, label, group } = body;
 
     if (!option_type || !label) {
       return NextResponse.json({ error: "option_type과 label은 필수입니다." }, { status: 400 });
+    }
+
+    // CATEGORY 타입일 때 group 필수 검증
+    if (option_type === "CATEGORY" && !group) {
+      return NextResponse.json({ error: "CATEGORY 옵션에는 group 필드가 필수입니다. (AREA 또는 COMMON)" }, { status: 400 });
     }
 
     const options = await getAdminOptions();
@@ -45,6 +50,7 @@ export async function POST(request: Request) {
       option_type,
       code,
       label,
+      group: group || "",
       active: "TRUE",
       sort: maxSort + 1,
     });

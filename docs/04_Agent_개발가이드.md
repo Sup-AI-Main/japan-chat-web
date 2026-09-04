@@ -570,14 +570,24 @@ getCategoryConfig(code)   // 전체 설정
 
 `admin_options` Google Sheet 탭을 기반으로 지역과 카테고리를 동적으로 관리한다.
 
+## group 필드
+
+CATEGORY 타입에는 `group` 필드로 지역별/공통을 구분한다.
+
+- `AREA`: 지역별 카테고리 (골프장, 호텔, 맛집) → 도스/벳푸 각각 다른 데이터
+- `COMMON`: 공통 안내 카테고리 (온천, 차량, 환불 등) → area=ALL
+
+코드에 카테고리 목록을 하드코딩하지 않는다. group 필드로 필터링한다.
+
 ## API
 
 ```text
 GET  /api/admin/options          - 목록 조회
-POST /api/admin/options          - 새 옵션 추가
+POST /api/admin/options          - 새 옵션 추가 (CATEGORY는 group 필수)
 PUT  /api/admin/options          - 옵션 수정
 PATCH /api/admin/options/toggle  - 활성/비활성 토글
 PATCH /api/admin/options/sort    - 정렬 변경
+POST /api/admin/migrate          - group 컬럼 마이그레이션
 ```
 
 ## 데이터 함수
@@ -586,14 +596,18 @@ PATCH /api/admin/options/sort    - 정렬 변경
 getAdminOptions()      // 전체 옵션
 getActiveAreas()       // 활성 지역만
 getActiveCategories()  // 활성 카테고리만
+getAreaCategories()    // group=AREA 카테고리만
+getCommonCategories()  // group=COMMON 카테고리만
 appendAdminOption()    // 추가
 updateAdminOption()    // 수정
 updateAdminOptionSort() // 정렬
+migrateGroupColumn()   // group 컬럼 마이그레이션
 ```
 
 ## 적용
 
 - 관리자 홈: 동적 지역 목록
-- 관리자 카테고리: 동적 카테고리 목록
-- 고객 홈: 동적 지역 목록 (ALL 제외)
-- 고객 지역 페이지: 동적 카테고리 목록
+- 관리자 카테고리: group 기반 동적 카테고리 목록
+- 고객 홈: 동적 지역 목록 (ALL 제외) + 공통 안내 카테고리
+- 고객 지역 페이지: group=AREA 카테고리만
+- 고객 공통 안내: group=COMMON 카테고리만

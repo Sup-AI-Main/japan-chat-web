@@ -291,6 +291,7 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
     code: r.code || "",
     label: r.label || r["관리자 화면 표시명"] || "",
     description: r.description || r["설명"] || "",
+    group: r.group || r["그룹"] || "",
     active: r.active || "TRUE",
     sort: toNumber(r.sort),
   }));
@@ -308,6 +309,112 @@ export async function getActiveCategories(): Promise<AdminOption[]> {
   return options
     .filter((o) => o.option_type === "CATEGORY" && isActive(o.active))
     .sort((a, b) => a.sort - b.sort);
+}
+
+export async function getAreaCategories(): Promise<AdminOption[]> {
+  const options = await getAdminOptions();
+  return options
+    .filter((o) => o.option_type === "CATEGORY" && isActive(o.active) && o.group === "AREA")
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export async function getCommonCategories(): Promise<AdminOption[]> {
+  const options = await getAdminOptions();
+  return options
+    .filter((o) => o.option_type === "CATEGORY" && isActive(o.active) && o.group === "COMMON")
+    .sort((a, b) => a.sort - b.sort);
+}
+
+// 마이그레이션: admin_options에 group 컬럼 추가 및 기존 데이터 업데이트
+export async function migrateGroupColumn(): Promise<{ success: boolean; message: string }> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+
+    // 헤더 읽기
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z1",
+    });
+    const headers: string[] = headerResponse.data.values?.[0] || [];
+
+    // group 컬럼이 이미 있는지 확인
+    const groupColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "group"
+    );
+
+    if (groupColIndex === -1) {
+      // group 컬럼 추가 (다음 빈 컬럼에)
+      const newColIndex = headers.length;
+      const colLetter = String.fromCharCode(65 + newColIndex);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `admin_options!${colLetter}1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [["group"]] },
+      });
+      console.log("Added group column header at", colLetter);
+    }
+
+    // 전체 데이터 읽기
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z500",
+    });
+    const rows = allData.data.values || [];
+    const updatedHeaders: string[] = rows[0] || [];
+
+    const groupCol = updatedHeaders.findIndex(
+      (h: string) => h.toLowerCase().trim() === "group"
+    );
+    const typeCol = updatedHeaders.findIndex(
+      (h: string) => h.toLowerCase().trim() === "option_type"
+    );
+    const codeCol = updatedHeaders.findIndex(
+      (h: string) => h.toLowerCase().trim() === "code"
+    );
+
+    if (groupCol === -1 || typeCol === -1 || codeCol === -1) {
+      return { success: false, message: "필요한 컬럼을 찾을 수 없습니다." };
+    }
+
+    // group이 비어있는 CATEGORY 행에 값 설정
+    const AREA_CATEGORY_CODES = ["GOLF", "HOTEL", "RESTAURANT"];
+    const updates: { range: string; values: string[][] }[] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const optionType = (row[typeCol] || "").toUpperCase();
+      const code = (row[codeCol] || "").toUpperCase();
+      const currentGroup = (row[groupCol] || "").trim();
+
+      if (optionType === "CATEGORY" && !currentGroup) {
+        const groupValue = AREA_CATEGORY_CODES.includes(code) ? "AREA" : "COMMON";
+        const colLetter = String.fromCharCode(65 + groupCol);
+        updates.push({
+          range: `admin_options!${colLetter}${i + 1}`,
+          values: [[groupValue]],
+        });
+      }
+    }
+
+    for (const update of updates) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: update.range,
+        valueInputOption: "RAW",
+        requestBody: { values: update.values },
+      });
+    }
+
+    invalidateCache("admin_options");
+    return {
+      success: true,
+      message: `group 컬럼 마이그레이션 완료. ${updates.length}개 행 업데이트.`,
+    };
+  } catch (error) {
+    console.error("Failed to migrate group column", error);
+    return { success: false, message: String(error) };
+  }
 }
 
 export async function appendAdminOption(

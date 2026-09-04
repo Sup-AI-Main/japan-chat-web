@@ -18,19 +18,9 @@ const CATEGORY_CONFIG: Record<string, { emoji: string; color: string; bg: string
 
 const DEFAULT_CATEGORY = { emoji: "📌", color: "#546e7a", bg: "#eceff1", border: "#90a4ae" };
 
-// 지역별 카테고리 (도스, 벳푸 각각 다른 데이터)
-export const AREA_CATEGORIES = ["GOLF", "HOTEL", "RESTAURANT"];
-
-// 공통 안내 카테고리 (area=ALL, 지역과 무관하게 동일)
-export const COMMON_CATEGORIES = ["ONSEN", "DRIVER", "REFUND", "MONEY", "EXTRA_PAYMENT", "GENERAL"];
-
-export function isAreaCategory(code: string): boolean {
-  return AREA_CATEGORIES.includes(code.toUpperCase());
-}
-
-export function isCommonCategory(code: string): boolean {
-  return COMMON_CATEGORIES.includes(code.toUpperCase());
-}
+// UI 그룹 타입 상수 (허용: 타입 안정성)
+export const GROUP_AREA = "AREA";
+export const GROUP_COMMON = "COMMON";
 
 export function getAreaEmoji(code: string): string {
   return AREA_EMOJI[code.toUpperCase()] || "📍";

@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
 import { getAdminOptions } from "@/lib/google-sheets";
-import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder, AREA_CATEGORIES, COMMON_CATEGORIES } from "@/lib/display";
+import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder, GROUP_AREA, GROUP_COMMON } from "@/lib/display";
 
 export default async function AdminAreaPage({
   params,
@@ -22,13 +22,13 @@ export default async function AdminAreaPage({
 
   const areaCode = currentArea.code;
 
-  // 지역별 카테고리 필터링
-  // ALL → 공통 카테고리 (온천, 차량, 환불, 환전, 추가결제, 기타)
-  // DOS/BEPPU → 지역별 카테고리 (골프장, 호텔, 맛집)
-  const targetCategories = areaCode === "ALL" ? COMMON_CATEGORIES : AREA_CATEGORIES;
+  // group 필드 기반 카테고리 필터링 (admin_options에서 동적으로)
+  // ALL → group=COMMON 카테고리
+  // DOS/BEPPU → group=AREA 카테고리
+  const targetGroup = areaCode === "ALL" ? GROUP_COMMON : GROUP_AREA;
 
   const categories = allOptions
-    .filter((o) => o.option_type === "CATEGORY" && o.active !== "FALSE" && targetCategories.includes(o.code))
+    .filter((o) => o.option_type === "CATEGORY" && o.active !== "FALSE" && o.group === targetGroup)
     .sort((a, b) => a.sort - b.sort);
 
   return (

@@ -1,14 +1,12 @@
 import Link from "next/link";
-import { getActiveAreas } from "@/lib/google-sheets";
-import { getAreaEmoji, getCategoryEmoji, COMMON_CATEGORIES } from "@/lib/display";
-import { getActiveCategories } from "@/lib/google-sheets";
+import { getActiveAreas, getCommonCategories } from "@/lib/google-sheets";
+import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 
 export default async function HomePage() {
   const areas = (await getActiveAreas()).filter(
     (a) => a.code !== "ALL"
   );
-  const allCategories = await getActiveCategories();
-  const commonCategories = allCategories.filter((c) => COMMON_CATEGORIES.includes(c.code));
+  const commonCategories = await getCommonCategories();
 
   return (
     <main className="page-bg bg-main min-h-screen flex flex-col items-center justify-center px-4 py-12">

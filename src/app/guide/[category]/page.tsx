@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFaq, getActiveCategories } from "@/lib/google-sheets";
-import { getCategoryEmoji, getCategoryColor, getCategoryBorder, COMMON_CATEGORIES } from "@/lib/display";
+import { getCommonCategories, getFaq } from "@/lib/google-sheets";
+import { getCategoryEmoji, getCategoryColor, getCategoryBorder } from "@/lib/display";
 
 export default async function GuideCategoryPage({
   params,
@@ -10,9 +10,9 @@ export default async function GuideCategoryPage({
 }) {
   const { category } = await params;
 
-  const categories = await getActiveCategories();
+  const categories = await getCommonCategories();
   const currentCategory = categories.find(
-    (c) => c.code.toLowerCase() === category && COMMON_CATEGORIES.includes(c.code)
+    (c) => c.code.toLowerCase() === category
   );
   if (!currentCategory) notFound();
 

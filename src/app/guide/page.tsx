@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { getActiveCategories } from "@/lib/google-sheets";
-import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder, COMMON_CATEGORIES } from "@/lib/display";
+import { getCommonCategories } from "@/lib/google-sheets";
+import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 
 export default async function GuidePage() {
-  const allCategories = await getActiveCategories();
-  const commonCategories = allCategories.filter((c) => COMMON_CATEGORIES.includes(c.code));
+  const commonCategories = await getCommonCategories();
 
   return (
     <main className="min-h-screen px-4 py-6">

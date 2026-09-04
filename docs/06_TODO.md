@@ -215,6 +215,8 @@
 - [x] `/guide/[category]` 공통 FAQ 페이지 생성
 - [x] 관리자 지역 페이지 카테고리 필터링
 - [x] display.ts에 카테고리 분류 상수 추가
+- [x] admin_options에 group 컬럼 추가 (마이그레이션)
+- [x] 하드코딩 제거: group 필드 기반 동적 필터링
 - [x] 빌드 검증 통과
 
 ---

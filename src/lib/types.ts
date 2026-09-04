@@ -101,6 +101,7 @@ export interface AdminOption {
   code: string;
   label: string;
   description: string;
+  group: string; // "AREA" (지역별) or "COMMON" (공통 안내)
   active: string;
   sort: number;
 }
