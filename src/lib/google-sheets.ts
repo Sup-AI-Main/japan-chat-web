@@ -489,13 +489,45 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
     const { sheets, sheetId } = getSheetsClient();
     const now = new Date().toISOString();
 
+    // 시트 메타데이터에서 기존 탭 목록 확인
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    const existingTabs = (spreadsheetMeta.data.sheets || []).map(
+      (s) => s.properties?.title || ""
+    );
+
     for (const tab of tabs) {
+      // 탭이 없으면 생성
+      if (!existingTabs.includes(tab)) {
+        const ieHeaders = ["id", "parent_type", "parent_id", "type", "text_kr", "text_jp", "sort_order", "is_visible", "updated_at"];
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: {
+            requests: [{ addSheet: { properties: { title: tab } } }],
+          },
+        });
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: sheetId,
+          range: `${tab}!A1`,
+          valueInputOption: "RAW",
+          requestBody: { values: [ieHeaders] },
+        });
+        details[tab] = 0;
+        console.log(`Created tab ${tab} with headers`);
+        continue;
+      }
+
       // 1) 헤더 읽기
-      const headerResponse = await sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: `${tab}!A1:AZ1`,
-      });
-      const headers: string[] = headerResponse.data.values?.[0] || [];
+      let headers: string[] = [];
+      try {
+        const headerResponse = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `${tab}!A1:AZ1`,
+        });
+        headers = headerResponse.data.values?.[0] || [];
+      } catch {
+        console.log(`Tab ${tab} read failed, skipping`);
+        continue;
+      }
       if (headers.length === 0) continue;
 
       const lastCol = colIndexToLetter(headers.length);
@@ -1203,7 +1235,7 @@ export async function getIncludesExcludes(
 
 export async function appendIncludeExclude(data: Record<string, string>): Promise<string> {
   const id = `ie_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const headers = ["id", "parent_type", "parent_id", "type", "text_kr", "text_jp", "sort_order", "is_visible"];
+  const headers = ["id", "parent_type", "parent_id", "type", "text_kr", "text_jp", "sort_order", "is_visible", "updated_at"];
   const row: Record<string, string> = { id, is_visible: "TRUE", sort_order: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("includes_excludes", headers, row);
   invalidateCache("includes_excludes");
