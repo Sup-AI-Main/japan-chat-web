@@ -2,8 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAdmin } from "@/hooks/use-admin";
+import Link from "next/link";
 
 export default function AdminLoginButton() {
+  const isAdmin = useAdmin();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +37,9 @@ export default function AdminLoginButton() {
       });
 
       if (res.ok) {
-        router.push("/admin/home");
+        // 로그인 성공: 현재 페이지 유지, 관리자 상태 갱신
+        setOpen(false);
+        router.refresh();
       } else {
         setError("비밀번호가 올바르지 않습니다.");
       }
@@ -45,9 +50,24 @@ export default function AdminLoginButton() {
     }
   };
 
+  // 관리자 로그인 상태
+  if (isAdmin) {
+    return (
+      <div className="fixed top-4 right-4 z-[1000] flex items-center gap-2">
+        <Link
+          href="/admin"
+          className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-border shadow-sm hover:bg-white/95 transition-colors text-[14px] font-medium text-text cursor-pointer"
+        >
+          <span className="text-[16px]">⚙️</span>
+          <span>관리자 메뉴</span>
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Admin emoji button - top right corner */}
+      {/* 비로그인: 설정 아이콘만 표시 */}
       <button
         onClick={() => setOpen(true)}
         aria-label="관리자 로그인"
@@ -56,7 +76,7 @@ export default function AdminLoginButton() {
         ⚙️
       </button>
 
-      {/* Modal overlay */}
+      {/* 로그인 모달 */}
       {open && (
         <div
           className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40"

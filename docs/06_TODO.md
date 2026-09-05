@@ -209,6 +209,13 @@
 - [x] travel_times cross-sheet 이름 해석 (hotel_id/golf_id → hotels/golf_courses 조회)
 - [x] golf_courses official_name alias (공식명(JP) fallback)
 - [x] 마이그레이션 API 최적화 (batchUpdate로 할당량 절감)
+- [x] 로그인 후 /admin 강제 이동 제거 → 현재 페이지 유지
+- [x] 우측 상단 관리자 메뉴 (비로그인: ⚙️ / 로그인: ⚙️ 관리자 메뉴)
+- [x] AdminLoginButton을 root layout으로 이동 → 모든 페이지에 표시
+- [x] GolfDetailClient: EditableContainer + GolfEditModal 적용 (전 필드 편집 가능)
+- [x] HotelDetailClient: EditableContainer 적용 (타이틀 영역)
+- [x] RestaurantDetailClient: EditableContainer 적용 (전체 컨텐츠)
+- [x] 지역 페이지에 travel_times 섹션 추가 (호텔↔골프장 이동시간)
 
 ---
 

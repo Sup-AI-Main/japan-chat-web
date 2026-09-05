@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
-import { EditToolbar, ConfirmModal, RestaurantEditModal } from "@/components/inline-cms";
+import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer } from "@/components/inline-cms";
 import type { Restaurant } from "@/lib/types";
 
 interface NearOption {
@@ -104,19 +104,20 @@ export default function RestaurantDetailClient({
 
   return (
     <>
-      <div className="relative bg-surface border border-border rounded-[12px] p-4">
-        {isAdmin && (
-          <div className="absolute top-3 right-3 z-10">
-            <EditToolbar onEdit={handleEdit} onDelete={handleDelete} />
-          </div>
-        )}
-
-        {/* Title */}
-        <h2 className="text-[20px] font-bold text-text mb-0.5">
-          {displayName}
-        </h2>
-        {restaurant.name_jp && (
-          <p className="text-[14px] text-muted mb-3">{restaurant.name_jp}</p>
+      <EditableContainer
+        entityType="restaurant"
+        id={restaurant.id}
+        canEdit={isAdmin}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      >
+        <div className="bg-surface border border-border rounded-[12px] p-4">
+          {/* Title */}
+          <h2 className="text-[20px] font-bold text-text mb-0.5">
+            {displayName}
+          </h2>
+          {restaurant.name_jp && (
+            <p className="text-[14px] text-muted mb-3">{restaurant.name_jp}</p>
         )}
 
         {/* Category badge */}
@@ -216,7 +217,8 @@ export default function RestaurantDetailClient({
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </EditableContainer>
 
       {isAdmin && (
         <RestaurantEditModal

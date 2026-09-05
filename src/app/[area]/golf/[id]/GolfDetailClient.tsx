@@ -4,11 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import type { GolfCourse, FaqItem, Restaurant } from "@/lib/types";
 import { getCategoryEmoji } from "@/lib/display";
+import { useAdmin } from "@/hooks/use-admin";
 import {
   EditToolbar,
   AddButton,
   ConfirmModal,
   RestaurantEditModal,
+  GolfEditModal,
+  EditableContainer,
   IncludeExcludeSection,
   IncludeExcludeSummary,
 } from "@/components/inline-cms";
@@ -109,13 +112,16 @@ function editDataToRestaurant(data: RestaurantData): Restaurant {
 }
 
 export function GolfDetailClient({
-  course,
+  course: initialCourse,
   area,
   faqs,
   restaurants: initialRestaurants,
 }: GolfDetailClientProps) {
+  const [course, setCourse] = useState(initialCourse);
   const [restaurants, setRestaurants] = useState(initialRestaurants);
+  const [editGolfOpen, setEditGolfOpen] = useState(false);
   const [editRestOpen, setEditRestOpen] = useState(false);
+  const isAdmin = useAdmin();
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -138,6 +144,10 @@ export function GolfDetailClient({
     } else {
       setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
     }
+  };
+
+  const handleGolfSaved = (data: { display_name: string; official_name: string; address: string; phone: string; course_summary: string; play_cart: string; clubhouse_dining: string; bath_shower: string; rental: string; dress_code: string; google_maps_url: string }) => {
+    setCourse((prev) => ({ ...prev, ...data }));
   };
 
   const handleRestDelete = async () => {
@@ -166,63 +176,70 @@ export function GolfDetailClient({
           ← {getCategoryEmoji("GOLF")} 골프장 목록
         </Link>
 
-        <h1 className="text-[24px] font-bold text-text mb-1">
-          {course.display_name || course.official_name}
-        </h1>
-        {course.official_name && course.display_name !== course.official_name && (
-          <p className="text-[16px] text-muted mb-4">{course.official_name}</p>
-        )}
-
-        {/* Map link */}
-        {course.google_maps_url && (
-          <a
-            href={course.google_maps_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block bg-primary text-white px-5 py-3 rounded-[10px] text-[14px] font-medium mb-6 hover:opacity-90 min-h-[44px] flex items-center justify-center"
-          >
-            Google Maps에서 보기
-          </a>
-        )}
-
-        {/* Address & Phone */}
-        <div className="space-y-2 mb-6">
-          {course.address && (
-            <p className="text-[15px] text-text">
-              <span className="text-muted mr-2">주소:</span>
-              {course.address}
-            </p>
+        <EditableContainer
+          entityType="golf"
+          id={course.id}
+          canEdit={isAdmin}
+          onEdit={() => setEditGolfOpen(true)}
+        >
+          <h1 className="text-[24px] font-bold text-text mb-1">
+            {course.display_name || course.official_name}
+          </h1>
+          {course.official_name && course.display_name !== course.official_name && (
+            <p className="text-[16px] text-muted mb-4">{course.official_name}</p>
           )}
-          {course.phone && (
-            <div className="flex items-center gap-2">
-              <span className="text-[15px] text-muted">전화:</span>
-              <a
-                href={`tel:${course.phone}`}
-                className="text-[15px] text-primary px-2 py-1 min-h-[44px] flex items-center"
-              >
-                {course.phone}
-              </a>
-            </div>
-          )}
-        </div>
 
-        {/* Info sections */}
-        {infoItems.length > 0 && (
-          <div className="bg-surface border border-border rounded-[12px] p-4 mb-6">
-            <div className="space-y-4">
-              {infoItems.map((item) => (
-                <div key={item.label}>
-                  <h3 className="text-[15px] font-bold text-text mb-1">
-                    {item.label}
-                  </h3>
-                  <p className="text-[15px] text-text leading-relaxed">
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
+          {/* Map link */}
+          {course.google_maps_url && (
+            <a
+              href={course.google_maps_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-primary text-white px-5 py-3 rounded-[10px] text-[14px] font-medium mb-6 hover:opacity-90 min-h-[44px] flex items-center justify-center"
+            >
+              Google Maps에서 보기
+            </a>
+          )}
+
+          {/* Address & Phone */}
+          <div className="space-y-2 mb-6">
+            {course.address && (
+              <p className="text-[15px] text-text">
+                <span className="text-muted mr-2">주소:</span>
+                {course.address}
+              </p>
+            )}
+            {course.phone && (
+              <div className="flex items-center gap-2">
+                <span className="text-[15px] text-muted">전화:</span>
+                <a
+                  href={`tel:${course.phone}`}
+                  className="text-[15px] text-primary px-2 py-1 min-h-[44px] flex items-center"
+                >
+                  {course.phone}
+                </a>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Info sections */}
+          {infoItems.length > 0 && (
+            <div className="bg-surface border border-border rounded-[12px] p-4 mb-6">
+              <div className="space-y-4">
+                {infoItems.map((item) => (
+                  <div key={item.label}>
+                    <h3 className="text-[15px] font-bold text-text mb-1">
+                      {item.label}
+                    </h3>
+                    <p className="text-[15px] text-text leading-relaxed">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </EditableContainer>
 
         {/* 포함/불포함 사항 */}
         <IncludeExcludeSection parentType="GOLF" parentId={course.id} />
@@ -325,6 +342,28 @@ export function GolfDetailClient({
           )}
         </div>
       </div>
+
+      {/* Golf Edit Modal */}
+      <GolfEditModal
+        golf={isAdmin ? {
+          id: course.id,
+          display_name: course.display_name || "",
+          official_name: course.official_name || "",
+          address: course.address || "",
+          phone: course.phone || "",
+          course_summary: course.course_summary || "",
+          play_cart: course.play_cart || "",
+          clubhouse_dining: course.clubhouse_dining || "",
+          bath_shower: course.bath_shower || "",
+          rental: course.rental || "",
+          dress_code: course.dress_code || "",
+          google_maps_url: course.google_maps_url || "",
+        } : null}
+        area={area}
+        open={editGolfOpen}
+        onClose={() => setEditGolfOpen(false)}
+        onSaved={handleGolfSaved}
+      />
 
       {/* Restaurant Edit Modal */}
       <RestaurantEditModal

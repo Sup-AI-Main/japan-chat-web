@@ -4,12 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Hotel, TravelTime, FaqItem, Restaurant } from "@/lib/types";
 import { getCategoryEmoji } from "@/lib/display";
+import { useAdmin } from "@/hooks/use-admin";
 import {
   EditToolbar,
   AddButton,
   ConfirmModal,
   HotelEditModal,
   RestaurantEditModal,
+  EditableContainer,
   IncludeExcludeSection,
   IncludeExcludeSummary,
 } from "@/components/inline-cms";
@@ -215,6 +217,7 @@ export function HotelDetailClient({
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
   const [restaurants, setRestaurants] = useState(initialRestaurants);
+  const isAdmin = useAdmin();
 
   const [editHotelOpen, setEditHotelOpen] = useState(false);
   const [editRestOpen, setEditRestOpen] = useState(false);
@@ -278,18 +281,17 @@ export function HotelDetailClient({
         </Link>
 
         {/* Title with Korean main + Japanese sub */}
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-[24px] font-bold text-text">{titleMain}</h1>
-            {titleSub && (
-              <p className="text-[14px] text-muted mt-0.5">{titleSub}</p>
-            )}
-          </div>
-          <EditToolbar
-            onEdit={() => setEditHotelOpen(true)}
-            onDelete={() => {}}
-          />
-        </div>
+        <EditableContainer
+          entityType="hotel"
+          id={hotel.id}
+          canEdit={isAdmin}
+          onEdit={() => setEditHotelOpen(true)}
+        >
+          <h1 className="text-[24px] font-bold text-text">{titleMain}</h1>
+          {titleSub && (
+            <p className="text-[14px] text-muted mt-0.5">{titleSub}</p>
+          )}
+        </EditableContainer>
 
         {/* 기본 정보 */}
         {hasBasicInfo && (
