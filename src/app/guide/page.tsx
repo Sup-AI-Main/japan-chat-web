@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { getCommonCategories } from "@/lib/google-sheets";
-import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
+import { getAdminOptions } from "@/lib/google-sheets";
+import GuideCategoriesClient from "@/components/GuideCategoriesClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function GuidePage() {
-  const commonCategories = await getCommonCategories();
+  const allOptions = await getAdminOptions();
+  const commonCategories = allOptions
+    .filter((o) => o.option_type === "CATEGORY" && o.group === "COMMON" && o.active !== "FALSE")
+    .sort((a, b) => a.sort - b.sort);
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -16,29 +19,8 @@ export default async function GuidePage() {
         >
           ← 홈으로
         </Link>
-        <h1 className="text-[24px] font-bold text-text mb-6">
-          📋 공통 안내
-        </h1>
 
-        <div className="grid grid-cols-2 gap-3">
-          {commonCategories.map((cat) => (
-            <Link
-              key={cat.code}
-              href={`/guide/${cat.code.toLowerCase()}`}
-              className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
-              style={{
-                backgroundColor: getCategoryBg(cat.code),
-                borderWidth: "2px",
-                borderStyle: "solid",
-                borderColor: getCategoryBorder(cat.code),
-              }}
-            >
-              <span className="text-[16px] font-medium whitespace-nowrap" style={{ color: getCategoryColor(cat.code) }}>
-                {getCategoryEmoji(cat.code)} {cat.label}
-              </span>
-            </Link>
-          ))}
-        </div>
+        <GuideCategoriesClient initialCategories={commonCategories} />
       </div>
     </main>
   );

@@ -216,6 +216,13 @@
 - [x] HotelDetailClient: EditableContainer 적용 (타이틀 영역)
 - [x] RestaurantDetailClient: EditableContainer 적용 (전체 컨텐츠)
 - [x] 지역 페이지에 travel_times 섹션 추가 (호텔↔골프장 이동시간)
+- [x] travel_times CRUD 함수 추가 (appendTravelTime, updateTravelTime, deleteTravelTime)
+- [x] travel_times API 라우트 생성 (/api/admin/travel-times)
+- [x] AreaTravelTimesClient - 지역 페이지 travel_times 인라인 CMS
+- [x] HomeContentClient - 메인 페이지 지역 카드 + 공통 안내 카테고리 편집
+- [x] GuideCategoriesClient - 가이드 페이지 카테고리 CRUD
+- [x] GuideFaqClient - 가이드 하위 페이지 FAQ CRUD
+- [x] admin_options API에 DELETE 추가 (soft delete via active=FALSE)
 
 ---
 

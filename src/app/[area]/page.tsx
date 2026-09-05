@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveAreas, getAreaCategories, getFaq, getCommonCategories, getTravelTimes } from "@/lib/google-sheets";
+import { getActiveAreas, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getHotels, getGolfCourses } from "@/lib/google-sheets";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
+import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
 
 export default async function AreaPage({
   params,
@@ -43,16 +44,17 @@ export default async function AreaPage({
     travelTimes = [];
   }
 
-  // 호텔별로 그룹핑
-  const travelByHotel = new Map<string, { hotelName: string; courses: TravelTime[] }>();
-  for (const tt of travelTimes) {
-    const existing = travelByHotel.get(tt.hotel_id);
-    if (existing) {
-      existing.courses.push(tt);
-    } else {
-      travelByHotel.set(tt.hotel_id, { hotelName: tt.hotel_name, courses: [tt] });
-    }
-  }
+  // 호텔/골프장 목록 (관리자 dropdown용)
+  let hotels: { id: string; official_name: string }[] = [];
+  let golfCourses: { id: string; display_name: string }[] = [];
+  try {
+    const allHotels = await getHotels(areaCode);
+    hotels = allHotels.map((h) => ({ id: h.id, official_name: h.official_name }));
+  } catch { /* silent */ }
+  try {
+    const allGolf = await getGolfCourses(areaCode);
+    golfCourses = allGolf.map((g) => ({ id: g.id, display_name: g.display_name }));
+  } catch { /* silent */ }
 
   // 공통 카테고리 코드 목록 (FAQ 링크 분기용)
   const commonCats = await getCommonCategories();
@@ -93,40 +95,12 @@ export default async function AreaPage({
           ))}
         </div>
 
-        {travelByHotel.size > 0 && (
-          <div className="border-t border-border pt-6 mb-8">
-            <h2 className="text-[18px] font-bold text-text mb-4">🚗 호텔 ↔ 골프장 이동시간</h2>
-            <div className="space-y-4">
-              {Array.from(travelByHotel.entries()).map(([hotelId, { hotelName, courses }]) => (
-                <div key={hotelId} className="bg-surface border border-border rounded-[12px] p-4">
-                  <h3 className="text-[15px] font-bold text-text mb-3">{hotelName}</h3>
-                  <div className="space-y-2">
-                    {courses.map((tt) => (
-                      <div key={tt.id} className="flex items-center justify-between gap-2">
-                        <span className="text-[14px] text-text">{tt.golf_name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] text-muted bg-bg rounded-full px-2 py-0.5 flex items-center gap-1">
-                            {tt.estimated_time}
-                          </span>
-                          {tt.google_maps_direction_url && (
-                            <a
-                              href={tt.google_maps_direction_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[13px] text-primary hover:underline"
-                            >
-                              길찾기 →
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <AreaTravelTimesClient
+          initialTravelTimes={travelTimes}
+          hotels={hotels}
+          golfCourses={golfCourses}
+          area={areaCode}
+        />
 
         {popularFaqs.length > 0 && (
           <div className="border-t border-border pt-6">

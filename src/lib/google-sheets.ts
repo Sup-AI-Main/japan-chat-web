@@ -240,6 +240,152 @@ export async function getTravelTimes(area?: string): Promise<TravelTime[]> {
     .sort((a, b) => a.sort - b.sort);
 }
 
+export async function appendTravelTime(
+  data: Record<string, string | number>
+): Promise<string | null> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "travel_times!A1:Z1",
+    });
+    const headers = headerResponse.data.values?.[0] || [];
+    const newId = `tt_${Date.now()}`;
+    const dataWithMeta: Record<string, string | number> = {
+      id: newId,
+      active: "TRUE",
+      updated_at: new Date().toISOString(),
+      ...data,
+    };
+    const row = headers.map(
+      (h: string) => String(dataWithMeta[h.toLowerCase().trim()] ?? "")
+    );
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "travel_times!A:A",
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    });
+
+    invalidateCache("travel_times");
+    return newId;
+  } catch (error) {
+    console.error("Failed to append travel time", error);
+    return null;
+  }
+}
+
+export async function updateTravelTime(
+  data: Record<string, string | number>
+): Promise<boolean> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "travel_times!A1:Z1",
+    });
+    const headers = headerResponse.data.values?.[0] || [];
+
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "travel_times!A1:Z500",
+    });
+    const rows = allData.data.values || [];
+
+    const idColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "id"
+    );
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][idColIndex] === data.id) {
+        targetRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) return false;
+
+    // 409 check
+    const updatedAtColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "updated_at"
+    );
+    if (data.updated_at && updatedAtColIndex !== -1) {
+      const currentUpdatedAt = rows[targetRowIndex - 1][updatedAtColIndex] || "";
+      if (currentUpdatedAt && currentUpdatedAt !== data.updated_at) {
+        throw new Error("409_CONFLICT");
+      }
+    }
+
+    const row = headers.map(
+      (h: string) => {
+        const key = h.toLowerCase().trim();
+        if (key === "updated_at") return new Date().toISOString();
+        return String(data[key] ?? rows[targetRowIndex - 1][headers.indexOf(h)] ?? "");
+      }
+    );
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `travel_times!A${targetRowIndex}:Z${targetRowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    });
+
+    invalidateCache("travel_times");
+    return true;
+  } catch (error) {
+    if (error instanceof Error && error.message === "409_CONFLICT") throw error;
+    console.error("Failed to update travel time", error);
+    return false;
+  }
+}
+
+export async function deleteTravelTime(id: string): Promise<boolean> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "travel_times!A1:Z500",
+    });
+    const rows = allData.data.values || [];
+    const headers = rows[0] || [];
+
+    const idColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "id"
+    );
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][idColIndex] === id) {
+        targetRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) return false;
+
+    // Soft delete: set active to FALSE
+    const activeColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "active"
+    );
+    if (activeColIndex !== -1) {
+      const letter = colIndexToLetter(activeColIndex);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `travel_times!${letter}${targetRowIndex}`,
+        valueInputOption: "RAW",
+        requestBody: { values: [["FALSE"]] },
+      });
+    }
+
+    invalidateCache("travel_times");
+    return true;
+  } catch (error) {
+    console.error("Failed to delete travel time", error);
+    return false;
+  }
+}
+
 export async function getRestaurants(area?: string): Promise<Restaurant[]> {
   const rows = await readSheet("restaurants");
   return rows

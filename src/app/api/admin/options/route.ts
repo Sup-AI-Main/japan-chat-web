@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import {
   getAdminOptions,
@@ -18,7 +18,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -82,6 +82,26 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: "수정에 실패했습니다." }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const authed = await isAuthenticated();
+  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "id 필수" }, { status: 400 });
+    }
+
+    const success = await updateAdminOption({ id, active: "FALSE" });
+    if (success) {
+      return NextResponse.json({ success: true });
+    }
+    return NextResponse.json({ error: "삭제에 실패했습니다." }, { status: 500 });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
