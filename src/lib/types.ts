@@ -124,6 +124,7 @@ export interface FaqItem {
   status: string;
   active: string;
   sort: number;
+  updated_at: string;
 }
 
 // Include/Exclude
@@ -149,6 +150,7 @@ export interface AdminOption {
   group: string; // "AREA" (지역별) or "COMMON" (공통 안내)
   active: string;
   sort: number;
+  updated_at: string;
 }
 
 // Concurrency control error

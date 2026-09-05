@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { migrateGroupColumn, migrateUpdatedAt } from "@/lib/google-sheets";
+import { migrateGroupColumn, migrateUpdatedAt, migrateAdminOptionsId } from "@/lib/google-sheets";
 
 export async function POST() {
   const authed = await isAuthenticated();
@@ -9,7 +9,8 @@ export async function POST() {
   try {
     const groupResult = await migrateGroupColumn();
     const updatedAtResult = await migrateUpdatedAt();
-    return NextResponse.json({ group: groupResult, updatedAt: updatedAtResult });
+    const optionsIdResult = await migrateAdminOptionsId();
+    return NextResponse.json({ group: groupResult, updatedAt: updatedAtResult, optionsId: optionsIdResult });
   } catch {
     return NextResponse.json({ error: "Migration failed" }, { status: 500 });
   }

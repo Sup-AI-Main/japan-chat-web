@@ -469,7 +469,7 @@ export function HotelDetailClient({
                 >
                   <h3 className="text-[16px] font-bold text-text">{tt.golf_name}</h3>
                   <p className="text-[15px] text-muted">
-                    예상 차량시간: 약 {tt.estimated_time}
+                    예상 차량시간: {tt.estimated_time}
                   </p>
                   {tt.google_maps_direction_url && (
                     <a

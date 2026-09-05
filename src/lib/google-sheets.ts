@@ -132,7 +132,7 @@ export async function getGolfCourses(area?: string): Promise<GolfCourse[]> {
       id: r.id || "",
       area: r.area || "",
       display_name: r.display_name || r["상품표명"] || "",
-      official_name: r.official_name || r["공식명"] || "",
+      official_name: r.official_name || r["공식명(jp)"] || r["공식명"] || "",
       address: r.address || r["주소"] || "",
       phone: r.phone || r["전화"] || "",
       course_summary: r.course_summary || r["코스요약"] || "",
@@ -211,21 +211,32 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
 
 export async function getTravelTimes(area?: string): Promise<TravelTime[]> {
   const rows = await readSheet("travel_times");
+  // Resolve hotel/golf names from their respective sheets
+  const hotels = await getHotels();
+  const golfCourses = await getGolfCourses();
+  const hotelMap = new Map(hotels.map((h) => [h.id, h]));
+  const golfMap = new Map(golfCourses.map((g) => [g.id, g]));
+
   return rows
     .filter((r) => isActive(r.active))
     .filter((r) => !area || r.area?.toUpperCase() === area.toUpperCase())
-    .map((r) => ({
-      id: r.id || "",
-      area: r.area || "",
-      hotel_id: r.hotel_id || "",
-      hotel_name: r.hotel_name || "",
-      golf_id: r.golf_id || "",
-      golf_name: r.golf_name || "",
-      estimated_time: r.estimated_time || "",
-      google_maps_direction_url: r.google_maps_direction_url || "",
-      active: r.active || "",
-      sort: toNumber(r.sort),
-    }))
+    .map((r) => {
+      // Support both actual sheet columns and code-defined names
+      const fromId = r.from_id || r.hotel_id || "";
+      const toId = r.to_id || r.golf_id || "";
+      return {
+        id: r.id || "",
+        area: r.area || "",
+        hotel_id: fromId,
+        hotel_name: hotelMap.get(fromId)?.official_name || r.hotel_name || "",
+        golf_id: toId,
+        golf_name: golfMap.get(toId)?.display_name || r.golf_name || "",
+        estimated_time: r.verified_drive_min || r["상품표_참고분"] || r.estimated_time || "",
+        google_maps_direction_url: r.directions_url || r.google_maps_direction_url || "",
+        active: r.active || "",
+        sort: toNumber(r.sort),
+      };
+    })
     .sort((a, b) => a.sort - b.sort);
 }
 
@@ -321,6 +332,7 @@ function parseFaqRows(
       status: r.status || "",
       active: r.active || "",
       sort: toNumber(r.sort),
+      updated_at: r.updated_at || "",
     }))
     .sort((a, b) => a.sort - b.sort);
 }
@@ -343,6 +355,7 @@ export async function getFaqById(id: string): Promise<FaqItem | null> {
     status: row.status || "",
     active: row.active || "",
     sort: toNumber(row.sort),
+    updated_at: row.updated_at || "",
   };
 }
 
@@ -357,6 +370,7 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
     group: r.group || r["그룹"] || "",
     active: r.active || "TRUE",
     sort: toNumber(r.sort),
+    updated_at: r.updated_at || "",
   }));
 }
 
@@ -482,7 +496,7 @@ export async function migrateGroupColumn(): Promise<{ success: boolean; message:
 
 // updated_at 컬럼 마이그레이션: 각 탭에 updated_at 컬럼 추가 및 기존 행 채우기
 export async function migrateUpdatedAt(): Promise<{ success: boolean; message: string; details: Record<string, number> }> {
-  const tabs = ["hotels", "restaurants", "golf_courses", "includes_excludes"];
+  const tabs = ["hotels", "restaurants", "golf_courses", "includes_excludes", "travel_times", "faq", "admin_options"];
   const details: Record<string, number> = {};
 
   try {
@@ -538,6 +552,23 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
       // 2) updated_at 컬럼이 없으면 추가
       if (updatedAtColIndex === -1) {
         const newColIndex = headers.length;
+        // 먼저 새 열을 삽입하여 그리드 확장
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: {
+            requests: [{
+              insertDimension: {
+                range: {
+                  sheetId: await getSheetIdByName(sheets, sheetId, tab),
+                  dimension: "COLUMNS",
+                  startIndex: newColIndex,
+                  endIndex: newColIndex + 1,
+                },
+                inheritFromBefore: true,
+              },
+            }],
+          },
+        });
         const colLetter = colIndexToLetter(newColIndex);
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
@@ -569,11 +600,11 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
 
         // updated_at이 비어있는 행에 타임스탬프 설정
         let count = 0;
-        const updates: { range: string; values: string[][] }[] = [];
+        const batchDataNew: { range: string; values: string[][] }[] = [];
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i];
           if (!row[newUpdatedAtCol]) {
-            updates.push({
+            batchDataNew.push({
               range: `${tab}!${colLetterNew}${i + 1}`,
               values: [[now]],
             });
@@ -581,12 +612,13 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
           }
         }
 
-        for (const update of updates) {
-          await sheets.spreadsheets.values.update({
+        if (batchDataNew.length > 0) {
+          await sheets.spreadsheets.values.batchUpdate({
             spreadsheetId: sheetId,
-            range: update.range,
-            valueInputOption: "RAW",
-            requestBody: { values: update.values },
+            requestBody: {
+              valueInputOption: "RAW",
+              data: batchDataNew,
+            },
           });
         }
 
@@ -601,11 +633,11 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
         const colLetter = colIndexToLetter(updatedAtColIndex);
 
         let count = 0;
-        const updates: { range: string; values: string[][] }[] = [];
+        const batchData: { range: string; values: string[][] }[] = [];
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i];
           if (!row[updatedAtColIndex]) {
-            updates.push({
+            batchData.push({
               range: `${tab}!${colLetter}${i + 1}`,
               values: [[now]],
             });
@@ -613,12 +645,13 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
           }
         }
 
-        for (const update of updates) {
-          await sheets.spreadsheets.values.update({
+        if (batchData.length > 0) {
+          await sheets.spreadsheets.values.batchUpdate({
             spreadsheetId: sheetId,
-            range: update.range,
-            valueInputOption: "RAW",
-            requestBody: { values: update.values },
+            requestBody: {
+              valueInputOption: "RAW",
+              data: batchData,
+            },
           });
         }
 
@@ -642,6 +675,147 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
   }
 }
 
+// admin_options ID 마이그레이션: id 컬럼 추가 및 기존 행에 deterministic ID 부여
+export async function migrateAdminOptionsId(): Promise<{ success: boolean; message: string; details: Record<string, number> }> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+
+    // 1) 헤더 읽기
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z1",
+    });
+    const headers: string[] = headerResponse.data.values?.[0] || [];
+
+    // 2) id 컬럼이 없으면 추가
+    let idColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "id"
+    );
+
+    if (idColIndex === -1) {
+      // 먼저 새 열을 삽입하여 그리드 확장
+      const newColIndex = headers.length;
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [{
+            insertDimension: {
+              range: {
+                sheetId: await getSheetIdByName(sheets, sheetId, "admin_options"),
+                dimension: "COLUMNS",
+                startIndex: newColIndex,
+                endIndex: newColIndex + 1,
+              },
+              inheritFromBefore: true,
+            },
+          }],
+        },
+      });
+      const colLetter = colIndexToLetter(newColIndex);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `admin_options!${colLetter}1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [["id"]] },
+      });
+      idColIndex = newColIndex;
+      headers.push("id");
+    }
+
+    // 3) 전체 데이터 읽기
+    const lastCol = colIndexToLetter(headers.length - 1);
+    const allData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `admin_options!A1:${lastCol}1000`,
+    });
+    const rows = allData.data.values || [];
+
+    const optionTypeCol = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "option_type"
+    );
+    const codeCol = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "code"
+    );
+    const activeCol = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "active"
+    );
+
+    // 4) 손상 행 식별 + ID 생성
+    const updates: { range: string; values: string[][] }[] = [];
+    let backfillCount = 0;
+    let deactivatedCount = 0;
+    const usedIds = new Set<string>();
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+      const optionType = (row[optionTypeCol] || "").trim();
+      const code = (row[codeCol] || "").trim();
+      const currentId = (row[idColIndex] || "").trim();
+
+      // 손상 행 판별
+      const isDamaged =
+        optionType.startsWith("opt_travel_time_") || // field-shift (row 18, 19)
+        code === "???????" || // corrupted code (row 20)
+        !code; // empty code
+
+      if (isDamaged && activeCol !== -1) {
+        const activeLetter = colIndexToLetter(activeCol);
+        updates.push({
+          range: `admin_options!${activeLetter}${rowNum}`,
+          values: [["FALSE"]],
+        });
+        deactivatedCount++;
+      }
+
+      // ID 생성 (없는 경우만)
+      if (!currentId) {
+        let newId: string;
+        if (isDamaged) {
+          newId = `opt_damaged_${rowNum}`;
+        } else {
+          const normType = optionType.toLowerCase().replace(/[^a-z0-9]/g, "_");
+          const normCode = code.toLowerCase().replace(/[^a-z0-9]/g, "_");
+          newId = `opt_${normType}_${normCode}`;
+          if (usedIds.has(newId)) {
+            newId = `opt_${normType}_${normCode}_${rowNum}`;
+          }
+        }
+        usedIds.add(newId);
+        const idLetter = colIndexToLetter(idColIndex);
+        updates.push({
+          range: `admin_options!${idLetter}${rowNum}`,
+          values: [[newId]],
+        });
+        backfillCount++;
+      } else {
+        usedIds.add(currentId);
+      }
+    }
+
+    // 5) 일괄 업데이트
+    if (updates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          valueInputOption: "RAW",
+          data: updates,
+        },
+      });
+    }
+
+    invalidateCache("admin_options");
+    return {
+      success: true,
+      message: `admin_options ID 마이그레이션 완료. ID ${backfillCount}개 생성, 손상행 ${deactivatedCount}개 비활성화.`,
+      details: { backfilled: backfillCount, deactivated: deactivatedCount, total: rows.length - 1 },
+    };
+  } catch (error) {
+    console.error("Failed to migrate admin options IDs", error);
+    return { success: false, message: String(error), details: {} };
+  }
+}
+
 export async function appendAdminOption(
   data: Record<string, string | number>
 ): Promise<boolean> {
@@ -652,8 +826,9 @@ export async function appendAdminOption(
       range: "admin_options!A1:Z1",
     });
     const headers = headerResponse.data.values?.[0] || [];
+    const dataWithTimestamp: Record<string, string | number> = { updated_at: new Date().toISOString(), ...data };
     const row = headers.map(
-      (h: string) => String(data[h.toLowerCase().trim()] ?? "")
+      (h: string) => String(dataWithTimestamp[h.toLowerCase().trim()] ?? "")
     );
 
     await sheets.spreadsheets.values.append({
@@ -705,6 +880,14 @@ export async function updateAdminOption(
       (h: string) => String(data[h.toLowerCase().trim()] ?? rows[targetRowIndex - 1][headers.indexOf(h)] ?? "")
     );
 
+    // updated_at 갱신
+    const updatedAtColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "updated_at"
+    );
+    if (updatedAtColIndex !== -1) {
+      row[updatedAtColIndex] = new Date().toISOString();
+    }
+
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
       range: `admin_options!A${targetRowIndex}:Z${targetRowIndex}`,
@@ -745,6 +928,11 @@ export async function updateAdminOptionSort(
 
     if (idColIndex === -1 || sortColIndex === -1) return false;
 
+    const updatedAtColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "updated_at"
+    );
+    const now = new Date().toISOString();
+
     const updates: { range: string; values: string[][] }[] = [];
     ids.forEach((id, index) => {
       for (let i = 1; i < rows.length; i++) {
@@ -753,11 +941,18 @@ export async function updateAdminOptionSort(
           (!optionType || rows[i][typeColIndex]?.toUpperCase() === optionType.toUpperCase())
         ) {
           const rowNum = i + 1;
-          const colLetter = String.fromCharCode(65 + sortColIndex);
+          const sortLetter = colIndexToLetter(sortColIndex);
           updates.push({
-            range: `admin_options!${colLetter}${rowNum}`,
+            range: `admin_options!${sortLetter}${rowNum}`,
             values: [[String(index + 1)]],
           });
+          if (updatedAtColIndex !== -1) {
+            const uaLetter = colIndexToLetter(updatedAtColIndex);
+            updates.push({
+              range: `admin_options!${uaLetter}${rowNum}`,
+              values: [[now]],
+            });
+          }
           break;
         }
       }
@@ -792,8 +987,9 @@ export async function appendFaq(
       range: "faq!A1:Z1",
     });
     const headers = headerResponse.data.values?.[0] || [];
+    const dataWithTimestamp: Record<string, string | number> = { updated_at: new Date().toISOString(), ...data };
     const row = headers.map(
-      (h: string) => String(data[h.toLowerCase().trim()] ?? "")
+      (h: string) => String(dataWithTimestamp[h.toLowerCase().trim()] ?? "")
     );
 
     await sheets.spreadsheets.values.append({
@@ -846,7 +1042,11 @@ export async function updateFaq(
     if (targetRowIndex === -1) return false;
 
     const row = headers.map(
-      (h: string) => String(data[h.toLowerCase().trim()] ?? "")
+      (h: string) => {
+        const key = h.toLowerCase().trim();
+        if (key === "updated_at") return new Date().toISOString();
+        return String(data[key] ?? rows[targetRowIndex - 1][headers.indexOf(h)] ?? "");
+      }
     );
 
     await sheets.spreadsheets.values.update({
@@ -885,17 +1085,29 @@ export async function updateFaqSort(
 
     if (idColIndex === -1 || sortColIndex === -1) return false;
 
+    const updatedAtColIndex = headers.findIndex(
+      (h: string) => h.toLowerCase().trim() === "updated_at"
+    );
+    const now = new Date().toISOString();
+
     // Update sort values
     const updates: { range: string; values: string[][] }[] = [];
     ids.forEach((id, index) => {
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][idColIndex] === id) {
           const rowNum = i + 1;
-          const colLetter = String.fromCharCode(65 + sortColIndex);
+          const sortLetter = colIndexToLetter(sortColIndex);
           updates.push({
-            range: `faq!${colLetter}${rowNum}`,
+            range: `faq!${sortLetter}${rowNum}`,
             values: [[String(index + 1)]],
           });
+          if (updatedAtColIndex !== -1) {
+            const uaLetter = colIndexToLetter(updatedAtColIndex);
+            updates.push({
+              range: `faq!${uaLetter}${rowNum}`,
+              values: [[now]],
+            });
+          }
           break;
         }
       }
@@ -985,6 +1197,18 @@ export async function deleteFaq(id: string): Promise<boolean> {
 // --- Generic helpers ---
 
 /** 컬럼 인덱스 → 스프레드시트 열 문자 (0→A, 25→Z, 26→AA ...) */
+async function getSheetIdByName(
+  sheets: ReturnType<typeof getSheetsClient>["sheets"],
+  spreadsheetId: string,
+  tabName: string
+): Promise<number> {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const sheet = (meta.data.sheets || []).find(
+    (s) => s.properties?.title === tabName
+  );
+  return sheet?.properties?.sheetId ?? 0;
+}
+
 function colIndexToLetter(index: number): string {
   let letter = "";
   let i = index;
