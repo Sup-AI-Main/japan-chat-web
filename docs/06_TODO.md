@@ -188,7 +188,7 @@
 - [x] `src/hooks/use-admin.ts` 관리자 인증 훅
 - [x] `/api/admin/hotel` CRUD (GET/POST/PUT/DELETE)
 - [x] `/api/admin/restaurant` CRUD (GET/POST/PUT/DELETE)
-- [x] `/api/admin/golf` 목록 조회 (GET)
+- [x] `/api/admin/golf` CRUD (GET/POST/PUT/DELETE)
 - [x] `/api/admin/check` 인증 확인 (GET)
 - [x] `src/components/inline-cms/EditToolbar.tsx` (✏️/🗑️/＋)
 - [x] `src/components/inline-cms/ConfirmModal.tsx`
@@ -196,6 +196,19 @@
 - [x] `src/components/inline-cms/RestaurantEditModal.tsx`
 - [x] 인라인 CMS로 고객 페이지에서 호텔/맛집 편집 가능
 - [x] 수정/삭제 후 Zustand 캐시 즉시 갱신
+- [x] GolfEditModal + GolfListClient (골프장 CRUD UI)
+- [x] IncludeExcludeSection (포함/불포함 CRUD UI)
+- [x] EditableContainer / EditableSection / EditableList (composition 기반 공통 컴포넌트)
+- [x] `/api/admin/includes` CRUD (GET/POST/PUT/DELETE)
+- [x] `/api/admin/golf` POST/PUT/DELETE API
+- [x] Optimistic Concurrency Control (updated_at 기반 409 충돌 감지)
+- [x] admin_options ID 컬럼 마이그레이션 (deterministic ID 백필)
+- [x] admin_options 손상행 자동 비활성화 (field-shift, corrupted code)
+- [x] updated_at 컬럼 전체 탭 확장 (travel_times, faq, admin_options)
+- [x] travel_times parser 수정 (from_id/verified_drive_min → 실제 sheet 헤더 매핑)
+- [x] travel_times cross-sheet 이름 해석 (hotel_id/golf_id → hotels/golf_courses 조회)
+- [x] golf_courses official_name alias (공식명(JP) fallback)
+- [x] 마이그레이션 API 최적화 (batchUpdate로 할당량 절감)
 
 ---
 
