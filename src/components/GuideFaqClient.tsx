@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
+import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getCategoryBorder } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
 
@@ -53,19 +54,10 @@ function FaqEditModal({
         active: "TRUE",
       };
 
-      const res = await fetch("/api/admin/faq", {
+      const result = await adminFetchJson<{ id?: string }>("/api/admin/faq", {
         method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        setError(err.error || "저장 실패");
-        return;
-      }
-
-      const result = await res.json();
       onSaved({
         id: result.id || faq?.id || "",
         area: "ALL",
@@ -83,8 +75,12 @@ function FaqEditModal({
         updated_at: new Date().toISOString(),
       });
       onClose();
-    } catch {
-      setError("저장 중 오류 발생");
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        setError("다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.");
+      } else {
+        setError(err instanceof Error ? err.message : "저장 중 오류 발생");
+      }
     } finally {
       setLoading(false);
     }

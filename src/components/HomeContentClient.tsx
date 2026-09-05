@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
+import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 
 interface AdminOption {
@@ -56,23 +57,14 @@ function OptionEditModal({
 
     try {
       const isEdit = !!option;
-      const res = await fetch("/api/admin/options", {
+      const result = await adminFetchJson<{ id?: string }>("/api/admin/options", {
         method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isEdit
             ? { id: option.id, label: label.trim(), description: description.trim() }
             : { option_type: optionType, label: label.trim(), description: description.trim(), group: group || "" }
         ),
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        setError(err.error || "저장 실패");
-        return;
-      }
-
-      const result = await res.json();
       onSaved({
         id: result.id || option?.id || "",
         option_type: optionType,
@@ -85,8 +77,12 @@ function OptionEditModal({
         updated_at: new Date().toISOString(),
       });
       onClose();
-    } catch {
-      setError("저장 중 오류 발생");
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        setError("다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.");
+      } else {
+        setError(err instanceof Error ? err.message : "저장 중 오류 발생");
+      }
     } finally {
       setLoading(false);
     }

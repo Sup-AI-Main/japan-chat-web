@@ -575,7 +575,6 @@ export async function migrateGroupColumn(): Promise<{ success: boolean; message:
         valueInputOption: "RAW",
         requestBody: { values: [["group"]] },
       });
-      console.log("Added group column header at", colLetter);
     }
 
     // 전체 데이터 읽기
@@ -672,7 +671,6 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
           requestBody: { values: [ieHeaders] },
         });
         details[tab] = 0;
-        console.log(`Created tab ${tab} with headers`);
         continue;
       }
 
@@ -685,7 +683,6 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
         });
         headers = headerResponse.data.values?.[0] || [];
       } catch {
-        console.log(`Tab ${tab} read failed, skipping`);
         continue;
       }
       if (headers.length === 0) continue;
@@ -722,7 +719,6 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
           valueInputOption: "RAW",
           requestBody: { values: [["updated_at"]] },
         });
-        console.log(`Added updated_at column to ${tab} at ${colLetter}`);
 
         // 헤더 다시 읽기
         const updatedHeaderResponse = await sheets.spreadsheets.values.get({
