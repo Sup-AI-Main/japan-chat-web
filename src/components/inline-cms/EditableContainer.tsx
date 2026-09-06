@@ -80,7 +80,7 @@ export function EditableContainer({
       {hasAnyAction && (
         <>
           {/* Desktop: hover overlay */}
-          <div className="absolute top-2 right-2 z-10 hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+          <div className="absolute top-2 right-2 z-10 hidden sm:flex items-center gap-1">
             {showAdd && (
               <button
                 onClick={onAdd}

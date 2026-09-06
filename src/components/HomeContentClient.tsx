@@ -209,7 +209,7 @@ export default function HomeContentClient({
             {isAdmin && (
               <button
                 onClick={() => handleEditArea(area)}
-                className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-border shadow-sm opacity-0 group-hover/card:opacity-100 transition-opacity text-[14px] cursor-pointer hover:bg-bg"
+                className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-border shadow-sm text-[14px] cursor-pointer hover:bg-bg"
                 title="수정"
               >
                 ✏️
@@ -238,7 +238,7 @@ export default function HomeContentClient({
                   </span>
                 </Link>
                 {isAdmin && (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/cat:opacity-100 transition-opacity">
+                  <div className="absolute top-2 right-2 flex items-center gap-1">
                     <button
                       onClick={() => handleEditCategory(cat)}
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-white/90 border border-border text-[12px] cursor-pointer hover:bg-bg"

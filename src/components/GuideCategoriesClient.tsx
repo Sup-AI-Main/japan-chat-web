@@ -184,7 +184,7 @@ export default function GuideCategoriesClient({
               </span>
             </Link>
             {isAdmin && (
-              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/cat:opacity-100 transition-opacity">
+              <div className="absolute top-2 right-2 flex items-center gap-1">
                 <button
                   onClick={() => handleEdit(cat)}
                   className="w-7 h-7 flex items-center justify-center rounded-full bg-white/90 border border-border text-[12px] cursor-pointer hover:bg-bg"

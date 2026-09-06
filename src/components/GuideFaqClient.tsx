@@ -212,7 +212,7 @@ export default function GuideFaqClient({
                 </div>
               </details>
               {isAdmin && (
-                <div className="absolute top-3 right-10 flex items-center gap-1 opacity-0 group-hover/faq:opacity-100 transition-opacity">
+                <div className="absolute top-3 right-10 flex items-center gap-1">
                   <button
                     onClick={() => handleEdit(faq)}
                     className="w-7 h-7 flex items-center justify-center rounded-full bg-white/90 border border-border text-[12px] cursor-pointer hover:bg-bg"

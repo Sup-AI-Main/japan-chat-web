@@ -186,7 +186,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
                   </div>
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleToggleVisibility(item)}
                       className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-[11px]"
@@ -238,7 +238,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
                   </div>
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleToggleVisibility(item)}
                       className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-[11px]"

@@ -92,7 +92,7 @@ export function EditableList<T extends EditableListItem>({
               {showItemActions && (
                 <>
                   {/* Desktop */}
-                  <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                  <div className="hidden sm:flex items-center gap-0.5 shrink-0 ml-2">
                     {onItemEdit && (
                       <button
                         onClick={() => onItemEdit(item)}
