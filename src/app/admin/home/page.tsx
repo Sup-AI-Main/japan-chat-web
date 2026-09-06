@@ -3,6 +3,7 @@ import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
 import { getAdminOptions } from "@/lib/google-sheets";
 import { getAreaEmoji } from "@/lib/display";
+import LogoutButton from "@/components/LogoutButton";
 
 export default async function AdminHomePage() {
   const authed = await isAuthenticated();
@@ -18,13 +19,7 @@ export default async function AdminHomePage() {
       <div className="max-w-[900px] mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-[24px] font-bold text-text">⚙️ 관리자</h1>
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a
-            href="/api/admin/logout"
-            className="text-[14px] text-muted hover:text-danger px-3 py-2 min-h-[44px] flex items-center"
-          >
-            로그아웃
-          </a>
+          <LogoutButton />
         </div>
 
         <h2 className="text-[18px] font-medium text-text mb-4">

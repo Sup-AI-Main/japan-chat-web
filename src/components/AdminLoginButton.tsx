@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
+import { useGuideStore } from "@/store/guide-store";
 import Link from "next/link";
 
 export default function AdminLoginButton() {
   const isAdmin = useAdmin();
+  const setAdmin = useGuideStore((s) => s.setAdmin);
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -37,7 +39,7 @@ export default function AdminLoginButton() {
       });
 
       if (res.ok) {
-        // 로그인 성공: 현재 페이지 유지, 관리자 상태 갱신
+        setAdmin(true);
         setOpen(false);
         router.refresh();
       } else {
