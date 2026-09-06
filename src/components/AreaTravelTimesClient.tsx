@@ -308,7 +308,7 @@ export default function AreaTravelTimesClient({
                           </a>
                         )}
                         {isAdmin && (
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleEdit(tt)}
                               className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg text-muted text-[14px] cursor-pointer"
