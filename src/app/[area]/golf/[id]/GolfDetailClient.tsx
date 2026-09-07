@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { GolfCourse, FaqItem, Restaurant } from "@/lib/types";
+import type { GolfCourse, FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
@@ -16,6 +16,7 @@ import {
   EditableContainer,
   IncludeExcludeSection,
   IncludeExcludeSummary,
+  ContentSectionsRenderer,
 } from "@/components/inline-cms";
 
 interface GolfDetailClientProps {
@@ -23,6 +24,7 @@ interface GolfDetailClientProps {
   area: string;
   faqs: FaqItem[];
   restaurants: Restaurant[];
+  contentSections: ContentSection[];
 }
 
 export function GolfDetailClient({
@@ -30,6 +32,7 @@ export function GolfDetailClient({
   area,
   faqs,
   restaurants: initialRestaurants,
+  contentSections,
 }: GolfDetailClientProps) {
   const [course, setCourse] = useState(initialCourse);
   const [restaurants, setRestaurants] = useState(initialRestaurants);
@@ -58,6 +61,10 @@ export function GolfDetailClient({
     { label: "렌탈", value: course.rental },
     { label: "복장", value: course.dress_code },
   ].filter((item) => item.value);
+
+  // If content_sections exist, hide fixed infoItems (migration completed)
+  const hasContentSections = contentSections.length > 0;
+  const showFixedInfo = !hasContentSections && infoItems.length > 0;
 
   const handleRestSaved = (data: RestaurantEditData) => {
     const updated = editDataToRestaurant(data, "GOLF");
@@ -150,8 +157,8 @@ export function GolfDetailClient({
             )}
           </div>
 
-          {/* Info sections */}
-          {infoItems.length > 0 && (
+          {/* Info sections — only show when no content_sections (pre-migration fallback) */}
+          {showFixedInfo && (
             <div className="bg-surface border border-border rounded-[12px] p-4 mb-6">
               <div className="space-y-4">
                 {infoItems.map((item) => (
@@ -201,6 +208,13 @@ export function GolfDetailClient({
 
         {/* 예약 전 확인 요약 */}
         <IncludeExcludeSummary parentType="GOLF" parentId={course.id} />
+
+        {/* Content Sections (dynamic) */}
+        <ContentSectionsRenderer
+          parentType="GOLF"
+          parentId={course.id}
+          initialSections={contentSections}
+        />
 
         {/* Nearby restaurants */}
         <div className="border-t border-border pt-6">

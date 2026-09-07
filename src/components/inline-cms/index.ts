@@ -7,3 +7,4 @@ export { HotelEditModal } from "./HotelEditModal";
 export { RestaurantEditModal } from "./RestaurantEditModal";
 export { GolfEditModal } from "./GolfEditModal";
 export { IncludeExcludeSection, IncludeExcludeSummary } from "./IncludeExcludeSection";
+export { ContentSectionsRenderer } from "./ContentSectionsRenderer";

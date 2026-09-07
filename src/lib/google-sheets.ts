@@ -1942,3 +1942,67 @@ function buildSchemaData(): string[][] {
 
   return rows;
 }
+
+// --- Golf 고정 column → content_sections Migration ---
+
+const GOLF_FIXED_SECTIONS: { field: keyof GolfCourse; title: string; emoji: string; sort: number }[] = [
+  { field: "course_summary", title: "코스 안내", emoji: "⛳", sort: 1 },
+  { field: "play_cart", title: "플레이/카트", emoji: "🏌️", sort: 2 },
+  { field: "clubhouse_dining", title: "클럽하우스 식사", emoji: "🍽️", sort: 3 },
+  { field: "bath_shower", title: "목욕/샤워", emoji: "♨️", sort: 4 },
+  { field: "rental", title: "렌탈", emoji: "🎒", sort: 5 },
+  { field: "dress_code", title: "복장", emoji: "👔", sort: 6 },
+];
+
+export async function migrateGolfFixedColumns(): Promise<{ success: boolean; message: string; migrated: number; skipped: number }> {
+  try {
+    const courses = await getGolfCourses();
+    const existingSections = await getContentSections("GOLF");
+
+    // Group existing sections by parent_id
+    const existingByParent = new Map<string, ContentSection[]>();
+    for (const s of existingSections) {
+      const list = existingByParent.get(s.parent_id) || [];
+      list.push(s);
+      existingByParent.set(s.parent_id, list);
+    }
+
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const course of courses) {
+      // Skip if already has content_sections for this golf course
+      if (existingByParent.has(course.id) && existingByParent.get(course.id)!.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      // Create content_sections for non-empty fixed columns
+      for (const { field, title, emoji, sort } of GOLF_FIXED_SECTIONS) {
+        const value = course[field] as string;
+        if (!value || !value.trim()) continue;
+
+        await appendContentSection({
+          parent_type: "GOLF",
+          parent_id: course.id,
+          title,
+          content: value.trim(),
+          emoji,
+          sort: sort.toString(),
+          is_visible: "TRUE",
+        });
+        migrated++;
+      }
+    }
+
+    return {
+      success: true,
+      message: `마이그레이션 완료: ${migrated}개 section 생성, ${skipped}개 골프장 skip`,
+      migrated,
+      skipped,
+    };
+  } catch (error) {
+    console.error("Failed to migrate golf fixed columns", error);
+    return { success: false, message: String(error), migrated: 0, skipped: 0 };
+  }
+}

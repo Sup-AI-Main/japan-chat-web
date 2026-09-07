@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { migrateGroupColumn, migrateUpdatedAt, migrateAdminOptionsId, migrateSchemaTabs, populateCmsSchema } from "@/lib/google-sheets";
+import { migrateGroupColumn, migrateUpdatedAt, migrateAdminOptionsId, migrateSchemaTabs, populateCmsSchema, migrateGolfFixedColumns } from "@/lib/google-sheets";
 
 export async function POST() {
   const authed = await isAuthenticated();
@@ -12,7 +12,8 @@ export async function POST() {
     const optionsIdResult = await migrateAdminOptionsId();
     const schemaTabsResult = await migrateSchemaTabs();
     const schemaDataResult = await populateCmsSchema();
-    return NextResponse.json({ group: groupResult, updatedAt: updatedAtResult, optionsId: optionsIdResult, schemaTabs: schemaTabsResult, schemaData: schemaDataResult });
+    const golfMigrationResult = await migrateGolfFixedColumns();
+    return NextResponse.json({ group: groupResult, updatedAt: updatedAtResult, optionsId: optionsIdResult, schemaTabs: schemaTabsResult, schemaData: schemaDataResult, golfMigration: golfMigrationResult });
   } catch {
     return NextResponse.json({ error: "Migration failed" }, { status: 500 });
   }

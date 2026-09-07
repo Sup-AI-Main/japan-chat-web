@@ -4,8 +4,8 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
-import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer } from "@/components/inline-cms";
-import type { Restaurant } from "@/lib/types";
+import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer } from "@/components/inline-cms";
+import type { Restaurant, ContentSection } from "@/lib/types";
 
 interface NearOption {
   id: string;
@@ -15,11 +15,13 @@ interface NearOption {
 interface RestaurantDetailClientProps {
   restaurant: Restaurant;
   area: string;
+  contentSections: ContentSection[];
 }
 
 export default function RestaurantDetailClient({
   restaurant: initialRestaurant,
   area,
+  contentSections,
 }: RestaurantDetailClientProps) {
   const [restaurant, setRestaurant] = useState<Restaurant>(initialRestaurant);
   const [editModal, setEditModal] = useState(false);
@@ -226,6 +228,13 @@ export default function RestaurantDetailClient({
         </div>
         </div>
       </EditableContainer>
+
+      {/* Content Sections (dynamic) */}
+      <ContentSectionsRenderer
+        parentType="RESTAURANT"
+        parentId={restaurant.id}
+        initialSections={contentSections}
+      />
 
       {isAdmin && (
         <RestaurantEditModal

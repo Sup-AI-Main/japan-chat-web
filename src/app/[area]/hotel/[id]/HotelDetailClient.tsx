@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { Hotel, TravelTime, FaqItem, Restaurant } from "@/lib/types";
+import type { Hotel, TravelTime, FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
@@ -16,6 +16,7 @@ import {
   EditableContainer,
   IncludeExcludeSection,
   IncludeExcludeSummary,
+  ContentSectionsRenderer,
 } from "@/components/inline-cms";
 
 interface HotelDetailClientProps {
@@ -24,6 +25,7 @@ interface HotelDetailClientProps {
   travelTimes: TravelTime[];
   faqs: FaqItem[];
   restaurants: Restaurant[];
+  contentSections: ContentSection[];
 }
 
 interface HotelData {
@@ -128,6 +130,7 @@ export function HotelDetailClient({
   travelTimes,
   faqs,
   restaurants: initialRestaurants,
+  contentSections,
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
   const [restaurants, setRestaurants] = useState(initialRestaurants);
@@ -442,6 +445,13 @@ export function HotelDetailClient({
 
         {/* 예약 전 확인 요약 */}
         <IncludeExcludeSummary parentType="HOTEL" parentId={hotel.id} />
+
+        {/* Content Sections (dynamic) */}
+        <ContentSectionsRenderer
+          parentType="HOTEL"
+          parentId={hotel.id}
+          initialSections={contentSections}
+        />
 
         {/* 주변 맛집 */}
         <div className="border-t border-border pt-6">

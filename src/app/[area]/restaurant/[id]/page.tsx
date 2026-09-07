@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurantById } from "@/lib/google-sheets";
+import { getRestaurantById, getContentSections } from "@/lib/google-sheets";
 import { getCategoryEmoji } from "@/lib/display";
+import type { ContentSection } from "@/lib/types";
 import RestaurantDetailClient from "./RestaurantDetailClient";
 
 export default async function RestaurantDetailPage({
@@ -26,6 +27,14 @@ export default async function RestaurantDetailPage({
   if (!restaurant || restaurant.area.toUpperCase() !== area.toUpperCase())
     notFound();
 
+  // Get content sections
+  let contentSections: ContentSection[] = [];
+  try {
+    contentSections = await getContentSections("RESTAURANT", id);
+  } catch {
+    contentSections = [];
+  }
+
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[720px] mx-auto">
@@ -43,7 +52,11 @@ export default async function RestaurantDetailPage({
           <p className="text-[15px] text-muted mb-4">{restaurant.name_jp}</p>
         )}
 
-        <RestaurantDetailClient restaurant={restaurant} area={area} />
+        <RestaurantDetailClient
+          restaurant={restaurant}
+          area={area}
+          contentSections={contentSections}
+        />
       </div>
     </main>
   );

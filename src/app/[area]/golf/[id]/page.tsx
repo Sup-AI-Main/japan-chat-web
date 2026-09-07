@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { getGolfCourseById, getFaq, getRestaurants } from "@/lib/google-sheets";
-import type { FaqItem, Restaurant } from "@/lib/types";
+import { getGolfCourseById, getFaq, getRestaurants, getContentSections } from "@/lib/google-sheets";
+import type { FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { GolfDetailClient } from "./GolfDetailClient";
 
 export default async function GolfDetailPage({
@@ -46,12 +46,21 @@ export default async function GolfDetailPage({
     restaurants = [];
   }
 
+  // Get content sections
+  let contentSections: ContentSection[] = [];
+  try {
+    contentSections = await getContentSections("GOLF", id);
+  } catch {
+    contentSections = [];
+  }
+
   return (
     <GolfDetailClient
       course={course}
       area={area}
       faqs={faqs}
       restaurants={restaurants}
+      contentSections={contentSections}
     />
   );
 }

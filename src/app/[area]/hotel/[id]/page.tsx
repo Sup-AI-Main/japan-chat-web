@@ -4,8 +4,9 @@ import {
   getFaq,
   getTravelTimes,
   getRestaurants,
+  getContentSections,
 } from "@/lib/google-sheets";
-import type { TravelTime, FaqItem, Restaurant } from "@/lib/types";
+import type { TravelTime, FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { HotelDetailClient } from "./HotelDetailClient";
 
 export default async function HotelDetailPage({
@@ -58,6 +59,14 @@ export default async function HotelDetailPage({
     restaurants = [];
   }
 
+  // Get content sections
+  let contentSections: ContentSection[] = [];
+  try {
+    contentSections = await getContentSections("HOTEL", id);
+  } catch {
+    contentSections = [];
+  }
+
   return (
     <HotelDetailClient
       hotel={hotel}
@@ -65,6 +74,7 @@ export default async function HotelDetailPage({
       travelTimes={travelTimes}
       faqs={faqs}
       restaurants={restaurants}
+      contentSections={contentSections}
     />
   );
 }
