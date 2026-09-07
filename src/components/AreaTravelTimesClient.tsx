@@ -73,7 +73,8 @@ function TravelTimeEditModal({
         body: JSON.stringify(formData),
       });
       onSaved({ ...formData, id: result.id || formData.id });
-      onClose();
+      // Note: Do not call onClose() here. The parent component
+      // will handle showing a toast and closing the modal after a delay.
     } catch (err) {
       if (err instanceof ConflictError) {
         setError("다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.");
