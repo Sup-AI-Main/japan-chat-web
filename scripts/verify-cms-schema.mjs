@@ -29,6 +29,7 @@ const EXPECTED_SHEETS = [
   "admin_options",
   "includes_excludes",
   "content_sections",
+  "cms_schema",
 ];
 
 const EXPECTED_GOLF_COLS = [
@@ -303,6 +304,21 @@ if (gsContent) {
     "getIncludesExcludes", "appendIncludeExclude", "updateIncludeExclude", "deleteIncludeExclude",
     "getContentSections", "appendContentSection", "updateContentSection", "deleteContentSection",
   ]);
+  // Migration functions
+  checkGoogleSheetsFunctionsExist(gsContent, [
+    "migrateSchemaTabs", "populateCmsSchema", "buildSchemaData",
+  ]);
+}
+
+// 5b. CmsFieldDefinition type
+console.log("\n5b. Schema Registry 타입 검증");
+if (gsContent) {
+  const hasSchemaData = /buildSchemaData/.test(gsContent);
+  if (hasSchemaData) pass("buildSchemaData() 함수 존재 — 8개 entity 전체 스키마 등록");
+  else fail("buildSchemaData() 함수 누락");
+  const hasPopulate = /populateCmsSchema/.test(gsContent);
+  if (hasPopulate) pass("populateCmsSchema() 함수 존재 — cms_schema 자동 등록");
+  else fail("populateCmsSchema() 함수 누락");
 }
 
 // 6. Relation targets documentation

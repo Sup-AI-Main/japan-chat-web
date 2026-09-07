@@ -1665,3 +1665,280 @@ export async function deleteContentSection(id: string): Promise<boolean> {
   if (result) invalidateCache("content_sections");
   return result;
 }
+
+// --- Migration: cms_schema + content_sections 탭 생성 ---
+
+export async function migrateSchemaTabs(): Promise<{ success: boolean; message: string }> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    const existingTabs = (spreadsheetMeta.data.sheets || []).map(s => s.properties?.title || "");
+
+    const csHeaders = ["id", "parent_type", "parent_id", "title", "content", "emoji", "sort", "is_visible", "created_at", "updated_at"];
+    const schemaHeaders = ["id", "entity", "sheet_name", "field_key", "physical_column", "display_label", "field_type", "required", "editable", "repeatable", "sortable", "visible", "relation_target", "default_value", "description"];
+
+    // content_sections 탭 생성
+    if (!existingTabs.includes("content_sections")) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: "content_sections" } } }] },
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: "content_sections!A1",
+        valueInputOption: "RAW",
+        requestBody: { values: [csHeaders] },
+      });
+    }
+
+    // cms_schema 탭 생성
+    if (!existingTabs.includes("cms_schema")) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: "cms_schema" } } }] },
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: "cms_schema!A1",
+        valueInputOption: "RAW",
+        requestBody: { values: [schemaHeaders] },
+      });
+    }
+
+    return { success: true, message: "content_sections + cms_schema 탭 생성 완료" };
+  } catch (error) {
+    console.error("Failed to migrate schema tabs", error);
+    return { success: false, message: String(error) };
+  }
+}
+
+export async function populateCmsSchema(): Promise<{ success: boolean; message: string; count: number }> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+
+    // 기존 데이터 확인 — 이미 있으면 skip
+    const existing = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "cms_schema!A2:A",
+    });
+    const existingCount = (existing.data.values || []).length;
+    if (existingCount > 0) {
+      return { success: true, message: `이미 ${existingCount}개 행 존재`, count: existingCount };
+    }
+
+    const schemaData = buildSchemaData();
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "cms_schema!A:A",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: schemaData },
+    });
+
+    invalidateCache("cms_schema");
+    return { success: true, message: `${schemaData.length}개 스키마 등록 완료`, count: schemaData.length };
+  } catch (error) {
+    console.error("Failed to populate cms_schema", error);
+    return { success: false, message: String(error), count: 0 };
+  }
+}
+
+function buildSchemaData(): string[][] {
+  const rows: string[][] = [];
+  let n = 0;
+  const next = () => `sc_${++n}`;
+
+  // golf_courses
+  const golf = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["area", "지역", "string", "TRUE", "TRUE"],
+    ["display_name", "상품표명", "string", "TRUE", "TRUE"],
+    ["official_name", "공식명", "string", "FALSE", "TRUE"],
+    ["address", "주소", "string", "FALSE", "TRUE"],
+    ["phone", "전화", "string", "FALSE", "TRUE"],
+    ["course_summary", "코스 안내", "string", "FALSE", "TRUE"],
+    ["play_cart", "플레이/카트", "string", "FALSE", "TRUE"],
+    ["clubhouse_dining", "클럽하우스 식사", "string", "FALSE", "TRUE"],
+    ["bath_shower", "목욕/샤워", "string", "FALSE", "TRUE"],
+    ["rental", "렌탈", "string", "FALSE", "TRUE"],
+    ["dress_code", "복장", "string", "FALSE", "TRUE"],
+    ["google_maps_url", "구글맵 URL", "string", "FALSE", "TRUE"],
+    ["source_url", "소스 URL", "string", "FALSE", "TRUE"],
+    ["status", "상태", "string", "FALSE", "TRUE"],
+    ["active", "활성", "boolean", "TRUE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["last_verified", "최종검증일", "string", "FALSE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of golf) {
+    rows.push([next(), "golf_courses", "golf_courses", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // hotels (주요 필드만)
+  const hotel = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["area", "지역", "string", "TRUE", "TRUE"],
+    ["official_name", "호텔명", "string", "TRUE", "TRUE"],
+    ["address", "주소", "string", "FALSE", "TRUE"],
+    ["phone", "전화", "string", "FALSE", "TRUE"],
+    ["check_in", "체크인", "string", "FALSE", "TRUE"],
+    ["check_out", "체크아웃", "string", "FALSE", "TRUE"],
+    ["breakfast", "조식", "string", "FALSE", "TRUE"],
+    ["bath_spa", "목욕/스파", "string", "FALSE", "TRUE"],
+    ["hotel_dining", "호텔 식사", "string", "FALSE", "TRUE"],
+    ["atm_payment", "ATM/결제", "string", "FALSE", "TRUE"],
+    ["transport", "교통", "string", "FALSE", "TRUE"],
+    ["google_maps_url", "구글맵 URL", "string", "FALSE", "TRUE"],
+    ["source_url", "소스 URL", "string", "FALSE", "TRUE"],
+    ["status", "상태", "string", "FALSE", "TRUE"],
+    ["active", "활성", "boolean", "TRUE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["name_kr", "한글명", "string", "FALSE", "TRUE"],
+    ["name_jp", "일본어명", "string", "FALSE", "TRUE"],
+    ["address_kr", "한글 주소", "string", "FALSE", "TRUE"],
+    ["address_jp", "일본어 주소", "string", "FALSE", "TRUE"],
+    ["checkin_time", "체크인 시간", "string", "FALSE", "TRUE"],
+    ["checkout_time", "체크아웃 시간", "string", "FALSE", "TRUE"],
+    ["breakfast_place", "조식 장소", "string", "FALSE", "TRUE"],
+    ["breakfast_time", "조식 시간", "string", "FALSE", "TRUE"],
+    ["breakfast_last_entry", "조식 입장마감", "string", "FALSE", "TRUE"],
+    ["dinner_place", "석식 장소", "string", "FALSE", "TRUE"],
+    ["dinner_time", "석식 시간", "string", "FALSE", "TRUE"],
+    ["dinner_last_entry", "석식 입장마감", "string", "FALSE", "TRUE"],
+    ["has_public_bath", "대욕장 있음", "boolean", "FALSE", "TRUE"],
+    ["has_outdoor_onsen", "노천탕 있음", "boolean", "FALSE", "TRUE"],
+    ["has_sauna", "사우나 있음", "boolean", "FALSE", "TRUE"],
+    ["bath_spa_hours", "대욕장 운영시간", "string", "FALSE", "TRUE"],
+    ["tattoo_policy", "타투 정책", "string", "FALSE", "TRUE"],
+    ["other_info", "기타 정보", "string", "FALSE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of hotel) {
+    rows.push([next(), "hotels", "hotels", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // travel_times
+  const tt = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["area", "지역", "string", "TRUE", "TRUE"],
+    ["hotel_id", "호텔 ID", "string", "TRUE", "TRUE"],
+    ["golf_id", "골프장 ID", "string", "TRUE", "TRUE"],
+    ["estimated_time", "이동시간", "string", "FALSE", "TRUE"],
+    ["google_maps_direction_url", "길찾기 URL", "string", "FALSE", "TRUE"],
+    ["active", "활성", "boolean", "TRUE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of tt) {
+    rows.push([next(), "travel_times", "travel_times", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // restaurants
+  const rest = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["area", "지역", "string", "TRUE", "TRUE"],
+    ["near_type", "근접 타입", "string", "TRUE", "TRUE"],
+    ["near_id", "근접 대상 ID", "string", "TRUE", "TRUE"],
+    ["name", "이름", "string", "TRUE", "TRUE"],
+    ["category", "카테고리", "string", "FALSE", "TRUE"],
+    ["distance", "거리", "string", "FALSE", "TRUE"],
+    ["address", "주소", "string", "FALSE", "TRUE"],
+    ["hours", "영업시간", "string", "FALSE", "TRUE"],
+    ["price_range", "가격대", "string", "FALSE", "TRUE"],
+    ["phone", "전화", "string", "FALSE", "TRUE"],
+    ["google_maps_url", "구글맵 URL", "string", "FALSE", "TRUE"],
+    ["source_url", "소스 URL", "string", "FALSE", "TRUE"],
+    ["status", "상태", "string", "FALSE", "TRUE"],
+    ["active", "활성", "boolean", "TRUE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["last_verified", "최종검증일", "string", "FALSE", "TRUE"],
+    ["name_kr", "한글명", "string", "FALSE", "TRUE"],
+    ["name_jp", "일본어명", "string", "FALSE", "TRUE"],
+    ["menu_kr", "메뉴(한글)", "string", "FALSE", "TRUE"],
+    ["menu_jp", "메뉴(일본어)", "string", "FALSE", "TRUE"],
+    ["menu_price", "메뉴 가격", "string", "FALSE", "TRUE"],
+    ["closed_days", "휴무일", "string", "FALSE", "TRUE"],
+    ["distance_km", "거리(km)", "string", "FALSE", "TRUE"],
+    ["drive_minutes", "차량 시간(분)", "string", "FALSE", "TRUE"],
+    ["walk_minutes", "도보 시간(분)", "string", "FALSE", "TRUE"],
+    ["description", "설명", "string", "FALSE", "TRUE"],
+    ["recommended", "추천", "boolean", "FALSE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of rest) {
+    rows.push([next(), "restaurants", "restaurants", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // faq
+  const faq = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["area", "지역", "string", "TRUE", "TRUE"],
+    ["category", "카테고리", "string", "TRUE", "TRUE"],
+    ["related_type", "관련 타입", "string", "FALSE", "TRUE"],
+    ["related_id", "관련 ID", "string", "FALSE", "TRUE"],
+    ["related_name", "관련 이름", "string", "FALSE", "TRUE"],
+    ["question_scope", "질문 범위", "string", "FALSE", "TRUE"],
+    ["question", "질문", "string", "TRUE", "TRUE"],
+    ["answer", "답변", "string", "TRUE", "TRUE"],
+    ["source_url", "소스 URL", "string", "FALSE", "TRUE"],
+    ["status", "상태", "string", "FALSE", "TRUE"],
+    ["active", "활성", "boolean", "TRUE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of faq) {
+    rows.push([next(), "faq", "faq", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // admin_options
+  const opt = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["option_type", "옵션 타입", "string", "TRUE", "TRUE"],
+    ["code", "코드", "string", "TRUE", "TRUE"],
+    ["label", "표시명", "string", "TRUE", "TRUE"],
+    ["description", "설명", "string", "FALSE", "TRUE"],
+    ["group", "그룹", "string", "FALSE", "TRUE"],
+    ["active", "활성", "boolean", "TRUE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of opt) {
+    rows.push([next(), "admin_options", "admin_options", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // includes_excludes
+  const ie = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["parent_type", "부모 타입", "string", "TRUE", "TRUE"],
+    ["parent_id", "부모 ID", "string", "TRUE", "TRUE"],
+    ["type", "구분", "string", "TRUE", "TRUE"],
+    ["text_kr", "내용(한글)", "string", "TRUE", "TRUE"],
+    ["text_jp", "내용(일본어)", "string", "FALSE", "TRUE"],
+    ["sort_order", "정렬", "number", "FALSE", "TRUE"],
+    ["is_visible", "표시여부", "boolean", "TRUE", "TRUE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of ie) {
+    rows.push([next(), "includes_excludes", "includes_excludes", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort_order" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  // content_sections
+  const cs = [
+    ["id", "ID", "string", "TRUE", "FALSE"],
+    ["parent_type", "부모 타입", "string", "TRUE", "TRUE"],
+    ["parent_id", "부모 ID", "string", "TRUE", "TRUE"],
+    ["title", "제목", "string", "TRUE", "TRUE"],
+    ["content", "내용", "string", "TRUE", "TRUE"],
+    ["emoji", "이모지", "string", "FALSE", "TRUE"],
+    ["sort", "정렬", "number", "FALSE", "TRUE"],
+    ["is_visible", "표시여부", "boolean", "TRUE", "TRUE"],
+    ["created_at", "생성일시", "string", "TRUE", "FALSE"],
+    ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
+  ];
+  for (const [fk, dl, ft, req, ed] of cs) {
+    rows.push([next(), "content_sections", "content_sections", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+  }
+
+  return rows;
+}
