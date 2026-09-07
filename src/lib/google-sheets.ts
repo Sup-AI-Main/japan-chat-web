@@ -7,6 +7,7 @@ import type {
   FaqItem,
   AdminOption,
   IncludeExclude,
+  ContentSection,
 } from "./types";
 import { ConflictError } from "./types";
 
@@ -1617,5 +1618,50 @@ export async function updateIncludeExclude(id: string, data: Record<string, stri
 export async function deleteIncludeExclude(id: string): Promise<boolean> {
   const result = await deleteRowById("includes_excludes", id);
   if (result) invalidateCache("includes_excludes");
+  return result;
+}
+
+// --- ContentSection CRUD ---
+
+export async function getContentSections(
+  parentType?: string,
+  parentId?: string
+): Promise<ContentSection[]> {
+  const rows = await readSheet("content_sections");
+  return rows
+    .filter((r) => !parentType || r.parent_type?.toUpperCase() === parentType.toUpperCase())
+    .filter((r) => !parentId || r.parent_id === parentId)
+    .map((r) => ({
+      id: r.id || "",
+      parent_type: r.parent_type || "",
+      parent_id: r.parent_id || "",
+      title: r.title || r["제목"] || "",
+      content: r.content || r["내용"] || "",
+      emoji: r.emoji || r["이모지"] || "",
+      sort: toNumber(r.sort),
+      is_visible: r.is_visible || "TRUE",
+      updated_at: r.updated_at || "",
+    }))
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export async function appendContentSection(data: Record<string, string>): Promise<string> {
+  const id = `cs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const headers = ["id", "parent_type", "parent_id", "title", "content", "emoji", "sort", "is_visible", "updated_at"];
+  const row: Record<string, string> = { id, is_visible: "TRUE", sort: "99", updated_at: new Date().toISOString(), ...data };
+  await appendRow("content_sections", headers, row);
+  invalidateCache("content_sections");
+  return id;
+}
+
+export async function updateContentSection(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
+  const result = await updateRowById("content_sections", id, data, expectedUpdatedAt);
+  if (result) invalidateCache("content_sections");
+  return result;
+}
+
+export async function deleteContentSection(id: string): Promise<boolean> {
+  const result = await deleteRowById("content_sections", id);
+  if (result) invalidateCache("content_sections");
   return result;
 }

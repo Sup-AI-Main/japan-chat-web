@@ -153,6 +153,19 @@ export interface AdminOption {
   updated_at: string;
 }
 
+// ContentSection
+export interface ContentSection {
+  id: string;
+  parent_type: string; // "GOLF" | "HOTEL" | "RESTAURANT"
+  parent_id: string;   // e.g. "dos_golf_kaho"
+  title: string;       // e.g. "코스 안내"
+  content: string;     // section content
+  emoji: string;       // e.g. "⛳"
+  sort: number;
+  is_visible: string;  // "TRUE" | "FALSE"
+  updated_at: string;
+}
+
 // Concurrency control error
 export class ConflictError extends Error {
   constructor(message = "다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.") {

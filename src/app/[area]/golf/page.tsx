@@ -4,24 +4,22 @@ import { getGolfCourses, getActiveAreas } from "@/lib/google-sheets";
 import { getAreaEmoji } from "@/lib/display";
 import GolfListClient from "./GolfListClient";
 
-const VALID_AREAS = ["dos", "beppu"];
-
 export default async function GolfListPage({
   params,
 }: {
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  if (!VALID_AREAS.includes(area)) notFound();
-
-  const areaCode = area.toUpperCase();
   const areas = await getActiveAreas();
-  const currentArea = areas.find((a) => a.code.toUpperCase() === areaCode);
+  const areaUp = area.toUpperCase();
+  if (!areas.some((a) => a.code === areaUp)) notFound();
+
+  const currentArea = areas.find((a) => a.code.toUpperCase() === areaUp);
   const areaLabel = currentArea?.label || area;
 
   let courses;
   try {
-    courses = await getGolfCourses(areaCode);
+    courses = await getGolfCourses(areaUp);
   } catch {
     return (
       <main className="min-h-screen px-4 py-6">
@@ -39,13 +37,13 @@ export default async function GolfListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaCode)} {areaLabel}
+          ← {getAreaEmoji(areaUp)} {areaLabel}
         </Link>
         <GolfListClient
           courses={courses}
           area={area}
           areaLabel={areaLabel}
-          areaEmoji={getAreaEmoji(areaCode)}
+          areaEmoji={getAreaEmoji(areaUp)}
         />
       </div>
     </main>

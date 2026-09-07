@@ -4,24 +4,22 @@ import { getRestaurants, getActiveAreas } from "@/lib/google-sheets";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import RestaurantListClient from "./RestaurantListClient";
 
-const VALID_AREAS = ["dos", "beppu"];
-
 export default async function RestaurantListPage({
   params,
 }: {
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  if (!VALID_AREAS.includes(area)) notFound();
-
-  const areaCode = area.toUpperCase();
   const areas = await getActiveAreas();
-  const currentArea = areas.find((a) => a.code.toUpperCase() === areaCode);
+  const areaUp = area.toUpperCase();
+  if (!areas.some((a) => a.code === areaUp)) notFound();
+
+  const currentArea = areas.find((a) => a.code.toUpperCase() === areaUp);
   const areaLabel = currentArea?.label || area;
 
   let restaurants;
   try {
-    restaurants = await getRestaurants(areaCode);
+    restaurants = await getRestaurants(areaUp);
   } catch {
     return (
       <main className="min-h-screen px-4 py-6">
@@ -39,17 +37,17 @@ export default async function RestaurantListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaCode)} {areaLabel}
+          ← {getAreaEmoji(areaUp)} {areaLabel}
         </Link>
         <h1 className="text-[24px] font-bold text-text mb-6">
-          {getAreaEmoji(areaCode)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 맛집
+          {getAreaEmoji(areaUp)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 맛집
         </h1>
 
         <RestaurantListClient
           restaurants={restaurants}
           area={area}
           areaLabel={areaLabel}
-          areaEmoji={getAreaEmoji(areaCode)}
+          areaEmoji={getAreaEmoji(areaUp)}
         />
       </div>
     </main>

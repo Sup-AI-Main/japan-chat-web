@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:cms-schema": "node scripts/verify-cms-schema.mjs"
   },
   "dependencies": {
     "googleapis": "^178.0.0",
