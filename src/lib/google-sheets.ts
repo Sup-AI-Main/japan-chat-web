@@ -15,10 +15,7 @@ import { ConflictError } from "./types";
 // and process-local Map cache causes read-after-write inconsistency in serverless.
 // Google Sheets API response time (~200-500ms) is acceptable without caching.
 
-// No-op stubs kept for export compatibility with existing callers.
-export function invalidateCache(_prefix?: string) {
-  // No-op: cache removed for consistency.
-}
+// No-op stubs removed: cache fully eliminated.
 
 // Google Sheets client
 function getSheetsClient() {
@@ -96,9 +93,10 @@ function isActive(val: string | undefined): boolean {
   return val?.toUpperCase() === "TRUE";
 }
 
-// Reverse mapping: English data key → possible Korean Sheet headers
-// Used by write functions (appendRow/updateRowById) to resolve API keys to actual Sheet columns.
+// Reverse mapping: English canonical key → possible Korean/legacy Sheet headers.
+// Single source of truth for header aliasing. Used by both read (normalizeRow) and write paths.
 const HEADER_ALIASES: Record<string, string[]> = {
+  // Golf
   display_name: ["상품표명"],
   official_name: ["공식명(jp)", "공식명"],
   address: ["주소"],
@@ -109,6 +107,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   bath_shower: ["목욕/샤워"],
   rental: ["렌탈"],
   dress_code: ["복장"],
+  // Hotel
   check_in: ["체크인"],
   check_out: ["체크아웃"],
   breakfast: ["조식"],
@@ -116,6 +115,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   hotel_dining: ["호텔 식사"],
   atm_payment: ["ATM/결제"],
   transport: ["교통"],
+  // Restaurant
   hours: ["영업시간"],
   cuisine: ["요리"],
   price_range: ["가격대"],
@@ -123,9 +123,35 @@ const HEADER_ALIASES: Record<string, string[]> = {
   specialties: ["추천 메뉴"],
   parking: ["주차"],
   payment: ["결제"],
+  // admin_options
+  label: ["관리자 화면 표시명"],
+  description: ["설명"],
+  group: ["그룹"],
+  // content_sections
+  title: ["제목"],
+  content: ["내용"],
+  emoji: ["이모지"],
+  // travel_times
+  verified_drive_min: ["상품표_참고분"],
 };
 
-// Resolve a data key to the actual Sheet header.
+// Resolve a field value from a raw Sheet row using canonical key + aliases.
+// Uses hasOwnProperty (not falsy check) so empty string "" is preserved as a valid value.
+function resolveField(row: Record<string, string>, key: string): string {
+  if (Object.prototype.hasOwnProperty.call(row, key)) {
+    return row[key] ?? "";
+  }
+  const aliases = HEADER_ALIASES[key] ?? [];
+  for (const alias of aliases) {
+    const normalized = alias.toLowerCase().trim();
+    if (Object.prototype.hasOwnProperty.call(row, normalized)) {
+      return row[normalized] ?? "";
+    }
+  }
+  return "";
+}
+
+// Resolve a data key to the actual Sheet header for write operations.
 // If the Sheet has the English key as a header, use it directly.
 // Otherwise, check HEADER_ALIASES for a matching Korean header.
 function resolveToSheetHeader(
@@ -133,9 +159,7 @@ function resolveToSheetHeader(
   sheetHeaders: string[]
 ): string | null {
   const lower = dataKey.toLowerCase().trim();
-  // Direct match
   if (sheetHeaders.includes(lower)) return lower;
-  // Alias match
   const aliases = HEADER_ALIASES[lower];
   if (aliases) {
     for (const alias of aliases) {
@@ -156,16 +180,16 @@ export async function getGolfCourses(area?: string): Promise<GolfCourse[]> {
     .map((r) => ({
       id: r.id || "",
       area: r.area || "",
-      display_name: r.display_name || r["상품표명"] || "",
-      official_name: r.official_name || r["공식명(jp)"] || r["공식명"] || "",
-      address: r.address || r["주소"] || "",
-      phone: r.phone || r["전화"] || "",
-      course_summary: r.course_summary || r["코스요약"] || "",
-      play_cart: r.play_cart || r["플레이/카트"] || "",
-      clubhouse_dining: r.clubhouse_dining || r["클럽하우스 식사"] || "",
-      bath_shower: r.bath_shower || r["목욕/샤워"] || "",
-      rental: r.rental || r["렌탈"] || "",
-      dress_code: r.dress_code || r["복장"] || "",
+      display_name: resolveField(r, "display_name"),
+      official_name: resolveField(r, "official_name"),
+      address: resolveField(r, "address"),
+      phone: resolveField(r, "phone"),
+      course_summary: resolveField(r, "course_summary"),
+      play_cart: resolveField(r, "play_cart"),
+      clubhouse_dining: resolveField(r, "clubhouse_dining"),
+      bath_shower: resolveField(r, "bath_shower"),
+      rental: resolveField(r, "rental"),
+      dress_code: resolveField(r, "dress_code"),
       google_maps_url: r.google_maps_url || "",
       source_url: r.source_url || "",
       status: r.status || "",
@@ -190,16 +214,16 @@ export async function getHotels(area?: string): Promise<Hotel[]> {
     .map((r) => ({
       id: r.id || "",
       area: r.area || "",
-      official_name: r.official_name || r["공식명"] || "",
-      address: r.address || r["주소"] || "",
-      phone: r.phone || r["전화"] || "",
-      check_in: r.check_in || r["체크인"] || "",
-      check_out: r.check_out || r["체크아웃"] || "",
-      breakfast: r.breakfast || r["조식"] || "",
-      bath_spa: r.bath_spa || r["목욕/스파"] || "",
-      hotel_dining: r.hotel_dining || r["호텔 식사"] || "",
-      atm_payment: r.atm_payment || r["ATM/결제"] || "",
-      transport: r.transport || r["교통"] || "",
+      official_name: resolveField(r, "official_name"),
+      address: resolveField(r, "address"),
+      phone: resolveField(r, "phone"),
+      check_in: resolveField(r, "check_in"),
+      check_out: resolveField(r, "check_out"),
+      breakfast: resolveField(r, "breakfast"),
+      bath_spa: resolveField(r, "bath_spa"),
+      hotel_dining: resolveField(r, "hotel_dining"),
+      atm_payment: resolveField(r, "atm_payment"),
+      transport: resolveField(r, "transport"),
       google_maps_url: r.google_maps_url || "",
       source_url: r.source_url || "",
       status: r.status || "",
@@ -256,7 +280,7 @@ export async function getTravelTimes(area?: string): Promise<TravelTime[]> {
         hotel_name: hotelMap.get(fromId)?.official_name || r.hotel_name || "",
         golf_id: toId,
         golf_name: golfMap.get(toId)?.display_name || r.golf_name || "",
-        estimated_time: r.verified_drive_min || r["상품표_참고분"] || r.estimated_time || "",
+        estimated_time: resolveField(r, "verified_drive_min") || r.estimated_time || "",
         google_maps_direction_url: r.directions_url || r.google_maps_direction_url || "",
         active: r.active || "",
         sort: toNumber(r.sort),
@@ -292,8 +316,6 @@ export async function appendTravelTime(
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     });
-
-    invalidateCache("travel_times");
     return newId;
   } catch (error) {
     console.error("Failed to append travel time", error);
@@ -356,8 +378,6 @@ export async function updateTravelTime(
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     });
-
-    invalidateCache("travel_times");
     return true;
   } catch (error) {
     if (error instanceof Error && error.message === "409_CONFLICT") throw error;
@@ -402,8 +422,6 @@ export async function deleteTravelTime(id: string): Promise<boolean> {
         requestBody: { values: [["FALSE"]] },
       });
     }
-
-    invalidateCache("travel_times");
     return true;
   } catch (error) {
     console.error("Failed to delete travel time", error);
@@ -536,9 +554,9 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
     id: r.id || "",
     option_type: r.option_type || "",
     code: r.code || "",
-    label: r.label || r["관리자 화면 표시명"] || "",
-    description: r.description || r["설명"] || "",
-    group: r.group || r["그룹"] || "",
+    label: resolveField(r, "label"),
+    description: resolveField(r, "description"),
+    group: resolveField(r, "group"),
     active: r.active || "TRUE",
     sort: toNumber(r.sort),
     updated_at: r.updated_at || "",
@@ -652,8 +670,6 @@ export async function migrateGroupColumn(): Promise<{ success: boolean; message:
         requestBody: { values: update.values },
       });
     }
-
-    invalidateCache("admin_options");
     return {
       success: true,
       message: `group 컬럼 마이그레이션 완료. ${updates.length}개 행 업데이트.`,
@@ -826,11 +842,6 @@ export async function migrateUpdatedAt(): Promise<{ success: boolean; message: s
       }
     }
 
-    // 캐시 무효화
-    for (const tab of tabs) {
-      invalidateCache(tab);
-    }
-
     return {
       success: true,
       message: `updated_at 마이그레이션 완료.`,
@@ -970,8 +981,6 @@ export async function migrateAdminOptionsId(): Promise<{ success: boolean; messa
         },
       });
     }
-
-    invalidateCache("admin_options");
     return {
       success: true,
       message: `admin_options ID 마이그레이션 완료. ID ${backfillCount}개 생성, 손상행 ${deactivatedCount}개 비활성화.`,
@@ -1004,8 +1013,6 @@ export async function appendAdminOption(
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     });
-
-    invalidateCache("admin_options");
     return true;
   } catch (error) {
     console.error("Failed to append admin option", error);
@@ -1061,8 +1068,6 @@ export async function updateAdminOption(
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     });
-
-    invalidateCache("admin_options");
     return true;
   } catch (error) {
     console.error("Failed to update admin option", error);
@@ -1133,8 +1138,6 @@ export async function updateAdminOptionSort(
         requestBody: { values: update.values },
       });
     }
-
-    invalidateCache("admin_options");
     return true;
   } catch (error) {
     console.error("Failed to update admin option sort", error);
@@ -1165,8 +1168,6 @@ export async function appendFaq(
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     });
-
-    invalidateCache("faq");
     return true;
   } catch (error) {
     console.error("Failed to append FAQ", error);
@@ -1222,8 +1223,6 @@ export async function updateFaq(
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     });
-
-    invalidateCache("faq");
     return true;
   } catch (error) {
     console.error("Failed to update FAQ", error);
@@ -1288,8 +1287,6 @@ export async function updateFaqSort(
         requestBody: { values: update.values },
       });
     }
-
-    invalidateCache("faq");
     return true;
   } catch (error) {
     console.error("Failed to update FAQ sort", error);
@@ -1352,8 +1349,6 @@ export async function deleteFaq(id: string): Promise<boolean> {
         ],
       },
     });
-
-    invalidateCache("faq");
     return true;
   } catch (error) {
     console.error("Failed to delete FAQ", error);
@@ -1555,19 +1550,16 @@ export async function appendHotel(data: Record<string, string>): Promise<string>
   const headers = ["id", "area", "official_name", "address", "phone", "check_in", "check_out", "breakfast", "bath_spa", "hotel_dining", "atm_payment", "transport", "google_maps_url", "source_url", "status", "active", "sort", "last_verified", "name_kr", "name_jp", "address_kr", "address_jp", "checkin_time", "checkout_time", "breakfast_place", "breakfast_time", "breakfast_last_entry", "dinner_place", "dinner_time", "dinner_last_entry", "has_public_bath", "has_outdoor_onsen", "has_sauna", "bath_spa_hours", "tattoo_policy", "other_info"];
   const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("hotels", headers, row);
-  invalidateCache("hotels");
   return id;
 }
 
 export async function updateHotel(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
   const result = await updateRowById("hotels", id, data, expectedUpdatedAt);
-  if (result) invalidateCache("hotels");
   return result;
 }
 
 export async function deleteHotel(id: string): Promise<boolean> {
   const result = await deleteRowById("hotels", id);
-  if (result) invalidateCache("hotels");
   return result;
 }
 
@@ -1577,19 +1569,16 @@ export async function appendRestaurant(data: Record<string, string>): Promise<st
   const headers = ["id", "area", "near_type", "near_id", "name", "category", "distance", "address", "hours", "price_range", "phone", "google_maps_url", "source_url", "status", "active", "sort", "last_verified", "name_kr", "name_jp", "menu_kr", "menu_jp", "menu_price", "closed_days", "distance_km", "drive_minutes", "walk_minutes", "description", "recommended"];
   const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("restaurants", headers, row);
-  invalidateCache("restaurants");
   return id;
 }
 
 export async function updateRestaurant(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
   const result = await updateRowById("restaurants", id, data, expectedUpdatedAt);
-  if (result) invalidateCache("restaurants");
   return result;
 }
 
 export async function deleteRestaurantRow(id: string): Promise<boolean> {
   const result = await deleteRowById("restaurants", id);
-  if (result) invalidateCache("restaurants");
   return result;
 }
 
@@ -1600,19 +1589,16 @@ export async function appendGolfCourse(data: Record<string, string>): Promise<st
   const id = `golf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const row: Record<string, string> = { id, active: "TRUE", status: "published", sort: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("golf_courses", GOLF_HEADERS, row);
-  invalidateCache("golf_courses");
   return id;
 }
 
 export async function updateGolfCourse(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
   const result = await updateRowById("golf_courses", id, data, expectedUpdatedAt);
-  if (result) invalidateCache("golf_courses");
   return result;
 }
 
 export async function deleteGolfCourse(id: string): Promise<boolean> {
   const result = await deleteRowById("golf_courses", id);
-  if (result) invalidateCache("golf_courses");
   return result;
 }
 
@@ -1645,19 +1631,16 @@ export async function appendIncludeExclude(data: Record<string, string>): Promis
   const headers = ["id", "parent_type", "parent_id", "type", "text_kr", "text_jp", "sort_order", "is_visible", "updated_at"];
   const row: Record<string, string> = { id, is_visible: "TRUE", sort_order: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("includes_excludes", headers, row);
-  invalidateCache("includes_excludes");
   return id;
 }
 
 export async function updateIncludeExclude(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
   const result = await updateRowById("includes_excludes", id, data, expectedUpdatedAt);
-  if (result) invalidateCache("includes_excludes");
   return result;
 }
 
 export async function deleteIncludeExclude(id: string): Promise<boolean> {
   const result = await deleteRowById("includes_excludes", id);
-  if (result) invalidateCache("includes_excludes");
   return result;
 }
 
@@ -1675,9 +1658,9 @@ export async function getContentSections(
       id: r.id || "",
       parent_type: r.parent_type || "",
       parent_id: r.parent_id || "",
-      title: r.title || r["제목"] || "",
-      content: r.content || r["내용"] || "",
-      emoji: r.emoji || r["이모지"] || "",
+      title: resolveField(r, "title"),
+      content: resolveField(r, "content"),
+      emoji: resolveField(r, "emoji"),
       sort: toNumber(r.sort),
       is_visible: r.is_visible || "TRUE",
       updated_at: r.updated_at || "",
@@ -1690,19 +1673,16 @@ export async function appendContentSection(data: Record<string, string>): Promis
   const headers = ["id", "parent_type", "parent_id", "title", "content", "emoji", "sort", "is_visible", "updated_at"];
   const row: Record<string, string> = { id, is_visible: "TRUE", sort: "99", updated_at: new Date().toISOString(), ...data };
   await appendRow("content_sections", headers, row);
-  invalidateCache("content_sections");
   return id;
 }
 
 export async function updateContentSection(id: string, data: Record<string, string>, expectedUpdatedAt?: string): Promise<boolean> {
   const result = await updateRowById("content_sections", id, data, expectedUpdatedAt);
-  if (result) invalidateCache("content_sections");
   return result;
 }
 
 export async function deleteContentSection(id: string): Promise<boolean> {
   const result = await deleteRowById("content_sections", id);
-  if (result) invalidateCache("content_sections");
   return result;
 }
 
@@ -1775,8 +1755,6 @@ export async function populateCmsSchema(): Promise<{ success: boolean; message: 
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: schemaData },
     });
-
-    invalidateCache("cms_schema");
     return { success: true, message: `${schemaData.length}개 스키마 등록 완료`, count: schemaData.length };
   } catch (error) {
     console.error("Failed to populate cms_schema", error);

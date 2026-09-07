@@ -374,21 +374,16 @@ if (displayContent) {
   }
 }
 
-// 10. Cache invalidation check
-console.log("\n10. 캐시 무효화 검증");
+// 10. Cache architecture check (cache removed for read-after-write consistency)
+console.log("\n10. 캐시 아키텍처 검증");
 if (gsContent) {
-  const invCalls = gsContent.match(/invalidateCache\([^)]*\)/g) || [];
-  if (invCalls.length > 0) {
-    pass(`invalidateCache() 사용: ${invCalls.length}건`);
-    // Check content_sections invalidation
-    const csInv = invCalls.filter(c => c.includes("content_sections"));
-    if (csInv.length >= 3) {
-      pass("content_sections: append/update/delete 후 캐시 무효화됨");
-    } else {
-      warn(`content_sections.invalidateCache: ${csInv.length}건만 발견 (3건 이상 권장)`);
-    }
+  const hasCacheMap = /const\s+cache\s*=\s*new\s+Map/.test(gsContent);
+  const hasInvalidate = /invalidateCache/.test(gsContent);
+  if (!hasCacheMap && !hasInvalidate) {
+    pass("process-local cache 제거됨 (read-after-write consistency 보장)");
   } else {
-    fail("invalidateCache() 호출 없음");
+    if (hasCacheMap) warn("process-local Map cache가 아직 존재합니다");
+    if (hasInvalidate) warn("invalidateCache 호출이 아직 존재합니다");
   }
 }
 
