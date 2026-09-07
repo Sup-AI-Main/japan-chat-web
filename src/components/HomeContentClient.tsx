@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
+import { useToast, Toast } from "@/components/Toast";
 
 interface AdminOption {
   id: string;
@@ -76,7 +77,8 @@ function OptionEditModal({
         active: "TRUE",
         updated_at: new Date().toISOString(),
       });
-      onClose();
+      // Note: Do not call onClose() here. The parent component
+      // will handle showing a toast and closing the modal after a delay.
     } catch (err) {
       if (err instanceof ConflictError) {
         setError("다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.");
@@ -143,6 +145,12 @@ export default function HomeContentClient({
   const [deleteTarget, setDeleteTarget] = useState<AdminOption | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
+  const { message, visible, showToast } = useToast();
+
+  const closeEditModal = useCallback(() => {
+    setEditModal(false);
+    setEditTarget(null);
+  }, []);
 
   const handleEditArea = (area: AdminOption) => {
     setEditTarget(area);
@@ -174,6 +182,8 @@ export default function HomeContentClient({
         setCategories((prev) => [...prev, saved].sort((a, b) => a.sort - b.sort));
       }
     }
+    showToast("수정 완료");
+    setTimeout(closeEditModal, 500);
   };
 
   const handleDelete = async () => {
@@ -262,11 +272,12 @@ export default function HomeContentClient({
       )}
 
       <OptionEditModal
+        key={editTarget?.id || "new-area-cat"}
         option={editTarget}
         optionType={editType}
         group={editType === "CATEGORY" ? "COMMON" : undefined}
         open={editModal}
-        onClose={() => { setEditModal(false); setEditTarget(null); }}
+        onClose={closeEditModal}
         onSaved={handleSaved}
       />
 
@@ -278,6 +289,7 @@ export default function HomeContentClient({
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
+      <Toast message={message} visible={visible} />
     </>
   );
 }

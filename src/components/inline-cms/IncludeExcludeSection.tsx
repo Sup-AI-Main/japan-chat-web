@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { IncludeExclude } from "@/lib/types";
 import { useAdmin } from "@/hooks/use-admin";
+import { useToast, Toast } from "@/components/Toast";
 import { AddButton } from "./EditToolbar";
 
 interface IncludeExcludeSectionProps {
@@ -35,6 +36,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
   const [formData, setFormData] = useState<ItemFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<IncludeExclude | null>(null);
+  const { message, visible, showToast } = useToast();
 
   const fetchItems = useCallback(async () => {
     try {
@@ -118,8 +120,11 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
           ]);
         }
       }
-      setShowForm(false);
-      setEditItem(null);
+      showToast("수정 완료");
+      setTimeout(() => {
+        setShowForm(false);
+        setEditItem(null);
+      }, 500);
     } finally {
       setSaving(false);
     }
@@ -363,6 +368,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
           </div>
         </div>
       )}
+      <Toast message={message} visible={visible} />
     </div>
   );
 }

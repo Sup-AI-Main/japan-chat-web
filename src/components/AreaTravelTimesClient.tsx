@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
+import { useToast, Toast } from "@/components/Toast";
 import type { TravelTime, Hotel, GolfCourse } from "@/lib/types";
 
 interface TravelTimeEditData {
@@ -205,6 +206,12 @@ export default function AreaTravelTimesClient({
   const [deleteTarget, setDeleteTarget] = useState<TravelTime | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
+  const { message, visible, showToast } = useToast();
+
+  const closeEditModal = useCallback(() => {
+    setEditModal(false);
+    setEditTarget(null);
+  }, []);
 
   const hotelMap = new Map(hotels.map((h) => [h.id, h.official_name]));
   const golfMap = new Map(golfCourses.map((g) => [g.id, g.display_name]));
@@ -256,6 +263,8 @@ export default function AreaTravelTimesClient({
     } else {
       setTravelTimes((prev) => [...prev, newEntry].sort((a, b) => a.sort - b.sort));
     }
+    showToast("수정 완료");
+    setTimeout(closeEditModal, 500);
   };
 
   const handleDelete = async () => {
@@ -340,6 +349,7 @@ export default function AreaTravelTimesClient({
       </div>
 
       <TravelTimeEditModal
+        key={editTarget?.id || "new-tt"}
         data={
           editTarget
             ? {
@@ -357,10 +367,7 @@ export default function AreaTravelTimesClient({
         golfCourses={golfCourses}
         area={area}
         open={editModal}
-        onClose={() => {
-          setEditModal(false);
-          setEditTarget(null);
-        }}
+        onClose={closeEditModal}
         onSaved={handleSaved}
       />
 
@@ -372,6 +379,7 @@ export default function AreaTravelTimesClient({
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
+      <Toast message={message} visible={visible} />
     </>
   );
 }

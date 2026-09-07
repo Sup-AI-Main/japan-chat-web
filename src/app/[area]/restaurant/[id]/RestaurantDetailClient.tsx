@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
+import { useToast, Toast } from "@/components/Toast";
 import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer } from "@/components/inline-cms";
 import type { Restaurant } from "@/lib/types";
 
@@ -27,6 +28,11 @@ export default function RestaurantDetailClient({
   const [nearOptions, setNearOptions] = useState<NearOption[]>([]);
   const router = useRouter();
   const isAdmin = useAdmin();
+  const { message, visible, showToast } = useToast();
+
+  const closeEditModal = useCallback(() => {
+    setEditModal(false);
+  }, []);
 
   const fetchNearOptions = async () => {
     try {
@@ -86,7 +92,8 @@ export default function RestaurantDetailClient({
 
   const handleSaved = (saved: Restaurant) => {
     setRestaurant((prev) => ({ ...prev, ...saved }));
-    setEditModal(false);
+    showToast("수정 완료");
+    setTimeout(closeEditModal, 500);
   };
 
   const displayName = restaurant.name_kr || restaurant.name;
@@ -222,6 +229,7 @@ export default function RestaurantDetailClient({
 
       {isAdmin && (
         <RestaurantEditModal
+          key={restaurant.id || "edit-rest"}
           restaurant={{
             id: restaurant.id,
             name_kr: restaurant.name_kr || restaurant.name,
@@ -246,7 +254,7 @@ export default function RestaurantDetailClient({
           }}
           area={area}
           open={editModal}
-          onClose={() => setEditModal(false)}
+          onClose={closeEditModal}
           onSaved={(saved) => handleSaved(saved as unknown as Restaurant)}
           nearOptions={nearOptions}
         />
@@ -260,6 +268,7 @@ export default function RestaurantDetailClient({
         onCancel={() => setDeleteModal(false)}
         loading={deleting}
       />
+      <Toast message={message} visible={visible} />
     </>
   );
 }

@@ -109,7 +109,6 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved }: GolfEditMo
 
       const data = await res.json();
       onSaved(data.course ?? { ...form, id: golf?.id });
-      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
     } finally {

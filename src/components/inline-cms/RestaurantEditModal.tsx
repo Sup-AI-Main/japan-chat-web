@@ -140,7 +140,6 @@ export function RestaurantEditModal({
 
       const data = await res.json();
       onSaved(data.restaurant ?? { ...form, id: restaurant?.id });
-      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
     } finally {

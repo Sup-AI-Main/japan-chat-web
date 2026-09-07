@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { GolfCourse, FaqItem, Restaurant } from "@/lib/types";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
+import { useToast, Toast } from "@/components/Toast";
 import { restToEditData, editDataToRestaurant, type RestaurantEditData } from "@/lib/restaurant-utils";
 import {
   EditToolbar,
@@ -38,6 +39,16 @@ export function GolfDetailClient({
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const { message, visible, showToast } = useToast();
+
+  const closeGolfModal = useCallback(() => {
+    setEditGolfOpen(false);
+  }, []);
+
+  const closeRestModal = useCallback(() => {
+    setEditRestOpen(false);
+    setEditRestTarget(null);
+  }, []);
 
   const infoItems = [
     { label: "코스 안내", value: course.course_summary },
@@ -57,10 +68,14 @@ export function GolfDetailClient({
     } else {
       setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
     }
+    showToast("수정 완료");
+    setTimeout(closeRestModal, 500);
   };
 
   const handleGolfSaved = (data: { display_name: string; official_name: string; address: string; phone: string; course_summary: string; play_cart: string; clubhouse_dining: string; bath_shower: string; rental: string; dress_code: string; google_maps_url: string }) => {
     setCourse((prev) => ({ ...prev, ...data }));
+    showToast("수정 완료");
+    setTimeout(closeGolfModal, 500);
   };
 
   const handleRestDelete = async () => {
@@ -274,22 +289,20 @@ export function GolfDetailClient({
         } : null}
         area={area}
         open={editGolfOpen}
-        onClose={() => setEditGolfOpen(false)}
+        onClose={closeGolfModal}
         onSaved={handleGolfSaved}
       />
 
       {/* Restaurant Edit Modal */}
       <RestaurantEditModal
-        restaurant={editRestTarget ? restToEditData(editRestTarget, "GOLF") : null}
-        area={area}
-        open={editRestOpen}
-        onClose={() => {
-          setEditRestOpen(false);
-          setEditRestTarget(null);
-        }}
-        onSaved={handleRestSaved}
-        nearOptions={[{ id: course.id, name: course.display_name || course.official_name }]}
-      />
+          key={editRestTarget?.id || "new-rest-golf"}
+          restaurant={editRestTarget ? restToEditData(editRestTarget, "GOLF") : null}
+          area={area}
+          open={editRestOpen}
+          onClose={closeRestModal}
+          onSaved={handleRestSaved}
+          nearOptions={[{ id: course.id, name: course.display_name || course.official_name }]}
+        />
 
       {/* Delete Confirm Modal */}
       <ConfirmModal
@@ -300,6 +313,7 @@ export function GolfDetailClient({
         onCancel={() => setDeleteRestTarget(null)}
         loading={deleteLoading}
       />
+      <Toast message={message} visible={visible} />
     </main>
   );
 }

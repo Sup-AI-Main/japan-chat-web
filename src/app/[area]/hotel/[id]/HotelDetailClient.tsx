@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { Hotel, TravelTime, FaqItem, Restaurant } from "@/lib/types";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
+import { useToast, Toast } from "@/components/Toast";
 import { toBool, restToEditData, editDataToRestaurant, type RestaurantEditData } from "@/lib/restaurant-utils";
 import {
   EditToolbar,
@@ -137,6 +138,16 @@ export function HotelDetailClient({
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const { message, visible, showToast } = useToast();
+
+  const closeHotelModal = useCallback(() => {
+    setEditHotelOpen(false);
+  }, []);
+
+  const closeRestModal = useCallback(() => {
+    setEditRestOpen(false);
+    setEditRestTarget(null);
+  }, []);
 
   const titleMain = hotel.name_kr || hotel.official_name;
   const titleSub = hotel.name_jp || (hotel.name_kr ? hotel.official_name : "");
@@ -154,6 +165,8 @@ export function HotelDetailClient({
 
   const handleHotelSaved = (data: HotelData) => {
     setHotel(editDataToHotel(hotel.id, hotel.area, data));
+    showToast("수정 완료");
+    setTimeout(closeHotelModal, 500);
   };
 
   const handleRestSaved = (data: RestaurantEditData) => {
@@ -165,6 +178,8 @@ export function HotelDetailClient({
     } else {
       setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
     }
+    showToast("수정 완료");
+    setTimeout(closeRestModal, 500);
   };
 
   const handleRestDelete = async () => {
@@ -502,19 +517,17 @@ export function HotelDetailClient({
         hotel={hotelToEditData(hotel)}
         area={area}
         open={editHotelOpen}
-        onClose={() => setEditHotelOpen(false)}
+        onClose={closeHotelModal}
         onSaved={handleHotelSaved}
       />
 
       {/* Restaurant Edit Modal */}
       <RestaurantEditModal
+        key={editRestTarget?.id || "new-rest-hotel"}
         restaurant={editRestTarget ? restToEditData(editRestTarget, "HOTEL") : null}
         area={area}
         open={editRestOpen}
-        onClose={() => {
-          setEditRestOpen(false);
-          setEditRestTarget(null);
-        }}
+        onClose={closeRestModal}
         onSaved={handleRestSaved}
         nearOptions={[{ id: hotel.id, name: hotel.name_kr || hotel.official_name }]}
       />
@@ -528,6 +541,7 @@ export function HotelDetailClient({
         onCancel={() => setDeleteRestTarget(null)}
         loading={deleteLoading}
       />
+      <Toast message={message} visible={visible} />
     </main>
   );
 }
