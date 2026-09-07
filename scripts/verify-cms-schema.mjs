@@ -319,6 +319,20 @@ if (gsContent) {
   const hasPopulate = /populateCmsSchema/.test(gsContent);
   if (hasPopulate) pass("populateCmsSchema() 함수 존재 — cms_schema 자동 등록");
   else fail("populateCmsSchema() 함수 누락");
+  // Check data location map columns
+  const hasRoutePath = /route_path/.test(gsContent);
+  const hasDataAccess = /data_access_function/.test(gsContent);
+  const hasPrimaryKey = /primary_key/.test(gsContent);
+  if (hasRoutePath && hasDataAccess && hasPrimaryKey) {
+    pass("cms_schema 데이터 위치 지도 columns 존재 (primary_key, route_path, data_access_function)");
+  } else {
+    if (!hasRoutePath) fail("route_path column 누락");
+    if (!hasDataAccess) fail("data_access_function column 누락");
+    if (!hasPrimaryKey) fail("primary_key column 누락");
+  }
+  const hasUpdateColumns = /updateCmsSchemaColumns/.test(gsContent);
+  if (hasUpdateColumns) pass("updateCmsSchemaColumns() migration 함수 존재");
+  else warn("updateCmsSchemaColumns() migration 함수 누락");
 }
 
 // 6. Relation targets documentation

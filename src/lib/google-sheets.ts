@@ -1696,7 +1696,7 @@ export async function migrateSchemaTabs(): Promise<{ success: boolean; message: 
     const existingTabs = (spreadsheetMeta.data.sheets || []).map(s => s.properties?.title || "");
 
     const csHeaders = ["id", "parent_type", "parent_id", "title", "content", "emoji", "sort", "is_visible", "created_at", "updated_at"];
-    const schemaHeaders = ["id", "entity", "sheet_name", "field_key", "physical_column", "display_label", "field_type", "required", "editable", "repeatable", "sortable", "visible", "relation_target", "default_value", "description"];
+    const schemaHeaders = ["id", "entity", "sheet_name", "field_key", "physical_column", "display_label", "field_type", "required", "editable", "repeatable", "sortable", "visible", "relation_target", "default_value", "description", "primary_key", "route_path", "data_access_function"];
 
     // content_sections 탭 생성
     if (!existingTabs.includes("content_sections")) {
@@ -1790,7 +1790,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of golf) {
-    rows.push([next(), "golf_courses", "golf_courses", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "golf_courses", "golf_courses", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/[area]/golf/[id]", "getGolfCourses, getGolfCourseById"]);
   }
 
   // hotels (주요 필드만)
@@ -1833,7 +1833,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of hotel) {
-    rows.push([next(), "hotels", "hotels", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "hotels", "hotels", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/[area]/hotel/[id]", "getHotels, getHotelById"]);
   }
 
   // travel_times
@@ -1849,7 +1849,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of tt) {
-    rows.push([next(), "travel_times", "travel_times", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "travel_times", "travel_times", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/[area]/golf/[id]", "getTravelTimes"]);
   }
 
   // restaurants
@@ -1885,7 +1885,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of rest) {
-    rows.push([next(), "restaurants", "restaurants", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "restaurants", "restaurants", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/[area]/restaurant/[id]", "getRestaurants, getRestaurantById"]);
   }
 
   // faq
@@ -1906,7 +1906,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of faq) {
-    rows.push([next(), "faq", "faq", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "faq", "faq", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/guide/[category]", "getFaqByCategory"]);
   }
 
   // admin_options
@@ -1922,7 +1922,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of opt) {
-    rows.push([next(), "admin_options", "admin_options", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "admin_options", "admin_options", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/guide", "getAreaCategories, getCommonCategories"]);
   }
 
   // includes_excludes
@@ -1938,7 +1938,7 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of ie) {
-    rows.push([next(), "includes_excludes", "includes_excludes", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort_order" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "includes_excludes", "includes_excludes", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort_order" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/[area]/golf/[id]", "getIncludesExcludes"]);
   }
 
   // content_sections
@@ -1955,10 +1955,82 @@ function buildSchemaData(): string[][] {
     ["updated_at", "수정일시", "string", "TRUE", "FALSE"],
   ];
   for (const [fk, dl, ft, req, ed] of cs) {
-    rows.push([next(), "content_sections", "content_sections", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", ""]);
+    rows.push([next(), "content_sections", "content_sections", fk, fk, dl, ft, req, ed, "FALSE", fk === "sort" || fk === "updated_at" ? "TRUE" : "FALSE", "TRUE", "", "", "", fk === "id" ? "TRUE" : "FALSE", "/[area]/golf/[id]", "getContentSections"]);
   }
 
   return rows;
+}
+
+// Migration: add primary_key, route_path, data_access_function columns to existing cms_schema rows
+export async function updateCmsSchemaColumns(): Promise<{ success: boolean; message: string; updated: number }> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+
+    // Read current headers
+    const headerRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "cms_schema!A1:R1",
+    });
+    const headers: string[] = headerRes.data.values?.[0] || [];
+
+    // Check if new columns already exist
+    if (headers.includes("primary_key") && headers.includes("route_path") && headers.includes("data_access_function")) {
+      return { success: true, message: "새 column 이미 존재", updated: 0 };
+    }
+
+    // Add new headers
+    const newHeaders = [...headers, "primary_key", "route_path", "data_access_function"];
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: "cms_schema!A1",
+      valueInputOption: "RAW",
+      requestBody: { values: [newHeaders] },
+    });
+
+    // Read all data rows
+    const dataRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "cms_schema!A2:R500",
+    });
+    const rows = dataRes.data.values || [];
+    if (rows.length === 0) return { success: true, message: "데이터 없음", updated: 0 };
+
+    // Route/function mapping per entity
+    const entityMeta: Record<string, { route: string; funcs: string }> = {
+      golf_courses: { route: "/[area]/golf/[id]", funcs: "getGolfCourses, getGolfCourseById" },
+      hotels: { route: "/[area]/hotel/[id]", funcs: "getHotels, getHotelById" },
+      travel_times: { route: "/[area]/golf/[id]", funcs: "getTravelTimes" },
+      restaurants: { route: "/[area]/restaurant/[id]", funcs: "getRestaurants, getRestaurantById" },
+      faq: { route: "/guide/[category]", funcs: "getFaqByCategory" },
+      admin_options: { route: "/guide", funcs: "getAreaCategories, getCommonCategories" },
+      includes_excludes: { route: "/[area]/golf/[id]", funcs: "getIncludesExcludes" },
+      content_sections: { route: "/[area]/golf/[id]", funcs: "getContentSections" },
+    };
+
+    // Build updated rows using header names, not numeric indices
+    const entityIdx = headers.indexOf("entity");
+    const fieldKeyIdx = headers.indexOf("field_key");
+    const updatedRows = rows.map((row) => {
+      const entity = (entityIdx >= 0 ? row[entityIdx] : "") || "";
+      const fieldKey = (fieldKeyIdx >= 0 ? row[fieldKeyIdx] : "") || "";
+      const meta = entityMeta[entity] || { route: "", funcs: "" };
+      const isPrimary = fieldKey === "id" ? "TRUE" : "FALSE";
+      return [...row, isPrimary, meta.route, meta.funcs];
+    });
+
+    // Write back
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: "cms_schema!A2",
+      valueInputOption: "RAW",
+      requestBody: { values: updatedRows },
+    });
+
+    return { success: true, message: `${updatedRows.length}개 row 업데이트 완료`, updated: updatedRows.length };
+  } catch (error) {
+    console.error("Failed to update cms_schema columns", error);
+    return { success: false, message: String(error), updated: 0 };
+  }
 }
 
 // --- Golf 고정 column → content_sections Migration ---
