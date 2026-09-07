@@ -53,18 +53,8 @@ export function GolfDetailClient({
     setEditRestTarget(null);
   }, []);
 
-  const infoItems = [
-    { label: "코스 안내", value: course.course_summary },
-    { label: "플레이/카트", value: course.play_cart },
-    { label: "클럽하우스 식사", value: course.clubhouse_dining },
-    { label: "목욕/샤워", value: course.bath_shower },
-    { label: "렌탈", value: course.rental },
-    { label: "복장", value: course.dress_code },
-  ].filter((item) => item.value);
-
-  // If content_sections exist, hide fixed infoItems (migration completed)
-  const hasContentSections = contentSections.length > 0;
-  const showFixedInfo = !hasContentSections && infoItems.length > 0;
+  // Detailed content (코스 안내, 플레이/카트, etc.) is now served exclusively via content_sections.
+  // Legacy fixed columns (course_summary, play_cart, etc.) remain in the Sheet as deprecated.
 
   const handleRestSaved = (data: RestaurantEditData) => {
     const updated = editDataToRestaurant(data, "GOLF");
@@ -157,23 +147,6 @@ export function GolfDetailClient({
             )}
           </div>
 
-          {/* Info sections — only show when no content_sections (pre-migration fallback) */}
-          {showFixedInfo && (
-            <div className="bg-surface border border-border rounded-[12px] p-4 mb-6">
-              <div className="space-y-4">
-                {infoItems.map((item) => (
-                  <div key={item.label}>
-                    <h3 className="text-[15px] font-bold text-text mb-1">
-                      {item.label}
-                    </h3>
-                    <p className="text-[15px] text-text leading-relaxed">
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </EditableContainer>
 
         {/* 포함/불포함 사항 */}

@@ -11,34 +11,13 @@ import type {
 } from "./types";
 import { ConflictError } from "./types";
 
-// Cache with TTL
-const cache = new Map<string, { data: unknown; expiry: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+// In-memory cache removed: data volume is small (golf 9, hotel 3, restaurant 12)
+// and process-local Map cache causes read-after-write inconsistency in serverless.
+// Google Sheets API response time (~200-500ms) is acceptable without caching.
 
-function getCached<T>(key: string): T | null {
-  const entry = cache.get(key);
-  if (entry && Date.now() < entry.expiry) {
-    return entry.data as T;
-  }
-  cache.delete(key);
-  return null;
-}
-
-function setCache(key: string, data: unknown) {
-  cache.set(key, { data, expiry: Date.now() + CACHE_TTL });
-}
-
-// Invalidate cache by prefix
-export function invalidateCache(prefix?: string) {
-  if (!prefix) {
-    cache.clear();
-    return;
-  }
-  for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) {
-      cache.delete(key);
-    }
-  }
+// No-op stubs kept for export compatibility with existing callers.
+export function invalidateCache(_prefix?: string) {
+  // No-op: cache removed for consistency.
 }
 
 // Google Sheets client
@@ -75,14 +54,11 @@ function getSheetsClient() {
   return { sheets, sheetId };
 }
 
-// Read a sheet tab and return rows as objects
+// Read a sheet tab and return rows as objects (no cache — data volume is small)
 async function readSheet(
   tabName: string,
   range?: string
 ): Promise<Record<string, string>[]> {
-  const cached = getCached<Record<string, string>[]>(tabName);
-  if (cached) return cached;
-
   try {
     const { sheets, sheetId } = getSheetsClient();
     const fullRange = range || `${tabName}!A1:Z1000`;
@@ -96,16 +72,13 @@ async function readSheet(
     if (!rows || rows.length < 2) return [];
 
     const headers = rows[0].map((h: string) => h.trim().toLowerCase());
-    const data = rows.slice(1).map((row: string[]) => {
+    return rows.slice(1).map((row: string[]) => {
       const obj: Record<string, string> = {};
       headers.forEach((header, i) => {
         obj[header] = row[i] || "";
       });
       return obj;
     });
-
-    setCache(tabName, data);
-    return data;
   } catch (error) {
     console.error(`Failed to read sheet: ${tabName}`, error);
     return [];
@@ -121,6 +94,57 @@ function toNumber(val: string | undefined): number {
 
 function isActive(val: string | undefined): boolean {
   return val?.toUpperCase() === "TRUE";
+}
+
+// Reverse mapping: English data key → possible Korean Sheet headers
+// Used by write functions (appendRow/updateRowById) to resolve API keys to actual Sheet columns.
+const HEADER_ALIASES: Record<string, string[]> = {
+  display_name: ["상품표명"],
+  official_name: ["공식명(jp)", "공식명"],
+  address: ["주소"],
+  phone: ["전화"],
+  course_summary: ["코스요약"],
+  play_cart: ["플레이/카트"],
+  clubhouse_dining: ["클럽하우스 식사"],
+  bath_shower: ["목욕/샤워"],
+  rental: ["렌탈"],
+  dress_code: ["복장"],
+  check_in: ["체크인"],
+  check_out: ["체크아웃"],
+  breakfast: ["조식"],
+  bath_spa: ["목욕/스파"],
+  hotel_dining: ["호텔 식사"],
+  atm_payment: ["ATM/결제"],
+  transport: ["교통"],
+  hours: ["영업시간"],
+  cuisine: ["요리"],
+  price_range: ["가격대"],
+  distance: ["거리"],
+  specialties: ["추천 메뉴"],
+  parking: ["주차"],
+  payment: ["결제"],
+};
+
+// Resolve a data key to the actual Sheet header.
+// If the Sheet has the English key as a header, use it directly.
+// Otherwise, check HEADER_ALIASES for a matching Korean header.
+function resolveToSheetHeader(
+  dataKey: string,
+  sheetHeaders: string[]
+): string | null {
+  const lower = dataKey.toLowerCase().trim();
+  // Direct match
+  if (sheetHeaders.includes(lower)) return lower;
+  // Alias match
+  const aliases = HEADER_ALIASES[lower];
+  if (aliases) {
+    for (const alias of aliases) {
+      if (sheetHeaders.includes(alias.toLowerCase().trim())) {
+        return alias.toLowerCase().trim();
+      }
+    }
+  }
+  return null;
 }
 
 // Data access functions
@@ -1374,9 +1398,18 @@ async function appendRow(
     range: `${tabName}!A1:${lastCol}1`,
   });
   const sheetHeaders: string[] = headerResponse.data.values?.[0] || [];
-  const row = sheetHeaders.map(
-    (h: string) => String(data[h.toLowerCase().trim()] ?? "")
-  );
+  // Map data keys to actual Sheet columns (handles Korean/English header mismatch)
+  const row = sheetHeaders.map((h: string) => {
+    const sheetKey = h.toLowerCase().trim();
+    if (sheetKey in data) return String(data[sheetKey] ?? "");
+    // Try alias: find an English data key that maps to this Korean header
+    for (const [dataKey, aliases] of Object.entries(HEADER_ALIASES)) {
+      if (dataKey in data && aliases.some(a => a.toLowerCase().trim() === sheetKey)) {
+        return String(data[dataKey] ?? "");
+      }
+    }
+    return "";
+  });
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
     range: `${tabName}!A:A`,
@@ -1436,9 +1469,16 @@ async function updateRowById(
     }
   }
 
+  // Map data keys to actual Sheet columns (handles Korean/English header mismatch)
   const row = headers.map((h: string) => {
     const key = h.toLowerCase().trim();
     if (key in data) return String(data[key] ?? "");
+    // Try alias: find an English data key that maps to this Korean header
+    for (const [dataKey, aliases] of Object.entries(HEADER_ALIASES)) {
+      if (dataKey in data && aliases.some(a => a.toLowerCase().trim() === key)) {
+        return String(data[dataKey] ?? "");
+      }
+    }
     return String(rows[targetRowIndex - 1][headers.indexOf(h)] ?? "");
   });
 

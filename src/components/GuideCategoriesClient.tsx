@@ -35,6 +35,7 @@ interface ProgressStep {
   error?: string;
 }
 
+// Internal stages (used by logic, not shown directly to users)
 const INITIAL_STEPS: ProgressStep[] = [
   { id: "validation", label: "입력 정보 확인", status: "pending" },
   { id: "schema_check", label: "CMS 구조 확인", status: "pending" },
@@ -44,11 +45,20 @@ const INITIAL_STEPS: ProgressStep[] = [
   { id: "final_verify", label: "정상 작동 확인 중...", status: "pending" },
 ];
 
-const DONE_STEPS: ProgressStep[] = INITIAL_STEPS.map((s) => ({
-  ...s,
-  label: s.label.replace(" 중...", " 완료"),
-  status: "success" as StepStatus,
-}));
+// User-visible steps (3 simplified groups mapped from internal stages)
+const VISIBLE_GROUPS = [
+  { label: "입력 확인", stages: ["validation", "schema_check"], doneLabel: "입력 확인 완료" },
+  { label: "Google Sheet에 저장 중...", stages: ["sheet_create"], doneLabel: "Google Sheet 저장 완료" },
+  { label: "사이트에 반영 중...", stages: ["site_sync", "route_verify", "final_verify"], doneLabel: "사이트 반영 완료" },
+];
+
+function getVisibleStepStatus(steps: ProgressStep[], stages: string[]): StepStatus {
+  const relevant = steps.filter(s => stages.includes(s.id));
+  if (relevant.some(s => s.status === "error")) return "error";
+  if (relevant.some(s => s.status === "running")) return "running";
+  if (relevant.every(s => s.status === "success")) return "success";
+  return "pending";
+}
 
 function StepIcon({ status }: { status: StepStatus }) {
   if (status === "success") return <span className="text-[14px]">✓</span>;
@@ -255,27 +265,31 @@ function CategoryCreateModal({
           </form>
         )}
 
-        {/* Progress Phase */}
+        {/* Progress Phase — user sees 3 simplified steps */}
         {phase === "progress" && (
           <div className="space-y-3">
-            {steps.map((step) => (
-              <div key={step.id} className="flex items-center gap-3">
-                <StepIcon status={step.status} />
-                <span
-                  className={`text-[14px] ${
-                    step.status === "success"
-                      ? "text-text"
-                      : step.status === "error"
-                        ? "text-danger"
-                        : step.status === "running"
-                          ? "text-primary font-medium"
-                          : "text-muted"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            ))}
+            {VISIBLE_GROUPS.map((group) => {
+              const status = getVisibleStepStatus(steps, group.stages);
+              const label = status === "success" ? group.doneLabel : group.label;
+              return (
+                <div key={group.label} className="flex items-center gap-3">
+                  <StepIcon status={status} />
+                  <span
+                    className={`text-[14px] ${
+                      status === "success"
+                        ? "text-text"
+                        : status === "error"
+                          ? "text-danger"
+                          : status === "running"
+                            ? "text-primary font-medium"
+                            : "text-muted"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
             {failedStep && (
               <div className="mt-4 pt-3 border-t border-border">
                 <p className="text-[13px] text-danger mb-1">실패 단계: {failedStep.label}</p>
@@ -301,13 +315,13 @@ function CategoryCreateModal({
           </div>
         )}
 
-        {/* Done Phase */}
+        {/* Done Phase — 3 simplified completed steps */}
         {phase === "done" && (
           <div className="space-y-3">
-            {DONE_STEPS.map((step) => (
-              <div key={step.id} className="flex items-center gap-3">
+            {VISIBLE_GROUPS.map((group) => (
+              <div key={group.label} className="flex items-center gap-3">
                 <StepIcon status="success" />
-                <span className="text-[14px] text-text">{step.label}</span>
+                <span className="text-[14px] text-text">{group.doneLabel}</span>
               </div>
             ))}
             <div className="mt-3 pt-3 border-t border-border text-center">
