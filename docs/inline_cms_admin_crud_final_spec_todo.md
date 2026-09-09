@@ -841,6 +841,22 @@ Options:
 - [x] Toggle — active 토글 정상
 - [x] Sort — 정렬 변경 정상
 
+카테고리 CREATE (2025-09-09):
+
+- [x] POST — 생성 성공, label/icon/group 정상 저장
+- [x] PUT — 수정 성공, label/icon 변경 반영
+- [x] DELETE — soft delete 성공
+- [x] Emoji picker — CREATE/EDIT 모달에서 아이콘 선택 가능
+- [x] Icon column — admin_options Sheet에 icon column 저장 확인
+
+카테고리 CREATE Root Cause (2025-09-09):
+
+- `appendAdminOption()`: Sheet header가 한글("관리자 화면 표시명")이고 data key가 영문("label")인 경우,
+  기존 forward-lookup 패턴이 매칭 실패 → 모든 한글 header column에 빈 문자열 저장
+- `updateAdminOption()`: 동일 버그 존재
+- 수정: reverse map (Sheet header → canonical data key) 방식으로 변경
+- 수정 파일: `src/lib/google-sheets.ts` (appendAdminOption + updateAdminOption)
+
 ## 8. 하드코딩 전수조사 결과
 
 - 수정 불가능 콘텐츠 수: 0 (모든 콘텐츠 관리 가능)
@@ -855,8 +871,10 @@ TypeScript → PASS (0 errors)
 
 ## 10. Git
 
-- commit: `a095334` (fix: resolve FAIL/WARN from full validation)
-- push: 대기 중 (Git credential manager 인증 필요)
+- commit: `a8974d3` (fix: restore emoji picker in category CREATE and fix header mapping bug)
+- commit: `80c2691` (fix: add .next/cache to .vercelignore to avoid deploy size limit)
+- production 배포: `https://japan-chat-web.vercel.app` (2025-09-09)
+- Production E2E 검증: CREATE/READ/UPDATE/DELETE 전부 PASS
 
 ## 11. 남은 미완료 사항
 

@@ -838,3 +838,36 @@ verify:cms-schema
 조합을 유지합니다.
 
 이 구조를 앞으로 모든 CMS 확장 작업의 기본 규칙으로 사용하세요.
+
+---
+
+# 22. Admin Options CRUD 버그 교훈 (2025-09-09)
+
+## 발견된 버그
+
+카테고리 CREATE 시 label, icon, description, group이 모두 빈 문자열로 저장됨.
+
+## Root Cause
+
+`appendAdminOption()`과 `updateAdminOption()`이 forward-lookup 패턴을 사용함.
+
+```text
+기존 (버그):
+Sheet header "관리자 화면 표시명" 
+→ data key에서 직접 매칭 시도 ("label" ≠ "관리자 화면 표시명")
+→ 실패 시 Sheet header 자체를 data key로 사용
+→ resolveToSheetHeader("관리자 화면 표시명") → null
+→ dataWithTimestamp[null] → undefined → ""
+```
+
+```text
+수정:
+reverse map 구축 (Sheet header → canonical data key)
+dataKey "label" → resolveToSheetHeader("label") → "관리자 화면 표시명"
+→ sheetHeaderToDataKey["관리자 화면 표시명"] = "label"
+→ dataWithTimestamp["label"] → 정상 값 반환
+```
+
+## 핵심 교훈
+
+어떤 Sheet 연동이든 write 시 forward-lookup 패턴 사용 금지. 반듯이 reverse map 패턴 사용.
