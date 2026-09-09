@@ -146,6 +146,7 @@ export interface AdminOption {
   option_type: string;
   code: string;
   label: string;
+  icon: string;
   description: string;
   group: string; // "AREA" (지역별) or "COMMON" (공통 안내)
   active: string;

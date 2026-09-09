@@ -13,6 +13,7 @@ interface AdminOption {
   option_type: string;
   code: string;
   label: string;
+  icon: string;
   description: string;
   group: string;
   sort: number;
@@ -81,6 +82,7 @@ function CategoryCreateModal({
   onSaved: (data: AdminOption) => void;
 }) {
   const [label, setLabel] = useState("");
+  const [icon, setIcon] = useState("📌");
   const [phase, setPhase] = useState<"form" | "progress" | "done">("form");
   const [steps, setSteps] = useState<ProgressStep[]>(INITIAL_STEPS);
   const [error, setError] = useState("");
@@ -147,6 +149,7 @@ function CategoryCreateModal({
         body: JSON.stringify({
           option_type: "CATEGORY",
           label: trimmedLabel,
+          icon: icon.trim() || "📌",
           group: "COMMON",
         }),
       });
@@ -210,6 +213,7 @@ function CategoryCreateModal({
         option_type: "CATEGORY",
         code,
         label: trimmedLabel,
+        icon: icon.trim() || "📌",
         description: "",
         group: "COMMON",
         sort: 999,
@@ -256,6 +260,32 @@ function CategoryCreateModal({
                 className="w-full border border-border rounded-[10px] px-4 py-3 text-[16px] focus:outline-none focus:border-primary"
                 required
               />
+            </div>
+            <div>
+              <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
+              <div className="flex flex-wrap gap-2">
+                {["📌", "♨️", "🚙", "🏨", "⛳", "🍽️", "🍜", "☕", "💰", "💱", "💳", "🛒", "🎫", "🗺️", "📍", "✈️", "🚌", "🚕", "🚆", "🛳️", "🎁", "📋", "ℹ️", "⚠️"].map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setIcon(e)}
+                    className={`w-11 h-11 flex items-center justify-center rounded-[8px] text-[20px] border cursor-pointer transition-all ${icon === e ? "border-primary bg-primary/10 scale-110" : "border-border hover:border-primary/50"}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[13px] text-muted">또는 직접 입력:</span>
+                <input
+                  type="text"
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                  className="w-16 border border-border rounded-[8px] px-2 py-1 text-[18px] text-center focus:outline-none focus:border-primary"
+                  maxLength={4}
+                />
+                <span className="text-[14px]">선택: {icon}</span>
+              </div>
             </div>
             {error && <p className="text-[14px] text-danger">{error}</p>}
             <div className="flex gap-2 pt-2">
@@ -348,6 +378,7 @@ function CategoryEditModal({
   onSaved: (data: AdminOption) => void;
 }) {
   const [label, setLabel] = useState(category?.label || "");
+  const [icon, setIcon] = useState(category?.icon || "📌");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -365,11 +396,12 @@ function CategoryEditModal({
     try {
       await adminFetchJson("/api/admin/options", {
         method: "PUT",
-        body: JSON.stringify({ id: category.id, label: label.trim() }),
+        body: JSON.stringify({ id: category.id, label: label.trim(), icon: icon.trim() || "📌" }),
       });
       onSaved({
         ...category,
         label: label.trim(),
+        icon: icon.trim() || "📌",
         updated_at: new Date().toISOString(),
       });
     } catch (err) {
@@ -404,6 +436,32 @@ function CategoryEditModal({
               className="w-full border border-border rounded-[10px] px-4 py-3 text-[16px] focus:outline-none focus:border-primary"
               required
             />
+          </div>
+          <div>
+            <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
+            <div className="flex flex-wrap gap-2">
+              {["📌", "♨️", "🚙", "🏨", "⛳", "🍽️", "🍜", "☕", "💰", "💱", "💳", "🛒", "🎫", "🗺️", "📍", "✈️", "🚌", "🚕", "🚆", "🛳️", "🎁", "📋", "ℹ️", "⚠️"].map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setIcon(e)}
+                  className={`w-11 h-11 flex items-center justify-center rounded-[8px] text-[20px] border cursor-pointer transition-all ${icon === e ? "border-primary bg-primary/10 scale-110" : "border-border hover:border-primary/50"}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[13px] text-muted">또는 직접 입력:</span>
+              <input
+                type="text"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                className="w-16 border border-border rounded-[8px] px-2 py-1 text-[18px] text-center focus:outline-none focus:border-primary"
+                maxLength={4}
+              />
+              <span className="text-[14px]">선택: {icon}</span>
+            </div>
           </div>
           {error && <p className="text-[14px] text-danger">{error}</p>}
           <div className="flex gap-2 pt-2">
@@ -493,7 +551,7 @@ export default function GuideCategoriesClient({
               }}
             >
               <span className="text-[16px] font-medium whitespace-nowrap" style={{ color: getCategoryColor(cat.code) }}>
-                {getCategoryEmoji(cat.code)} {cat.label}
+                {cat.icon || getCategoryEmoji(cat.code)} {cat.label}
               </span>
             </Link>
             {isAdmin && (

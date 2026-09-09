@@ -555,6 +555,7 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
     option_type: r.option_type || "",
     code: r.code || "",
     label: resolveField(r, "label"),
+    icon: resolveField(r, "icon") || "📌",
     description: resolveField(r, "description"),
     group: resolveField(r, "group"),
     active: r.active || "TRUE",
@@ -1001,11 +1002,24 @@ export async function appendAdminOption(
       spreadsheetId: sheetId,
       range: "admin_options!A1:Z1",
     });
-    const headers = headerResponse.data.values?.[0] || [];
+    const headers: string[] = headerResponse.data.values?.[0] || [];
+    const lowerHeaders = headers.map((h: string) => h.toLowerCase().trim());
     const dataWithTimestamp: Record<string, string | number> = { updated_at: new Date().toISOString(), ...data };
-    const row = headers.map(
-      (h: string) => String(dataWithTimestamp[h.toLowerCase().trim()] ?? "")
-    );
+
+    // Build reverse map: lowercase Sheet header → canonical data key.
+    // For each data key, find the matching Sheet header (direct or via HEADER_ALIASES).
+    const sheetHeaderToDataKey = new Map<string, string>();
+    for (const dataKey of Object.keys(dataWithTimestamp)) {
+      const resolved = resolveToSheetHeader(dataKey, headers);
+      if (resolved) {
+        sheetHeaderToDataKey.set(resolved, dataKey);
+      }
+    }
+
+    const row = headers.map((h: string, i: number) => {
+      const dataKey = sheetHeaderToDataKey.get(lowerHeaders[i]);
+      return String(dataWithTimestamp[dataKey ?? ""] ?? "");
+    });
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
@@ -1050,9 +1064,22 @@ export async function updateAdminOption(
 
     if (targetRowIndex === -1) return false;
 
-    const row = headers.map(
-      (h: string) => String(data[h.toLowerCase().trim()] ?? rows[targetRowIndex - 1][headers.indexOf(h)] ?? "")
-    );
+    // Build reverse map: lowercase Sheet header → canonical data key
+    const sheetHeaderToDataKey = new Map<string, string>();
+    for (const dataKey of Object.keys(data)) {
+      const resolved = resolveToSheetHeader(dataKey, headers as string[]);
+      if (resolved) {
+        sheetHeaderToDataKey.set(resolved, dataKey);
+      }
+    }
+
+    const row = headers.map((h: string, i: number) => {
+      const dataKey = sheetHeaderToDataKey.get(h.toLowerCase().trim());
+      if (dataKey && data[dataKey] !== undefined) {
+        return String(data[dataKey]);
+      }
+      return String(rows[targetRowIndex - 1]?.[i] ?? "");
+    });
 
     // updated_at 갱신
     const updatedAtColIndex = headers.findIndex(
@@ -2030,6 +2057,60 @@ export async function updateCmsSchemaColumns(): Promise<{ success: boolean; mess
   } catch (error) {
     console.error("Failed to update cms_schema columns", error);
     return { success: false, message: String(error), updated: 0 };
+  }
+}
+
+// --- admin_options icon column migration ---
+export async function migrateAdminOptionsIcon(): Promise<{ success: boolean; message: string; added: boolean }> {
+  try {
+    const { sheets, sheetId } = getSheetsClient();
+    const headerRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1:Z1",
+    });
+    const headers: string[] = headerRes.data.values?.[0] || [];
+    const lowerHeaders = headers.map((h) => h.toLowerCase().trim());
+
+    if (lowerHeaders.includes("icon")) {
+      return { success: true, message: "icon column already exists", added: false };
+    }
+
+    // Add icon column header after code column
+    const codeIdx = lowerHeaders.indexOf("code");
+    const insertIdx = codeIdx >= 0 ? codeIdx + 1 : 3; // after code, or position 3
+    const newHeaders = [...headers];
+    newHeaders.splice(insertIdx, 0, "icon");
+
+    // Read all data rows
+    const dataRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "admin_options!A2:Z500",
+    });
+    const rows = dataRes.data.values || [];
+
+    // Add default icon value to each row
+    const updatedRows = rows.map((row) => {
+      const newRow = [...row];
+      newRow.splice(insertIdx, 0, "📌");
+      return newRow;
+    });
+
+    // Clear and rewrite
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: sheetId,
+      range: "admin_options!A:Z",
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: "admin_options!A1",
+      valueInputOption: "RAW",
+      requestBody: { values: [newHeaders, ...updatedRows] },
+    });
+
+    return { success: true, message: `icon column added at position ${insertIdx}, ${updatedRows.length} rows updated`, added: true };
+  } catch (error) {
+    console.error("Failed to migrate admin_options icon column", error);
+    return { success: false, message: String(error), added: false };
   }
 }
 

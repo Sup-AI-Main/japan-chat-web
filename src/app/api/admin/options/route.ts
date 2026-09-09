@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { option_type, label, group } = body;
+    const { option_type, label, group, icon } = body;
 
     if (!option_type || !label) {
       return NextResponse.json({ error: "option_type과 label은 필수입니다." }, { status: 400 });
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       option_type,
       code,
       label,
+      icon: icon || "📌",
       group: group || "",
       active: "TRUE",
       sort: maxSort + 1,
@@ -70,13 +71,15 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, label } = body;
+    const { id, label, icon } = body;
 
     if (!id || !label) {
       return NextResponse.json({ error: "id와 label은 필수입니다." }, { status: 400 });
     }
 
-    const success = await updateAdminOption({ id, label });
+    const updateData: Record<string, string | number> = { id, label };
+    if (icon !== undefined) updateData.icon = icon;
+    const success = await updateAdminOption(updateData);
 
     if (success) {
       return NextResponse.json({ success: true });
