@@ -5,38 +5,41 @@ import {
   appendIncludeExclude,
   updateIncludeExclude,
   deleteIncludeExclude,
-} from "@/lib/google-sheets";
+} from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
+import { ok, created, badRequest, conflict, safeJson } from "@/lib/crud/response";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const parentType = req.nextUrl.searchParams.get("parent_type") || undefined;
   const parentId = req.nextUrl.searchParams.get("parent_id") || undefined;
-  const items = await getIncludesExcludes(parentType, parentId);
-  return NextResponse.json({ items });
+  const items = await getIncludesExcludes(parentType, parentId, true);
+  return ok({ items });
 }
 
 export async function POST(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await req.json();
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  const body = await safeJson<Record<string, string>>(req);
+  if (!body) return badRequest("Empty request body");
   const id = await appendIncludeExclude(body);
-  return NextResponse.json({ id }, { status: 201 });
+  return created({ id });
 }
 
 export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await req.json();
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  const body = await safeJson<Record<string, string>>(req);
+  if (!body) return badRequest("Empty request body");
   const { id, updated_at, ...data } = body;
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  if (!id) return badRequest("Missing id");
   try {
-    const ok = await updateIncludeExclude(id, data, updated_at);
-    return NextResponse.json({ success: ok });
+    const success = await updateIncludeExclude(id, data, updated_at);
+    return ok({ success });
   } catch (err) {
     if (err instanceof ConflictError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
+      return conflict(err.message);
     }
     throw err;
   }
@@ -44,9 +47,9 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const id = req.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  const ok = await deleteIncludeExclude(id);
-  return NextResponse.json({ success: ok });
+  if (!id) return badRequest("Missing id");
+  const success = await deleteIncludeExclude(id);
+  return ok({ success });
 }

@@ -5,48 +5,56 @@ import {
   appendContentSection,
   updateContentSection,
   deleteContentSection,
-} from "@/lib/google-sheets";
+} from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
+import { ok, created, badRequest, conflict, safeJson } from "@/lib/crud/response";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const parentType = req.nextUrl.searchParams.get("parent_type") || undefined;
   const parentId = req.nextUrl.searchParams.get("parent_id") || undefined;
-  const sections = await getContentSections(parentType, parentId);
-  return NextResponse.json({ sections });
+  const sections = await getContentSections(parentType, parentId, true);
+  return ok({ sections });
 }
 
 export async function POST(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await req.json();
-  const { parent_type, parent_id, title, content, emoji } = body;
-  if (!parent_type || !parent_id || !title) {
-    return NextResponse.json({ error: "Missing required fields: parent_type, parent_id, title" }, { status: 400 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  const body = await safeJson<Record<string, string>>(req);
+  if (!body) return badRequest("Empty request body");
+  const { parent_type, parent_id, parent_entity_id, title, content, emoji, sort } = body;
+  if (!title) {
+    return badRequest("Missing required field: title");
+  }
+  if (!parent_entity_id && (!parent_type || !parent_id)) {
+    return badRequest("Missing required fields: either parent_entity_id or (parent_type + parent_id)");
   }
   const id = await appendContentSection({
-    parent_type,
-    parent_id,
+    parent_type: parent_type || "",
+    parent_id: parent_id || "",
+    parent_entity_id: parent_entity_id || "",
     title,
     content: content || "",
     emoji: emoji || "",
+    sort: sort || "",
   });
-  return NextResponse.json({ id }, { status: 201 });
+  return created({ id });
 }
 
 export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await req.json();
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  const body = await safeJson<Record<string, string>>(req);
+  if (!body) return badRequest("Empty request body");
   const { id, updated_at, ...data } = body;
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  if (!id) return badRequest("Missing id");
   try {
-    const ok = await updateContentSection(id, data, updated_at);
-    return NextResponse.json({ success: ok });
+    const success = await updateContentSection(id, data, updated_at);
+    return ok({ success });
   } catch (err) {
     if (err instanceof ConflictError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
+      return conflict(err.message);
     }
     throw err;
   }
@@ -54,9 +62,9 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const id = req.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  const ok = await deleteContentSection(id);
-  return NextResponse.json({ success: ok });
+  if (!id) return badRequest("Missing id");
+  const success = await deleteContentSection(id);
+  return ok({ success });
 }

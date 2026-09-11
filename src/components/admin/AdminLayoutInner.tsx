@@ -12,6 +12,7 @@ const LABELS: Record<string, string> = {
   hotel: "호텔",
   restaurant: "식당",
   manage: "관리",
+  entities: "콘텐츠",
   new: "추가",
   faq: "FAQ",
 };

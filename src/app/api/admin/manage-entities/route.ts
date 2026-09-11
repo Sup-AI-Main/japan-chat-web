@@ -5,6 +5,7 @@ import {
   createEntity,
   updateEntity,
   deleteEntityFull,
+  getEntityDeleteImpactReport,
   ok,
   created,
   badRequest,
@@ -95,6 +96,14 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return badRequest("id가 필요합니다.");
+
+    const confirmed = req.nextUrl.searchParams.get("confirmed") === "true";
+
+    if (!confirmed) {
+      // Return impact report
+      const impact = await getEntityDeleteImpactReport(id);
+      return ok(impact);
+    }
 
     await deleteEntityFull(id);
     return ok({ deleted: true });

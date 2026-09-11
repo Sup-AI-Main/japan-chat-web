@@ -70,6 +70,7 @@ export {
   deleteAreaFull,
   deleteCategoryFull,
   deleteFieldDefinitionFull,
+  getEntityDeleteImpactReport,
 } from "./compound-delete";
 
 // Response helpers

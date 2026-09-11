@@ -1673,11 +1673,13 @@ export async function getContentSections(
 
 export async function appendContentSection(data: Record<string, string>): Promise<string> {
   let entityId: string | null = null;
-  if (data.parent_id) {
+  if (data.parent_entity_id) {
+    entityId = data.parent_entity_id;
+  } else if (data.parent_id) {
     entityId = await resolveEntityIdBySlug(data.parent_id);
   }
   if (!entityId) {
-    throw new Error(`Entity not found: ${data.parent_id}`);
+    throw new Error(`Entity not found: ${data.parent_id || data.parent_entity_id}`);
   }
 
   const { data: row, error } = await adminDb()
@@ -1817,11 +1819,13 @@ export async function getIncludesExcludes(
 
 export async function appendIncludeExclude(data: Record<string, string>): Promise<string> {
   let entityId: string | null = null;
-  if (data.parent_id) {
+  if (data.parent_entity_id) {
+    entityId = data.parent_entity_id;
+  } else if (data.parent_id) {
     entityId = await resolveEntityIdBySlug(data.parent_id);
   }
   if (!entityId) {
-    throw new Error(`Entity not found: ${data.parent_id}`);
+    throw new Error(`Entity not found: ${data.parent_id || data.parent_entity_id}`);
   }
 
   const { data: row, error } = await adminDb()

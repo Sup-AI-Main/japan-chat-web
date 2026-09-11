@@ -11,10 +11,10 @@
  * Hard delete only — no soft delete, no restore.
  */
 
-import { getSupabaseServer } from "@/lib/supabase/server";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { logChange } from "@/lib/crud/change-log";
-import { isUuid } from "@/lib/crud/validation";
+import { getSupabaseServer } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { logChange } from '@/lib/crud/change-log';
+import { isUuid } from '@/lib/crud/validation';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,37 +43,87 @@ export interface CategoryDeleteImpactReport {
 }
 
 // ---------------------------------------------------------------------------
-// A. deleteEntityFull — single DELETE + FK CASCADE (atomic)
+// A. Entity Impact Report
+// ---------------------------------------------------------------------------
+
+export async function getEntityDeleteImpactReport(id: string): Promise<Record<string, number>> {
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
+
+  const db = getSupabaseServer();
+
+  const [
+    hotels,
+    golf,
+    restaurants,
+    faq,
+    travelFrom,
+    travelTo,
+    contentSections,
+    includesExcludes,
+    entityFieldValues,
+    entityCategories,
+  ] = await Promise.all([
+    db.from('hotels').select('entity_id', { count: 'exact', head: true }).eq('entity_id', id),
+    db.from('golf_courses').select('entity_id', { count: 'exact', head: true }).eq('entity_id', id),
+    db.from('restaurants').select('entity_id', { count: 'exact', head: true }).eq('entity_id', id),
+    db.from('faq').select('id', { count: 'exact', head: true }).eq('related_entity_id', id),
+    db.from('travel_times').select('id', { count: 'exact', head: true }).eq('from_entity_id', id),
+    db.from('travel_times').select('id', { count: 'exact', head: true }).eq('to_entity_id', id),
+    db
+      .from('content_sections')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_entity_id', id),
+    db
+      .from('includes_excludes')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_entity_id', id),
+    db.from('entity_field_values').select('id', { count: 'exact', head: true }).eq('entity_id', id),
+    db
+      .from('entity_categories')
+      .select('entity_id', { count: 'exact', head: true })
+      .eq('entity_id', id),
+  ]);
+
+  return {
+    hotels: hotels.count ?? 0,
+    golf_courses: golf.count ?? 0,
+    restaurants: restaurants.count ?? 0,
+    faq: faq.count ?? 0,
+    travel_times: (travelFrom.count ?? 0) + (travelTo.count ?? 0),
+    content_sections: contentSections.count ?? 0,
+    includes_excludes: includesExcludes.count ?? 0,
+    entity_field_values: entityFieldValues.count ?? 0,
+    entity_categories: entityCategories.count ?? 0,
+  };
+}
+
+// A2. deleteEntityFull — single DELETE + FK CASCADE (atomic)
 // ---------------------------------------------------------------------------
 
 export async function deleteEntityFull(id: string): Promise<void> {
-  if (!isUuid(id)) throw new Error("id must be a valid UUID");
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
 
   const db = getSupabaseAdmin();
 
   // Fetch before snapshot for logging
-  const { data: existing } = await db
-    .from("entities")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data: existing } = await db.from('entities').select('*').eq('id', id).single();
 
-  if (!existing) throw new Error("Entity not found");
+  if (!existing) throw new Error('Entity not found');
 
   // Single DELETE — FK CASCADE handles all subtables atomically
-  const { error } = await db.rpc("delete_entity_cascade", { p_entity_id: id });
+  const { error } = await db.rpc('delete_entity_cascade', { p_entity_id: id });
   if (error) {
     // Fallback to direct delete if RPC not available
-    const { error: delError } = await db.from("entities").delete().eq("id", id);
+    const { error: delError } = await db.from('entities').delete().eq('id', id);
     if (delError) throw delError;
   }
 
   await logChange({
-    action: "DELETE",
-    entityType: "entities",
+    action: 'DELETE',
+    entityType: 'entities',
     entityId: id,
     beforeJson: existing,
-    actorNote: "deleteEntityFull",
+    actorNote: 'deleteEntityFull',
   });
 }
 
@@ -81,25 +131,23 @@ export async function deleteEntityFull(id: string): Promise<void> {
 // B. deleteAreaFull — RPC atomic transaction
 // ---------------------------------------------------------------------------
 
-export async function getAreaDeleteImpactReport(
-  id: string
-): Promise<AreaDeleteImpactReport> {
-  if (!isUuid(id)) throw new Error("id must be a valid UUID");
+export async function getAreaDeleteImpactReport(id: string): Promise<AreaDeleteImpactReport> {
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
 
   const db = getSupabaseServer();
 
   // Get entity IDs for this area
-  const { data: entities } = await db
-    .from("entities")
-    .select("id")
-    .eq("area_id", id);
+  const { data: entities } = await db.from('entities').select('id').eq('area_id', id);
 
   const entityIds = (entities || []).map((e) => e.id);
 
   if (entityIds.length === 0) {
     const [faqResult, fdsResult] = await Promise.all([
-      db.from("faq").select("id", { count: "exact", head: true }).eq("area_id", id),
-      db.from("field_definition_scopes").select("id", { count: "exact", head: true }).eq("area_id", id),
+      db.from('faq').select('id', { count: 'exact', head: true }).eq('area_id', id),
+      db
+        .from('field_definition_scopes')
+        .select('id', { count: 'exact', head: true })
+        .eq('area_id', id),
     ]);
 
     return {
@@ -117,19 +165,60 @@ export async function getAreaDeleteImpactReport(
     };
   }
 
-  const [ecResult, ttFromResult, ttToResult, efvResult, faqResult, fdsResult,
-    csResult, ieResult, hotelResult, golfResult, restResult] = await Promise.all([
-    db.from("entity_categories").select("entity_id", { count: "exact", head: true }).in("entity_id", entityIds),
-    db.from("travel_times").select("id", { count: "exact", head: true }).in("from_entity_id", entityIds),
-    db.from("travel_times").select("id", { count: "exact", head: true }).in("to_entity_id", entityIds),
-    db.from("entity_field_values").select("id", { count: "exact", head: true }).in("entity_id", entityIds),
-    db.from("faq").select("id", { count: "exact", head: true }).eq("area_id", id),
-    db.from("field_definition_scopes").select("id", { count: "exact", head: true }).eq("area_id", id),
-    db.from("content_sections").select("id", { count: "exact", head: true }).in("parent_entity_id", entityIds),
-    db.from("includes_excludes").select("id", { count: "exact", head: true }).in("parent_entity_id", entityIds),
-    db.from("hotels").select("entity_id", { count: "exact", head: true }).in("entity_id", entityIds),
-    db.from("golf_courses").select("entity_id", { count: "exact", head: true }).in("entity_id", entityIds),
-    db.from("restaurants").select("entity_id", { count: "exact", head: true }).in("entity_id", entityIds),
+  const [
+    ecResult,
+    ttFromResult,
+    ttToResult,
+    efvResult,
+    faqResult,
+    fdsResult,
+    csResult,
+    ieResult,
+    hotelResult,
+    golfResult,
+    restResult,
+  ] = await Promise.all([
+    db
+      .from('entity_categories')
+      .select('entity_id', { count: 'exact', head: true })
+      .in('entity_id', entityIds),
+    db
+      .from('travel_times')
+      .select('id', { count: 'exact', head: true })
+      .in('from_entity_id', entityIds),
+    db
+      .from('travel_times')
+      .select('id', { count: 'exact', head: true })
+      .in('to_entity_id', entityIds),
+    db
+      .from('entity_field_values')
+      .select('id', { count: 'exact', head: true })
+      .in('entity_id', entityIds),
+    db.from('faq').select('id', { count: 'exact', head: true }).eq('area_id', id),
+    db
+      .from('field_definition_scopes')
+      .select('id', { count: 'exact', head: true })
+      .eq('area_id', id),
+    db
+      .from('content_sections')
+      .select('id', { count: 'exact', head: true })
+      .in('parent_entity_id', entityIds),
+    db
+      .from('includes_excludes')
+      .select('id', { count: 'exact', head: true })
+      .in('parent_entity_id', entityIds),
+    db
+      .from('hotels')
+      .select('entity_id', { count: 'exact', head: true })
+      .in('entity_id', entityIds),
+    db
+      .from('golf_courses')
+      .select('entity_id', { count: 'exact', head: true })
+      .in('entity_id', entityIds),
+    db
+      .from('restaurants')
+      .select('entity_id', { count: 'exact', head: true })
+      .in('entity_id', entityIds),
   ]);
 
   return {
@@ -151,7 +240,7 @@ export async function deleteAreaFull(
   id: string,
   confirmed: boolean
 ): Promise<AreaDeleteImpactReport | Record<string, unknown>> {
-  if (!isUuid(id)) throw new Error("id must be a valid UUID");
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
 
   // If not confirmed, return impact report
   if (!confirmed) {
@@ -161,28 +250,24 @@ export async function deleteAreaFull(
   const db = getSupabaseAdmin();
 
   // Fetch before snapshot for logging
-  const { data: existing } = await db
-    .from("areas")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data: existing } = await db.from('areas').select('*').eq('id', id).single();
 
-  if (!existing) throw new Error("Area not found");
+  if (!existing) throw new Error('Area not found');
 
   // Use PostgreSQL RPC for atomic transaction
-  const { data: impact, error } = await db.rpc("delete_area_cascade", {
+  const { data: impact, error } = await db.rpc('delete_area_cascade', {
     p_area_id: id,
   });
 
   if (error) throw error;
 
   await logChange({
-    action: "DELETE",
-    entityType: "areas",
+    action: 'DELETE',
+    entityType: 'areas',
     entityId: id,
     beforeJson: existing,
     afterJson: impact,
-    actorNote: "deleteAreaFull",
+    actorNote: 'deleteAreaFull',
   });
 
   return impact as Record<string, unknown>;
@@ -195,15 +280,21 @@ export async function deleteAreaFull(
 export async function getCategoryDeleteImpactReport(
   id: string
 ): Promise<CategoryDeleteImpactReport> {
-  if (!isUuid(id)) throw new Error("id must be a valid UUID");
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
 
   const db = getSupabaseServer();
 
   const [ecResult, faqResult, fdsResult, entResult] = await Promise.all([
-    db.from("entity_categories").select("entity_id", { count: "exact", head: true }).eq("category_id", id),
-    db.from("faq").select("id", { count: "exact", head: true }).eq("category_id", id),
-    db.from("field_definition_scopes").select("id", { count: "exact", head: true }).eq("category_id", id),
-    db.from("entities").select("id", { count: "exact", head: true }).eq("category_id", id),
+    db
+      .from('entity_categories')
+      .select('entity_id', { count: 'exact', head: true })
+      .eq('category_id', id),
+    db.from('faq').select('id', { count: 'exact', head: true }).eq('category_id', id),
+    db
+      .from('field_definition_scopes')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', id),
+    db.from('entities').select('id', { count: 'exact', head: true }).eq('category_id', id),
   ]);
 
   return {
@@ -219,7 +310,7 @@ export async function deleteCategoryFull(
   id: string,
   confirmed: boolean
 ): Promise<CategoryDeleteImpactReport | Record<string, unknown>> {
-  if (!isUuid(id)) throw new Error("id must be a valid UUID");
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
 
   // If not confirmed, return impact report
   if (!confirmed) {
@@ -229,28 +320,24 @@ export async function deleteCategoryFull(
   const db = getSupabaseAdmin();
 
   // Fetch before snapshot for logging
-  const { data: existing } = await db
-    .from("categories")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data: existing } = await db.from('categories').select('*').eq('id', id).single();
 
-  if (!existing) throw new Error("Category not found");
+  if (!existing) throw new Error('Category not found');
 
   // Use PostgreSQL RPC for atomic transaction
-  const { data: impact, error } = await db.rpc("delete_category_cascade", {
+  const { data: impact, error } = await db.rpc('delete_category_cascade', {
     p_category_id: id,
   });
 
   if (error) throw error;
 
   await logChange({
-    action: "DELETE",
-    entityType: "categories",
+    action: 'DELETE',
+    entityType: 'categories',
     entityId: id,
     beforeJson: existing,
     afterJson: impact,
-    actorNote: "deleteCategoryFull",
+    actorNote: 'deleteCategoryFull',
   });
 
   return impact as Record<string, unknown>;
@@ -260,41 +347,32 @@ export async function deleteCategoryFull(
 // D. deleteFieldDefinitionFull — single DELETE + FK CASCADE (atomic)
 // ---------------------------------------------------------------------------
 
-export async function deleteFieldDefinitionFull(
-  id: string
-): Promise<void> {
-  if (!isUuid(id)) throw new Error("id must be a valid UUID");
+export async function deleteFieldDefinitionFull(id: string): Promise<void> {
+  if (!isUuid(id)) throw new Error('id must be a valid UUID');
 
   const db = getSupabaseAdmin();
 
   // Fetch before snapshot for logging
-  const { data: existing } = await db
-    .from("field_definitions")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data: existing } = await db.from('field_definitions').select('*').eq('id', id).single();
 
-  if (!existing) throw new Error("Field definition not found");
+  if (!existing) throw new Error('Field definition not found');
 
   // Use PostgreSQL RPC for atomic delete (CASCADE handles entity_field_values + scopes)
-  const { error } = await db.rpc("delete_field_definition_cascade", {
+  const { error } = await db.rpc('delete_field_definition_cascade', {
     p_field_def_id: id,
   });
 
   if (error) {
     // Fallback to direct delete if RPC not available
-    const { error: delError } = await db
-      .from("field_definitions")
-      .delete()
-      .eq("id", id);
+    const { error: delError } = await db.from('field_definitions').delete().eq('id', id);
     if (delError) throw delError;
   }
 
   await logChange({
-    action: "DELETE",
-    entityType: "field_definitions",
+    action: 'DELETE',
+    entityType: 'field_definitions',
     entityId: id,
     beforeJson: existing,
-    actorNote: "deleteFieldDefinitionFull",
+    actorNote: 'deleteFieldDefinitionFull',
   });
 }
