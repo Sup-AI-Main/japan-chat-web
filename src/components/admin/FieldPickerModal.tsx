@@ -10,6 +10,9 @@ interface FieldDef {
   field_type: string;
   icon: string | null;
   scope_type: string;
+  scope_area_id: string | null;
+  scope_category_id: string | null;
+  scope_entity_type: string | null;
   active: boolean;
   sort: number;
 }

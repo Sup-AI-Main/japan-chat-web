@@ -25,7 +25,7 @@ export async function GET(
       db.from("golf_courses").select("*").eq("entity_id", id).maybeSingle(),
       db.from("restaurants").select("*").eq("entity_id", id).maybeSingle(),
       db.from("restaurant_locations").select("*").eq("restaurant_entity_id", id).order("sort"),
-      db.from("entity_field_values").select("id, entity_id, field_definition_id, value_text, value_json, sort, visible, created_at, updated_at, field_definition:field_definitions(id, field_key, label_ko, label_ja, label_en, field_type, icon)").eq("entity_id", id).order("sort"),
+      db.from("entity_field_values").select("id, entity_id, field_definition_id, value_text, value_json, sort, visible, created_at, updated_at, field_definition:field_definitions(id, field_key, label_ko, label_ja, label_en, field_type, icon, options_json)").eq("entity_id", id).order("sort"),
       db.from("includes_excludes").select("*").eq("parent_entity_id", id).order("sort"),
       db.from("content_sections").select("*").eq("parent_entity_id", id).order("sort"),
       db.from("travel_times").select("id, from_entity_id, to_entity_id, product_reference_minutes, display_time, min_minutes, max_minutes, note, source, directions_url, time_basis, active, from_entity:entities!from_entity_id(id, display_name), to_entity:entities!to_entity_id(id, display_name)").eq("from_entity_id", id),

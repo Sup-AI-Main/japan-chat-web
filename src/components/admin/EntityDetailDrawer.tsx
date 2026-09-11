@@ -30,7 +30,7 @@ interface EntityDetail {
   hotel: Record<string, unknown> | null;
   golf: Record<string, unknown> | null;
   restaurant: Record<string, unknown> | null;
-  restaurant_locations: Array<Record<string, unknown>>;
+  restaurant_locations: Array<{id:string;restaurant_entity_id:string;near_entity_id:string;distance_text:string|null;distance_km:number|null;drive_minutes:number|null;walk_minutes:number|null;sort:number}>;
   field_values: Array<{
     id: string;
     entity_id: string;
@@ -47,10 +47,11 @@ interface EntityDetail {
       label_en: string | null;
       field_type: string;
       icon: string | null;
+      options_json: unknown;
     } | null;
   }>;
-  includes_excludes: Array<Record<string, unknown>>;
-  content_sections: Array<Record<string, unknown>>;
+  includes_excludes: Array<{id:string;type:string;text_kr:string;text_jp:string;sort:number;is_visible:boolean}>;
+  content_sections: Array<{id:string;title:string;content:string;emoji:string|null;sort:number;is_visible:boolean}>;
   travel_times_from: Array<Record<string, unknown>>;
   travel_times_to: Array<Record<string, unknown>>;
 }
