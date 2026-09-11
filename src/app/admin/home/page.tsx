@@ -1,44 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
-import { getAdminOptions } from "@/lib/google-sheets";
-import { getAreaEmoji } from "@/lib/display";
-import LogoutButton from "@/components/LogoutButton";
+import Dashboard from "@/components/admin/Dashboard";
 
 export default async function AdminHomePage() {
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
 
-  const allOptions = await getAdminOptions();
-  const areas = allOptions
-    .filter((o) => o.option_type === "AREA" && o.active !== "FALSE")
-    .sort((a, b) => a.sort - b.sort);
-
-  return (
-    <main className="min-h-screen px-4 py-6">
-      <div className="max-w-[900px] mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-[24px] font-bold text-text">⚙️ 관리자</h1>
-          <LogoutButton />
-        </div>
-
-        <h2 className="text-[18px] font-medium text-text mb-4">
-          관리 지역을 선택하세요
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {areas.map((area) => (
-            <Link
-              key={area.code}
-              href={`/admin/${area.code.toLowerCase()}`}
-              className="bg-surface border border-border rounded-[12px] p-6 text-center hover:border-primary hover:bg-primary-soft transition-colors min-h-[44px]"
-            >
-              <span className="text-[24px] block mb-1">{getAreaEmoji(area.code)}</span>
-              <span className="text-[18px] font-bold text-text">{area.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </main>
-  );
+  return <Dashboard />;
 }

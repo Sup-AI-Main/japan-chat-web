@@ -1,6 +1,7 @@
 // Golf Course
 export interface GolfCourse {
   id: string;
+  slug: string;
   area: string;
   display_name: string;
   official_name: string;
@@ -24,6 +25,7 @@ export interface GolfCourse {
 // Hotel
 export interface Hotel {
   id: string;
+  slug: string;
   area: string;
   official_name: string;
   address: string;
@@ -79,6 +81,7 @@ export interface TravelTime {
 // Restaurant
 export interface Restaurant {
   id: string;
+  slug: string;
   area: string;
   near_type: string;
   near_id: string;
@@ -135,7 +138,7 @@ export interface IncludeExclude {
   type: string; // "INCLUDED" | "EXCLUDED"
   text_kr: string;
   text_jp: string;
-  sort_order: number;
+  sort: number;
   is_visible: string; // "TRUE" | "FALSE"
   updated_at: string;
 }
