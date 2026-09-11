@@ -15,7 +15,7 @@ interface ItemFormData {
   type: "INCLUDED" | "EXCLUDED";
   text_kr: string;
   text_jp: string;
-  sort_order: string;
+  sort: string;
   is_visible: string;
 }
 
@@ -23,7 +23,7 @@ const emptyForm: ItemFormData = {
   type: "INCLUDED",
   text_kr: "",
   text_jp: "",
-  sort_order: "99",
+  sort: "99",
   is_visible: "TRUE",
 };
 
@@ -74,7 +74,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
       type: item.type as "INCLUDED" | "EXCLUDED",
       text_kr: item.text_kr,
       text_jp: item.text_jp,
-      sort_order: String(item.sort_order),
+      sort: String(item.sort),
       is_visible: item.is_visible,
     });
     setShowForm(true);
@@ -89,7 +89,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
         type: formData.type,
         text_kr: formData.text_kr,
         text_jp: formData.text_jp,
-        sort_order: formData.sort_order,
+        sort: formData.sort,
         is_visible: formData.is_visible,
       };
 
@@ -102,7 +102,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
         if (res.ok) {
           setItems((prev) =>
             prev.map((i) =>
-              i.id === editItem.id ? { ...i, ...body, sort_order: parseInt(body.sort_order) || 99 } : i
+              i.id === editItem.id ? { ...i, ...body, sort: parseInt(body.sort) || 99 } : i
             )
           );
         }
@@ -116,7 +116,7 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
           const data = await res.json();
           setItems((prev) => [
             ...prev,
-            { ...body, id: data.id, sort_order: parseInt(body.sort_order) || 99, updated_at: "" },
+            { ...body, id: data.id, sort: parseInt(body.sort) || 99, updated_at: "" },
           ]);
         }
       }
@@ -305,8 +305,8 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
                 <label className="text-[13px] text-muted block mb-1">순서</label>
                 <input
                   type="number"
-                  value={formData.sort_order}
-                  onChange={(e) => setFormData({ ...formData, sort_order: e.target.value })}
+                  value={formData.sort}
+                  onChange={(e) => setFormData({ ...formData, sort: e.target.value })}
                   className="w-full border border-border rounded-[8px] px-3 py-2 text-[15px]"
                 />
               </div>

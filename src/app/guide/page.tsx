@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdminOptions } from "@/lib/google-sheets";
+import { getAdminOptions } from "@/lib/supabase-cms";
 import GuideCategoriesClient from "@/components/GuideCategoriesClient";
 
 export const dynamic = "force-dynamic";

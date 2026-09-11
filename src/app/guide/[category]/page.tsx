@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCommonCategories, getFaq } from "@/lib/google-sheets";
+import { getCommonCategories, getFaq } from "@/lib/supabase-cms";
 import { getCategoryEmoji, getCategoryColor } from "@/lib/display";
 import GuideFaqClient from "@/components/GuideFaqClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function GuideCategoryPage({
   params,
@@ -10,10 +12,11 @@ export default async function GuideCategoryPage({
   params: Promise<{ category: string }>;
 }) {
   const { category } = await params;
+  const catUp = category.toUpperCase();
 
   const categories = await getCommonCategories();
   const currentCategory = categories.find(
-    (c) => c.code.toLowerCase() === category
+    (c) => c.code === catUp
   );
   if (!currentCategory) notFound();
 

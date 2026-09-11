@@ -82,9 +82,10 @@ function hotelToEditData(hotel: Hotel) {
   };
 }
 
-function editDataToHotel(id: string, area: string, data: HotelData): Hotel {
+function editDataToHotel(id: string, slug: string, area: string, data: HotelData): Hotel {
   return {
     id,
+    slug,
     area,
     official_name: data.name_kr || "",
     name_kr: data.name_kr || "",
@@ -167,7 +168,7 @@ export function HotelDetailClient({
   const hasOther = hotel.other_info || hotel.atm_payment || hotel.transport;
 
   const handleHotelSaved = (data: HotelData) => {
-    setHotel(editDataToHotel(hotel.id, hotel.area, data));
+    setHotel(editDataToHotel(hotel.id, hotel.slug, hotel.area, data));
     showToast("수정 완료");
     setTimeout(closeHotelModal, 500);
   };
@@ -176,7 +177,7 @@ export function HotelDetailClient({
     const updated = editDataToRestaurant(data, "HOTEL");
     if (editRestTarget) {
       setRestaurants((prev) =>
-        prev.map((r) => (r.id === updated.id ? updated : r))
+        prev.map((r) => (r.id === updated.id ? { ...updated, slug: updated.slug || r.slug } : r))
       );
     } else {
       setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
@@ -539,7 +540,7 @@ export function HotelDetailClient({
         open={editRestOpen}
         onClose={closeRestModal}
         onSaved={handleRestSaved}
-        nearOptions={[{ id: hotel.id, name: hotel.name_kr || hotel.official_name }]}
+        nearOptions={[{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]}
       />
 
       {/* Delete Confirm Modal */}

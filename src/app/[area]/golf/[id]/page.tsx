@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
-import { getGolfCourseById, getFaq, getRestaurants, getContentSections } from "@/lib/google-sheets";
+import { getGolfCourseById, getFaq, getRestaurants, getContentSections } from "@/lib/supabase-cms";
 import type { FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { GolfDetailClient } from "./GolfDetailClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function GolfDetailPage({
   params,

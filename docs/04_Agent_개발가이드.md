@@ -48,8 +48,8 @@ UI: React (Next.js 16 기본 호환 버전)
 CSS: Tailwind CSS 4.x stable
 Package Manager: npm
 Deployment: Vercel
-CMS/Data Source: Google Sheets API
-Database: 사용하지 않음
+CMS/Data Source: Supabase/PostgreSQL
+Database: Supabase (PostgreSQL)
 ```
 
 ## 금지
@@ -99,12 +99,12 @@ npm list next react react-dom typescript tailwindcss
 
 ```text
 Editor: VS Code 또는 Agent 사용 환경
-Runtime: Node.js 24 LTS
+Runtime: Node.js 22 LTS
 Package Manager: npm
 Version Control: Git
 Hosting: Vercel
 Browser QA: Chromium 기반 브라우저
-API/Data: Google Sheets API
+Database: Supabase (PostgreSQL)
 ```
 
 권장 스크립트:
@@ -137,7 +137,7 @@ npm run build
 - Next.js 16.x Active LTS
 - TypeScript 5.x stable
 - Tailwind CSS 4.x stable
-- Google Sheets API
+- Supabase JS client
 - Zustand (클라이언트 캐시용, `src/store/guide-store.ts`)
 
 추가 라이브러리는 최소화.
@@ -153,20 +153,18 @@ Zustand은 지역별 데이터(호텔, 골프장, 맛집)의 클라이언트 캐
 예:
 
 ```text
-src/lib/google-sheets.ts
+src/lib/supabase-cms.ts
 ```
 
 역할:
 
-- Sheets 인증
-- 탭별 읽기
-- 데이터 parse
-- active 필터
+- Supabase client 초기화 (anon / service-role)
+- 테이블별 CRUD 함수
+- active/is_visible 필터
 - sort
-- 캐시
 - 오류 처리
 
-컴포넌트에서 직접 Google API 호출 금지.
+컴포넌트에서 직접 Supabase client를 생성하지 않는다.
 
 ---
 
@@ -222,7 +220,7 @@ Next.js 환경에 맞는 서버 캐시 사용.
 
 # 9. 관리자 선택값
 
-`admin_options`를 읽어서 사용.
+`admin_options`는 더 이상 사용하지 않는다. areas와 categories 테이블을 직접 사용한다.
 
 카테고리, 지역을 프론트 코드에 중복 정의하지 말 것.
 
@@ -252,15 +250,15 @@ sort
 
 # 11. ID 생성
 
-간단한 collision-safe ID 사용.
+DB가 UUID를 자동 생성한다.
 
-예:
-
-```text
-faq_<timestamp>_<short_random>
+```sql
+id UUID DEFAULT gen_random_uuid() PRIMARY KEY
 ```
 
-UUID 라이브러리를 추가할 필요가 없으면 Web Crypto 사용.
+클라이언트 또는 서버 코드에서 임의 ID를 생성하지 않는다.
+
+INSERT 시 RETURNING id로 생성된 UUID를 받는다.
 
 ---
 
@@ -328,11 +326,13 @@ localStorage에 관리자 비밀번호 저장 금지.
 
 ---
 
-# 16. Google Sheets 쓰기
+# 16. DB 쓰기
 
-브라우저 → 서버 route/action → Sheets API.
+브라우저 → 서버 route → Supabase service-role client → PostgreSQL.
 
-브라우저에서 service account credential 사용 금지.
+브라우저에서 service-role key 사용 금지.
+
+SUPABASE_SECRET_KEY는 server-only다.
 
 ---
 
@@ -361,7 +361,7 @@ related_id
 
 # 18. related_name
 
-related_id를 기반으로 서버가 실제 sheet에서 이름을 찾아 자동 입력.
+related_id를 기반으로 서버가 entities 테이블에서 이름을 찾아 자동 입력.
 
 관리자 직접 입력 금지.
 
@@ -451,8 +451,8 @@ Google Maps에서 보기
 
 서버에서:
 
-- Sheets read failure
-- Sheets write failure
+- DB read failure
+- DB write failure
 - auth failure
 
 정도만 기록.
@@ -465,7 +465,7 @@ credential/raw body/개인정보 로그 금지.
 
 필수 확인:
 
-- 페이지 새로고침마다 Sheets API가 불필요하게 반복 호출되는지
+- 페이지 새로고침마다 DB가 불필요하게 반복 호출되는지
 - 고객 번들에 admin 코드가 포함되는지
 - Google Maps iframe이 초기 로딩되는지
 - 과도한 JS library가 들어갔는지
@@ -491,7 +491,7 @@ Agent는 완료 후 아래만 보고:
 ```text
 1. 생성/수정 파일
 2. 구현 페이지
-3. Google Sheets 연결 구조
+3. DB 연결 구조 (supabase-cms.ts)
 4. 관리자 기능
 5. 캐시 방식
 6. 보안 방식
@@ -505,9 +505,11 @@ Agent는 완료 후 아래만 보고:
 
 # 28. 금지
 
-- Supabase 추가
+- Google Sheets Runtime 다시 도입
+- Google Sheets fallback 로직 다시 만들기
 - Prisma 추가
 - 별도 DB 추가
+- Dual Read / Dual Write (Google Sheets + DB 동시 사용)
 - Redux 추가
 - Zustand을 캐시 외 다른 용도로 사용
 - 관리자 멀티권한
@@ -519,6 +521,47 @@ Agent는 완료 후 아래만 보고:
 - CMS 프레임워크 추가
 
 사용자가 별도 요청하기 전에는 하지 않는다.
+
+---
+
+# 28-1. DB 핵심 규칙
+
+DB 구조를 변경하거나 CRUD를 작업하기 전에 반드시 `06_DB_스키마_운영가이드.md`를 먼저 읽는다.
+
+## Identifier 규칙
+
+| 구분 | 용도 | 예시 |
+|---|---|---|
+| id | DB UUID (PK) | `b1fd38f0-261e-45de-b4bb-39ed87e5a211` |
+| slug | URL/business identifier | `dos_golf_kaho` |
+| code | area/category business code | `DOS`, `GOLF` |
+
+- id = UUID, slug = URL identifier, code = area/category code
+- UPDATE/DELETE는 id(UUID) 기준
+- URL 라우팅은 slug 기준
+
+## 관계 규칙
+
+- parent_type / related_type / near_type 기반 문자열 DB 관계를 다시 만들지 않는다.
+- 모든 관계는 entities.id(UUID)를 직접 참조하는 FK로 구현한다.
+
+## Boolean 처리
+
+- DB canonical type = PostgreSQL boolean (true / false / null)
+- UI/API compatibility layer에서 `"TRUE"` / `"FALSE"` / `""` 문자열 사용 구간이 있음
+- 변환 위치: `src/lib/supabase-cms.ts`의 `mapHotel`, `mapRestaurant`, `isActive` 함수
+- 빈 문자열("")을 boolean 컬럼에 저장하지 않는다.
+
+## Null 처리
+
+- date 컬럼에 빈 문자열("")을 저장하지 않는다. null을 사용한다.
+- optional boolean은 빈 문자열이 아니라 null을 사용한다.
+
+## 보안
+
+- SUPABASE_SECRET_KEY는 server-only. 클라이언트에 노출하지 않는다.
+- Google Sheets Runtime fallback을 다시 만들지 않는다.
+- DB schema 변경 시 migration 파일(`supabase/migrations/`)을 만든다.
 
 ---
 
@@ -575,7 +618,7 @@ getCategoryConfig(code)   // 전체 설정
 
 # 31. 동적 지역/카테고리
 
-`admin_options` Google Sheet 탭을 기반으로 지역과 카테고리를 동적으로 관리한다.
+`areas`와 `categories` 테이블을 기반으로 지역과 카테고리를 동적으로 관리한다.
 
 ## group 필드
 
@@ -713,3 +756,45 @@ src/hooks/use-admin.ts    # 관리자 인증 훅
 - 관리자일 때만 EditToolbar(✏️/🗑️)와 AddButton(＋) 렌더링
 - 수정 클릭 → 전용 모달 열기 → 저장 시 API 호출 + Zustand 캐시 갱신
 - 삭제 클릭 → ConfirmModal → 확인 시 DELETE API + Zustand 캐시 갱신
+
+---
+
+# 35. Vercel 배포 금지 설정
+
+## vercel.json catch-all rewrite 사용 금지
+
+Next.js App Router 프로젝트에서 아래 형태의 `vercel.json` rewrite를 절대 추가하지 않는다.
+
+```json
+{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}
+```
+
+이유:
+
+- App Router의 page route(`/dos`, `/beppu`, `/guide/*` 등)를 가로채서 404를 유발한다
+- API route(`/api/admin/*` 등)를 가로채서 500을 유발한다
+- dynamic route가 정상 작동하지 않는다
+- Vercel CLI 배포 시 git에 없어도 디렉토리 내 존재하면 업로드된다
+
+실제 장애 이력 (2026-09-10):
+
+- `/dos` 접속 시 "페이지를 찾을 수 없습니다" 표시 → vercel.json catch-all rewrite가 원인
+- 카테고리 추가 시 "Server error" 발생 → 동일 원인 (API route도 가로채짐)
+- 수정: `vercel.json` 파일 완전 삭제
+
+## vercel.json이 필요한 경우
+
+rewrite가 필요하면 반드시 Next.js `next.config.ts`의 `rewrites()`를 사용한다.
+
+```ts
+// next.config.ts
+const nextConfig = {
+  async rewrites() {
+    return [
+      { source: '/old-path', destination: '/new-path' },
+    ];
+  },
+};
+```
+
+`vercel.json`은 프로젝트 루트에서 삭제 상태를 유지한다.

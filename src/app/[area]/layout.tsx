@@ -1,4 +1,6 @@
-import { getActiveAreas } from "@/lib/google-sheets";
+import { getActiveAreas } from "@/lib/supabase-cms";
+
+export const dynamic = "force-dynamic";
 
 const AREA_BG: Record<string, string> = {
   DOS: "bg-dos",
@@ -14,9 +16,16 @@ export default async function AreaLayout({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  const areas = await getActiveAreas();
-  const currentArea = areas.find((a) => a.code.toLowerCase() === area);
-  const bgClass = currentArea ? (AREA_BG[currentArea.code] ?? "bg-main") : "bg-main";
+  const areaUp = area.toUpperCase();
+
+  let bgClass = "bg-main";
+  try {
+    const areas = await getActiveAreas();
+    const currentArea = areas.find((a) => a.code === areaUp);
+    if (currentArea) bgClass = AREA_BG[currentArea.code] ?? "bg-main";
+  } catch {
+    if (AREA_BG[areaUp]) bgClass = AREA_BG[areaUp];
+  }
 
   return (
     <div className={`page-bg ${bgClass} min-h-screen`}>

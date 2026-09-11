@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFaq, getActiveAreas, getActiveCategories } from "@/lib/google-sheets";
+import { getFaq, getActiveAreas, getActiveCategories } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
+
+export const dynamic = "force-dynamic";
 
 export default async function FaqCategoryPage({
   params,
@@ -9,13 +11,15 @@ export default async function FaqCategoryPage({
   params: Promise<{ area: string; category: string }>;
 }) {
   const { area, category } = await params;
+  const areaUp = area.toUpperCase();
+  const catUp = category.toUpperCase();
 
   const areas = (await getActiveAreas()).filter((a) => a.code !== "ALL");
-  const currentArea = areas.find((a) => a.code.toLowerCase() === area);
+  const currentArea = areas.find((a) => a.code === areaUp);
   if (!currentArea) notFound();
 
   const categories = await getActiveCategories();
-  const currentCategory = categories.find((c) => c.code.toLowerCase() === category);
+  const currentCategory = categories.find((c) => c.code === catUp);
   if (!currentCategory) notFound();
 
   const areaCode = currentArea.code;

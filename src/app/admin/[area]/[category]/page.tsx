@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
-import { getAdminFaqs, getAdminOptions } from "@/lib/google-sheets";
+import { getAdminFaqs, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
 import AdminFaqList from "./AdminFaqList";
@@ -12,6 +12,8 @@ export default async function AdminCategoryPage({
   params: Promise<{ area: string; category: string }>;
 }) {
   const { area, category } = await params;
+  const areaUp = area.toUpperCase();
+  const catUp = category.toUpperCase();
 
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
@@ -19,12 +21,12 @@ export default async function AdminCategoryPage({
   const options = await getAdminOptions();
 
   const currentArea = options.find(
-    (o) => o.option_type === "AREA" && o.code.toLowerCase() === area && o.active !== "FALSE"
+    (o) => o.option_type === "AREA" && o.code === areaUp && o.active !== "FALSE"
   );
   if (!currentArea) notFound();
 
   const currentCategory = options.find(
-    (o) => o.option_type === "CATEGORY" && o.code.toLowerCase() === category && o.active !== "FALSE"
+    (o) => o.option_type === "CATEGORY" && o.code === catUp && o.active !== "FALSE"
   );
   if (!currentCategory) notFound();
 
@@ -46,12 +48,20 @@ export default async function AdminCategoryPage({
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[900px] mx-auto">
-        <Link
-          href={`/admin/${area}`}
-          className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
-        >
-          ← {getAreaEmoji(areaCode)} {areaLabel}
-        </Link>
+        <div className="flex items-center gap-3 mb-2">
+          <Link
+            href="/"
+            className="text-[14px] text-muted hover:text-primary min-h-[44px] flex items-center"
+          >
+            ← 홈
+          </Link>
+          <Link
+            href={`/admin/${area}`}
+            className="text-[14px] text-muted hover:text-primary min-h-[44px] flex items-center"
+          >
+            {getAreaEmoji(areaCode)} {areaLabel}
+          </Link>
+        </div>
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <h1 className="text-[20px] sm:text-[24px] font-bold" style={{ color: getCategoryColor(categoryCode) }}>

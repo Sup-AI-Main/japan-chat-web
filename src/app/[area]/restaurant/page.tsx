@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurants, getActiveAreas } from "@/lib/google-sheets";
+import { getRestaurants, getActiveAreas } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import RestaurantListClient from "./RestaurantListClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function RestaurantListPage({
   params,

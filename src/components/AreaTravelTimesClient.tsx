@@ -20,7 +20,7 @@ interface TravelTimeEditData {
 
 interface AreaTravelTimesClientProps {
   initialTravelTimes: TravelTime[];
-  hotels: Pick<Hotel, "id" | "official_name">[];
+  hotels: Pick<Hotel, "id" | "name_kr" | "official_name">[];
   golfCourses: Pick<GolfCourse, "id" | "display_name">[];
   area: string;
 }
@@ -35,7 +35,7 @@ function TravelTimeEditModal({
   onSaved,
 }: {
   data: TravelTimeEditData | null;
-  hotels: Pick<Hotel, "id" | "official_name">[];
+  hotels: Pick<Hotel, "id" | "name_kr" | "official_name">[];
   golfCourses: Pick<GolfCourse, "id" | "display_name">[];
   area: string;
   open: boolean;
@@ -116,7 +116,7 @@ function TravelTimeEditModal({
               <option value="">호텔 선택</option>
               {hotels.map((h) => (
                 <option key={h.id} value={h.id}>
-                  {h.official_name}
+                  {h.name_kr || h.official_name}
                 </option>
               ))}
             </select>
@@ -214,7 +214,7 @@ export default function AreaTravelTimesClient({
     setEditTarget(null);
   }, []);
 
-  const hotelMap = new Map(hotels.map((h) => [h.id, h.official_name]));
+  const hotelMap = new Map(hotels.map((h) => [h.id, h.name_kr || h.official_name]));
   const golfMap = new Map(golfCourses.map((g) => [g.id, g.display_name]));
 
   // Group by hotel

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveAreas, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getHotels, getGolfCourses } from "@/lib/google-sheets";
+import { getActiveAreas, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getHotels, getGolfCourses } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function AreaPage({
   params,
@@ -11,9 +13,10 @@ export default async function AreaPage({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
+  const areaUp = area.toUpperCase();
 
   const areas = (await getActiveAreas()).filter((a) => a.code !== "ALL");
-  const currentArea = areas.find((a) => a.code.toLowerCase() === area);
+  const currentArea = areas.find((a) => a.code === areaUp);
   if (!currentArea) notFound();
 
   const areaCode = currentArea.code;
@@ -45,11 +48,11 @@ export default async function AreaPage({
   }
 
   // 호텔/골프장 목록 (관리자 dropdown용)
-  let hotels: { id: string; official_name: string }[] = [];
+  let hotels: { id: string; name_kr: string; official_name: string }[] = [];
   let golfCourses: { id: string; display_name: string }[] = [];
   try {
     const allHotels = await getHotels(areaCode);
-    hotels = allHotels.map((h) => ({ id: h.id, official_name: h.official_name }));
+    hotels = allHotels.map((h) => ({ id: h.id, name_kr: h.name_kr || '', official_name: h.official_name }));
   } catch { /* silent */ }
   try {
     const allGolf = await getGolfCourses(areaCode);

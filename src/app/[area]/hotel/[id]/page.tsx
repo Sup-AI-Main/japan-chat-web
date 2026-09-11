@@ -5,9 +5,11 @@ import {
   getTravelTimes,
   getRestaurants,
   getContentSections,
-} from "@/lib/google-sheets";
+} from "@/lib/supabase-cms";
 import type { TravelTime, FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { HotelDetailClient } from "./HotelDetailClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function HotelDetailPage({
   params,

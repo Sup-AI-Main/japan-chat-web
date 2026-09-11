@@ -13,6 +13,7 @@ interface AdminOption {
   option_type: string;
   code: string;
   label: string;
+  icon: string;
   description: string;
   group: string;
   sort: number;
@@ -41,6 +42,7 @@ function OptionEditModal({
   onSaved: (data: AdminOption) => void;
 }) {
   const [label, setLabel] = useState(option?.label || "");
+  const [icon, setIcon] = useState(option?.icon || "📌");
   const [description, setDescription] = useState(option?.description || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -62,8 +64,8 @@ function OptionEditModal({
         method: isEdit ? "PUT" : "POST",
         body: JSON.stringify(
           isEdit
-            ? { id: option.id, label: label.trim(), description: description.trim() }
-            : { option_type: optionType, label: label.trim(), description: description.trim(), group: group || "" }
+            ? { id: option.id, label: label.trim(), icon: icon.trim() || "📌", description: description.trim() }
+            : { option_type: optionType, label: label.trim(), icon: icon.trim() || "📌", description: description.trim(), group: group || "" }
         ),
       });
       onSaved({
@@ -71,6 +73,7 @@ function OptionEditModal({
         option_type: optionType,
         code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
         label: label.trim(),
+        icon: icon.trim() || "📌",
         description: description.trim(),
         group: group || "",
         sort: option?.sort || 999,
@@ -114,6 +117,32 @@ function OptionEditModal({
             />
           </div>
           <div>
+            <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
+            <div className="flex flex-wrap gap-2">
+              {["📌", "♨️", "🚙", "🏨", "⛳", "🍽️", "🍜", "☕", "💰", "💱", "💳", "🛒", "🎫", "🗺️", "📍", "✈️", "🚌", "🚕", "🚆", "🛳️", "🎁", "📋", "ℹ️", "⚠️"].map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setIcon(e)}
+                  className={`w-11 h-11 flex items-center justify-center rounded-[8px] text-[20px] border cursor-pointer transition-all ${icon === e ? "border-primary bg-primary/10 scale-110" : "border-border hover:border-primary/50"}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[13px] text-muted">또는 직접 입력:</span>
+              <input
+                type="text"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                className="w-16 border border-border rounded-[8px] px-2 py-1 text-[18px] text-center focus:outline-none focus:border-primary"
+                maxLength={4}
+              />
+              <span className="text-[14px]">선택: {icon}</span>
+            </div>
+          </div>
+          <div>
             <label className="block text-[14px] font-medium text-text mb-1">설명</label>
             <input
               type="text"
@@ -143,6 +172,7 @@ export default function HomeContentClient({
   const [editTarget, setEditTarget] = useState<AdminOption | null>(null);
   const [editType, setEditType] = useState<"AREA" | "CATEGORY">("AREA");
   const [deleteTarget, setDeleteTarget] = useState<AdminOption | null>(null);
+  const [deleteType, setDeleteType] = useState<"AREA" | "CATEGORY">("CATEGORY");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
@@ -192,7 +222,11 @@ export default function HomeContentClient({
     try {
       const res = await fetch(`/api/admin/options?id=${deleteTarget.id}`, { method: "DELETE" });
       if (res.ok) {
-        setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        if (deleteType === "AREA") {
+          setAreas((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+        } else {
+          setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        }
         setDeleteTarget(null);
       }
     } finally {
@@ -217,13 +251,22 @@ export default function HomeContentClient({
               )}
             </Link>
             {isAdmin && (
-              <button
-                onClick={() => handleEditArea(area)}
-                className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-border shadow-sm text-[14px] cursor-pointer hover:bg-bg"
-                title="수정"
-              >
-                ✏️
-              </button>
+              <div className="absolute top-3 right-3 flex items-center gap-1">
+                <button
+                  onClick={() => handleEditArea(area)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-border shadow-sm text-[14px] cursor-pointer hover:bg-bg"
+                  title="수정"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => { setDeleteTarget(area); setDeleteType("AREA"); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-border shadow-sm text-[14px] cursor-pointer hover:bg-danger/10"
+                  title="삭제"
+                >
+                  🗑️
+                </button>
+              </div>
             )}
           </div>
         ))}
@@ -244,7 +287,7 @@ export default function HomeContentClient({
                   className="block bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary transition-colors"
                 >
                   <span className="text-[16px] font-medium text-text">
-                    {getCategoryEmoji(cat.code)} {cat.label}
+                    {cat.icon || getCategoryEmoji(cat.code)} {cat.label}
                   </span>
                 </Link>
                 {isAdmin && (
@@ -257,7 +300,7 @@ export default function HomeContentClient({
                       ✏️
                     </button>
                     <button
-                      onClick={() => setDeleteTarget(cat)}
+                      onClick={() => { setDeleteTarget(cat); setDeleteType("CATEGORY"); }}
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-white/90 border border-border text-[12px] cursor-pointer hover:bg-danger/10"
                       title="삭제"
                     >
@@ -283,8 +326,10 @@ export default function HomeContentClient({
 
       <ConfirmModal
         open={!!deleteTarget}
-        title="카테고리 삭제"
-        message={`"${deleteTarget?.label}" 카테고리를 삭제하시겠습니까?`}
+        title={deleteType === "AREA" ? "지역 삭제" : "카테고리 삭제"}
+        message={deleteType === "AREA"
+          ? `"${deleteTarget?.label}" 지역을 삭제하시겠습니까? 연결된 데이터가 있으면 사용자에게 더 이상 표시되지 않습니다.`
+          : `"${deleteTarget?.label}" 카테고리를 삭제하시겠습니까?`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}

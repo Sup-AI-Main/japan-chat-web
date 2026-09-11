@@ -44,9 +44,9 @@ export default function RestaurantDetailClient({
         if (res.ok) {
           const data = await res.json();
           setNearOptions(
-            (data.hotels || []).map((h: { id: string; official_name: string }) => ({
-              id: h.id,
-              name: h.official_name,
+            (data.hotels || []).map((h: { id: string; slug: string; name_kr?: string; official_name: string }) => ({
+              id: h.slug,
+              name: h.name_kr || h.official_name,
             }))
           );
         }
@@ -55,8 +55,8 @@ export default function RestaurantDetailClient({
         if (res.ok) {
           const data = await res.json();
           setNearOptions(
-            (data.courses || []).map((c: { id: string; display_name: string }) => ({
-              id: c.id,
+            (data.courses || []).map((c: { id: string; slug: string; display_name: string }) => ({
+              id: c.slug,
               name: c.display_name,
             }))
           );

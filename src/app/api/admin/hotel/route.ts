@@ -1,36 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getHotels, appendHotel, updateHotel, deleteHotel } from "@/lib/google-sheets";
+import { getHotels, appendHotel, updateHotel, deleteHotel } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
+import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const area = req.nextUrl.searchParams.get("area") || undefined;
   const hotels = await getHotels(area || undefined);
-  return NextResponse.json({ hotels });
+  return ok({ hotels });
 }
 
 export async function POST(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await req.json();
-  const id = await appendHotel(body);
-  return NextResponse.json({ id }, { status: 201 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  try {
+    const body = await safeJson<Record<string, string>>(req);
+    if (!body) return badRequest("Empty request body");
+    if (!body.active) body.active = "TRUE";
+    const { id, slug } = await appendHotel(body);
+    return created({ id, slug, hotel: { ...body, id, slug } });
+  } catch (err) {
+    return serverError(err);
+  }
 }
 
 export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await req.json();
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+  const body = await safeJson<Record<string, string>>(req);
+  if (!body) return badRequest("Empty request body");
   const { id, updated_at, ...data } = body;
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  if (!id) return badRequest("Missing id");
   try {
-    const ok = await updateHotel(id, data, updated_at);
-    return NextResponse.json({ success: ok });
+    const success = await updateHotel(id, data, updated_at);
+    return ok({ success });
   } catch (err) {
     if (err instanceof ConflictError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
+      return conflict(err.message);
     }
     throw err;
   }
@@ -38,9 +46,9 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const id = req.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  const ok = await deleteHotel(id);
-  return NextResponse.json({ success: ok });
+  if (!id) return badRequest("Missing id");
+  const success = await deleteHotel(id);
+  return ok({ success });
 }

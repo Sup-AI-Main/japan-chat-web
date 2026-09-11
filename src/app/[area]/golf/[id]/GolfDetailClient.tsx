@@ -53,14 +53,13 @@ export function GolfDetailClient({
     setEditRestTarget(null);
   }, []);
 
-  // Detailed content (코스 안내, 플레이/카트, etc.) is now served exclusively via content_sections.
-  // Legacy fixed columns (course_summary, play_cart, etc.) remain in the Sheet as deprecated.
+  // Detailed content (코스 안내, 플레이/카트, etc.) is served via content_sections table.
 
   const handleRestSaved = (data: RestaurantEditData) => {
     const updated = editDataToRestaurant(data, "GOLF");
     if (editRestTarget) {
       setRestaurants((prev) =>
-        prev.map((r) => (r.id === updated.id ? updated : r))
+        prev.map((r) => (r.id === updated.id ? { ...updated, slug: updated.slug || r.slug } : r))
       );
     } else {
       setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
@@ -288,7 +287,7 @@ export function GolfDetailClient({
           open={editRestOpen}
           onClose={closeRestModal}
           onSaved={handleRestSaved}
-          nearOptions={[{ id: course.id, name: course.display_name || course.official_name }]}
+          nearOptions={[{ id: course.slug, name: course.display_name || course.official_name }]}
         />
 
       {/* Delete Confirm Modal */}

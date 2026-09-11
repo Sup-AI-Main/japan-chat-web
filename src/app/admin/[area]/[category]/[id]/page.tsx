@@ -7,7 +7,7 @@ import {
   getGolfCourses,
   getHotels,
   getRestaurants,
-} from "@/lib/google-sheets";
+} from "@/lib/supabase-cms";
 import FaqForm from "../FaqForm";
 
 export default async function EditFaqPage({
@@ -16,6 +16,8 @@ export default async function EditFaqPage({
   params: Promise<{ area: string; category: string; id: string }>;
 }) {
   const { area, category, id } = await params;
+  const areaUp = area.toUpperCase();
+  const catUp = category.toUpperCase();
 
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
@@ -23,12 +25,12 @@ export default async function EditFaqPage({
   const options = await getAdminOptions();
 
   const currentArea = options.find(
-    (o) => o.option_type === "AREA" && o.code.toLowerCase() === area && o.active !== "FALSE"
+    (o) => o.option_type === "AREA" && o.code === areaUp && o.active !== "FALSE"
   );
   if (!currentArea) notFound();
 
   const currentCategory = options.find(
-    (o) => o.option_type === "CATEGORY" && o.code.toLowerCase() === category && o.active !== "FALSE"
+    (o) => o.option_type === "CATEGORY" && o.code === catUp && o.active !== "FALSE"
   );
   if (!currentCategory) notFound();
 
@@ -70,7 +72,7 @@ export default async function EditFaqPage({
     if (relatedTypes.includes("HOTEL")) {
       const hotels = await getHotels(areaCode === "ALL" ? undefined : areaCode);
       hotels.forEach((h) =>
-        places.push({ type: "HOTEL", id: h.id, name: h.official_name })
+        places.push({ type: "HOTEL", id: h.id, name: h.name_kr || h.official_name })
       );
     }
     if (relatedTypes.includes("RESTAURANT")) {

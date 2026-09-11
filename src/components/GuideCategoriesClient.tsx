@@ -40,7 +40,7 @@ interface ProgressStep {
 const INITIAL_STEPS: ProgressStep[] = [
   { id: "validation", label: "입력 정보 확인", status: "pending" },
   { id: "schema_check", label: "CMS 구조 확인", status: "pending" },
-  { id: "sheet_create", label: "Google Sheet에 저장 중...", status: "pending" },
+  { id: "sheet_create", label: "데이터베이스에 저장 중...", status: "pending" },
   { id: "site_sync", label: "사이트에 연결 중...", status: "pending" },
   { id: "route_verify", label: "페이지 준비 중...", status: "pending" },
   { id: "final_verify", label: "정상 작동 확인 중...", status: "pending" },
@@ -49,7 +49,7 @@ const INITIAL_STEPS: ProgressStep[] = [
 // User-visible steps (3 simplified groups mapped from internal stages)
 const VISIBLE_GROUPS = [
   { label: "입력 확인", stages: ["validation", "schema_check"], doneLabel: "입력 확인 완료" },
-  { label: "Google Sheet에 저장 중...", stages: ["sheet_create"], doneLabel: "Google Sheet 저장 완료" },
+  { label: "데이터베이스에 저장 중...", stages: ["sheet_create"], doneLabel: "데이터베이스 저장 완료" },
   { label: "사이트에 반영 중...", stages: ["site_sync", "route_verify", "final_verify"], doneLabel: "사이트 반영 완료" },
 ];
 

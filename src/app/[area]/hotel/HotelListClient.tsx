@@ -95,7 +95,7 @@ export default function HotelListClient({
               onDelete={() => handleDelete(hotel)}
             >
               <Link
-                href={`/${area}/hotel/${hotel.id}`}
+                href={`/${area}/hotel/${hotel.slug}`}
                 className="block bg-surface border border-border rounded-[12px] p-4 hover:border-primary transition-colors"
               >
                 <h2 className="text-[18px] font-bold text-text mb-0.5">

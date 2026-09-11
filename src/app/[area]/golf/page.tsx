@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getGolfCourses, getActiveAreas } from "@/lib/google-sheets";
+import { getGolfCourses, getActiveAreas } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
 import GolfListClient from "./GolfListClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function GolfListPage({
   params,

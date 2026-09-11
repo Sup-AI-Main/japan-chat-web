@@ -4,35 +4,36 @@ import {
   getAdminOptions,
   appendAdminOption,
   updateAdminOption,
-} from "@/lib/google-sheets";
+} from "@/lib/supabase-cms";
+import { ok, created, badRequest, serverError, safeJson } from "@/lib/crud/response";
 
 export async function GET() {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
 
   try {
     const options = await getAdminOptions();
-    return NextResponse.json({ options });
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch options" }, { status: 500 });
+    return ok({ options });
+  } catch (err) {
+    return serverError(err);
   }
 }
 
 export async function POST(request: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
 
   try {
-    const body = await request.json();
-    const { option_type, label, group, icon } = body;
+    const body = await safeJson<Record<string, string>>(request);
+    if (!body) return badRequest("Empty request body");
+    const { option_type, label, group, icon, description } = body;
 
     if (!option_type || !label) {
-      return NextResponse.json({ error: "option_type과 label은 필수입니다." }, { status: 400 });
+      return badRequest("option_type과 label은 필수입니다.");
     }
 
-    // CATEGORY 타입일 때 group 필수 검증
     if (option_type === "CATEGORY" && !group) {
-      return NextResponse.json({ error: "CATEGORY 옵션에는 group 필드가 필수입니다. (AREA 또는 COMMON)" }, { status: 400 });
+      return badRequest("CATEGORY 옵션에는 group 필드가 필수입니다. (AREA 또는 COMMON)");
     }
 
     const options = await getAdminOptions();
@@ -40,72 +41,78 @@ export async function POST(request: NextRequest) {
     const maxSort = sameType.reduce((max, o) => Math.max(max, o.sort), 0);
 
     const code = option_type === "AREA"
-      ? label.replace(/\s+/g, "").toUpperCase().slice(0, 10)
+      ? label.replace(/\s+/g, "").toUpperCase().slice(0, 20)
       : label.replace(/\s+/g, "_").toUpperCase().slice(0, 20);
 
-    const id = `opt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-
-    const success = await appendAdminOption({
-      id,
+    const id = await appendAdminOption({
       option_type,
       code,
       label,
       icon: icon || "📌",
+      description: description || "",
       group: group || "",
       active: "TRUE",
-      sort: maxSort + 1,
+      sort: String(maxSort + 1),
     });
 
-    if (success) {
-      return NextResponse.json({ success: true, id });
+    if (id) {
+      return created({ id });
     }
-    return NextResponse.json({ error: "저장에 실패했습니다." }, { status: 500 });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return serverError(new Error("저장에 실패했습니다."));
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[POST /api/admin/options] error:", msg);
+    return serverError(err);
   }
 }
 
 export async function PUT(request: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
 
   try {
-    const body = await request.json();
-    const { id, label, icon } = body;
+    const body = await safeJson<Record<string, string>>(request);
+    if (!body) return badRequest("Empty request body");
+    const { id, label, icon, description } = body;
 
     if (!id || !label) {
-      return NextResponse.json({ error: "id와 label은 필수입니다." }, { status: 400 });
+      return badRequest("id와 label은 필수입니다.");
     }
 
-    const updateData: Record<string, string | number> = { id, label };
+    const updateData: Record<string, string> = { id, label };
     if (icon !== undefined) updateData.icon = icon;
+    if (description !== undefined) updateData.description = description;
     const success = await updateAdminOption(updateData);
 
     if (success) {
-      return NextResponse.json({ success: true });
+      return ok({ success: true });
     }
-    return NextResponse.json({ error: "수정에 실패했습니다." }, { status: 500 });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return serverError(new Error("수정에 실패했습니다."));
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[PUT /api/admin/options] error:", msg);
+    return serverError(err);
   }
 }
 
 export async function DELETE(request: NextRequest) {
   const authed = await isAuthenticated();
-  if (!authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
 
   try {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) {
-      return NextResponse.json({ error: "id 필수" }, { status: 400 });
+      return badRequest("id 필수");
     }
 
     const success = await updateAdminOption({ id, active: "FALSE" });
     if (success) {
-      return NextResponse.json({ success: true });
+      return ok({ success: true });
     }
-    return NextResponse.json({ error: "삭제에 실패했습니다." }, { status: 500 });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return serverError(new Error("삭제에 실패했습니다."));
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[DELETE /api/admin/options] error:", msg);
+    return serverError(err);
   }
 }

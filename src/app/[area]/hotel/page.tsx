@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getHotels, getActiveAreas } from "@/lib/google-sheets";
+import { getHotels, getActiveAreas } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
 import HotelListClient from "./HotelListClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function HotelListPage({
   params,

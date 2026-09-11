@@ -83,7 +83,7 @@ export default function GolfListClient({
               onDelete={() => handleDelete(course)}
             >
               <Link
-                href={`/${area}/golf/${course.id}`}
+                href={`/${area}/golf/${course.slug}`}
                 className="block bg-surface border border-border rounded-[12px] p-4 hover:border-primary transition-colors"
               >
                 <h2 className="text-[18px] font-bold text-text mb-1">

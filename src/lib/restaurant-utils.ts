@@ -6,6 +6,7 @@ import type { Restaurant } from "./types";
 
 export interface RestaurantEditData {
   id?: string;
+  slug?: string;
   name_kr: string;
   name_jp: string;
   category: string;
@@ -39,6 +40,7 @@ export function restToEditData(
 ): RestaurantEditData {
   return {
     id: r.id,
+    slug: r.slug,
     name_kr: r.name_kr || "",
     name_jp: r.name_jp || "",
     category: r.category || "",
@@ -67,6 +69,7 @@ export function editDataToRestaurant(
 ): Restaurant {
   return {
     id: data.id || "",
+    slug: data.slug || "",
     area: "",
     near_type: data.near_type || defaultNearType,
     near_id: data.near_id || "",

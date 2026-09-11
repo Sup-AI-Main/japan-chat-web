@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurantById, getContentSections } from "@/lib/google-sheets";
+import { getRestaurantById, getContentSections } from "@/lib/supabase-cms";
 import { getCategoryEmoji } from "@/lib/display";
 import type { ContentSection } from "@/lib/types";
 import RestaurantDetailClient from "./RestaurantDetailClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function RestaurantDetailPage({
   params,

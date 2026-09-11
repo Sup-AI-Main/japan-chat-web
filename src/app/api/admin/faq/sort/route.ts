@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { updateFaqSort } from "@/lib/google-sheets";
+import { updateFaqSort } from "@/lib/supabase-cms";
 
 export async function PATCH(request: NextRequest) {
   const authed = await isAuthenticated();
