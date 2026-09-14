@@ -863,12 +863,20 @@ export default function Dashboard() {
           open={true}
           title={`"${modal.category.label}" 카테고리를 삭제하시겠습니까?`}
           items={[
-            { label: "엔티티 (category_id)", count: modal.impact.entities_primary ?? 0 },
+            { label: "엔티티", count: modal.impact.entities ?? 0 },
             { label: "카테고리 연결", count: modal.impact.entity_categories ?? 0 },
             { label: "FAQ", count: modal.impact.faq ?? 0 },
             { label: "필드 정의 범위", count: modal.impact.field_definition_scopes ?? 0 },
+            { label: "상세 필드 값", count: modal.impact.field_values ?? 0 },
+            { label: "콘텐츠 섹션", count: modal.impact.content_sections ?? 0 },
+            { label: "포함/제외", count: modal.impact.includes_excludes ?? 0 },
+            { label: "호텔", count: modal.impact.hotels ?? 0 },
+            { label: "골프장", count: modal.impact.golf_courses ?? 0 },
+            { label: "맛집", count: modal.impact.restaurants ?? 0 },
+            { label: "이동시간", count: modal.impact.travel_times ?? 0 },
+            { label: "맛집 위치 정보", count: modal.impact.restaurant_locations ?? 0 },
           ]}
-          warning="카테고리만 삭제됩니다. 엔티티는 유지되며 category_id가 NULL로 변경됩니다."
+          warning="이 카테고리에 연결된 모든 데이터가 함께 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
           onConfirm={handleConfirmDeleteCategory}
           onCancel={() => setModal(null)}
           loading={saving}

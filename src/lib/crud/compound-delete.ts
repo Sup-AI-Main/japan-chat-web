@@ -36,10 +36,18 @@ export interface AreaDeleteImpactReport {
 
 export interface CategoryDeleteImpactReport {
   category_id: string;
+  entities: number;
   entity_categories: number;
   faq: number;
   field_definition_scopes: number;
-  entities_primary: number;
+  field_values: number;
+  content_sections: number;
+  includes_excludes: number;
+  hotels: number;
+  golf_courses: number;
+  restaurants: number;
+  travel_times: number;
+  restaurant_locations: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +292,25 @@ export async function getCategoryDeleteImpactReport(
 
   const db = getSupabaseServer();
 
-  const [ecResult, faqResult, fdsResult, entResult] = await Promise.all([
+  // Get entity IDs owned by this category
+  const { data: entities } = await db.from('entities').select('id').eq('category_id', id);
+  const entityIds = (entities || []).map((e) => e.id);
+
+  const [
+    ecResult,
+    faqResult,
+    fdsResult,
+    efvResult,
+    csResult,
+    ieResult,
+    hotelResult,
+    golfResult,
+    restResult,
+    ttFromResult,
+    ttToResult,
+    rlRestResult,
+    rlNearResult,
+  ] = await Promise.all([
     db
       .from('entity_categories')
       .select('entity_id', { count: 'exact', head: true })
@@ -294,15 +320,86 @@ export async function getCategoryDeleteImpactReport(
       .from('field_definition_scopes')
       .select('id', { count: 'exact', head: true })
       .eq('category_id', id),
-    db.from('entities').select('id', { count: 'exact', head: true }).eq('category_id', id),
+    entityIds.length > 0
+      ? db
+          .from('entity_field_values')
+          .select('id', { count: 'exact', head: true })
+          .in('entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('content_sections')
+          .select('id', { count: 'exact', head: true })
+          .in('parent_entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('includes_excludes')
+          .select('id', { count: 'exact', head: true })
+          .in('parent_entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('hotels')
+          .select('entity_id', { count: 'exact', head: true })
+          .in('entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('golf_courses')
+          .select('entity_id', { count: 'exact', head: true })
+          .in('entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('restaurants')
+          .select('entity_id', { count: 'exact', head: true })
+          .in('entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('travel_times')
+          .select('id', { count: 'exact', head: true })
+          .in('from_entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('travel_times')
+          .select('id', { count: 'exact', head: true })
+          .in('to_entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('restaurant_locations')
+          .select('restaurant_entity_id', { count: 'exact', head: true })
+          .in('restaurant_entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
+    entityIds.length > 0
+      ? db
+          .from('restaurant_locations')
+          .select('near_entity_id', { count: 'exact', head: true })
+          .in('near_entity_id', entityIds)
+      : Promise.resolve({ count: 0 }),
   ]);
 
   return {
     category_id: id,
+    entities: entityIds.length,
     entity_categories: ecResult.count ?? 0,
     faq: faqResult.count ?? 0,
     field_definition_scopes: fdsResult.count ?? 0,
-    entities_primary: entResult.count ?? 0,
+    field_values: (efvResult as { count: number | null }).count ?? 0,
+    content_sections: (csResult as { count: number | null }).count ?? 0,
+    includes_excludes: (ieResult as { count: number | null }).count ?? 0,
+    hotels: (hotelResult as { count: number | null }).count ?? 0,
+    golf_courses: (golfResult as { count: number | null }).count ?? 0,
+    restaurants: (restResult as { count: number | null }).count ?? 0,
+    travel_times:
+      ((ttFromResult as { count: number | null }).count ?? 0) +
+      ((ttToResult as { count: number | null }).count ?? 0),
+    restaurant_locations:
+      ((rlRestResult as { count: number | null }).count ?? 0) +
+      ((rlNearResult as { count: number | null }).count ?? 0),
   };
 }
 
