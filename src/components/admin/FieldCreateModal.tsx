@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { adminFetchJson } from "@/lib/admin-fetch";
+import { ModalShell } from "@/components/inline-cms/ModalShell";
 
 interface Props {
   entityId: string;
@@ -87,96 +88,94 @@ export default function FieldCreateModal({ entityId, entity, onCreated, onClose 
   }
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-[12px] p-6 max-w-[480px] w-[92%] shadow-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-[17px] font-bold text-text mb-4">새 필드 만들기</h3>
+    <ModalShell
+      open
+      title="새 필드 만들기"
+      onClose={onClose}
+      error={error || undefined}
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            form="field-create-form"
+            disabled={saving}
+            className="px-4 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
+          >
+            {saving ? "생성 중..." : "생성"}
+          </button>
+        </>
+      }
+    >
+      <form id="field-create-form" onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-[12px] font-medium text-muted mb-1">필드명 *</label>
+          <input
+            type="text"
+            value={form.label_ko}
+            onChange={(e) => setForm((p) => ({ ...p, label_ko: e.target.value }))}
+            placeholder="예: 전화번호"
+            className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
+            autoFocus
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[12px] font-medium text-muted mb-1">필드명 *</label>
+            <label className="block text-[12px] font-medium text-muted mb-1">필드 타입</label>
+            <select
+              value={form.field_type}
+              onChange={(e) => setForm((p) => ({ ...p, field_type: e.target.value }))}
+              className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary bg-white"
+            >
+              {FIELD_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-muted mb-1">적용 범위</label>
+            <select
+              value={form.scope_type}
+              onChange={(e) => setForm((p) => ({ ...p, scope_type: e.target.value }))}
+              className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary bg-white"
+            >
+              {SCOPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[12px] font-medium text-muted mb-1">아이콘</label>
             <input
               type="text"
-              value={form.label_ko}
-              onChange={(e) => setForm((p) => ({ ...p, label_ko: e.target.value }))}
-              placeholder="예: 전화번호"
+              value={form.icon}
+              onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
+              placeholder="예: 📍"
               className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
-              autoFocus
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[12px] font-medium text-muted mb-1">필드 타입</label>
-              <select
-                value={form.field_type}
-                onChange={(e) => setForm((p) => ({ ...p, field_type: e.target.value }))}
-                className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary bg-white"
-              >
-                {FIELD_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[12px] font-medium text-muted mb-1">적용 범위</label>
-              <select
-                value={form.scope_type}
-                onChange={(e) => setForm((p) => ({ ...p, scope_type: e.target.value }))}
-                className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary bg-white"
-              >
-                {SCOPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="block text-[12px] font-medium text-muted mb-1">순서</label>
+            <input
+              type="number"
+              value={form.sort}
+              onChange={(e) => setForm((p) => ({ ...p, sort: e.target.value }))}
+              className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
+            />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[12px] font-medium text-muted mb-1">아이콘</label>
-              <input
-                type="text"
-                value={form.icon}
-                onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
-                placeholder="예: 📍"
-                className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-[12px] font-medium text-muted mb-1">순서</label>
-              <input
-                type="number"
-                value={form.sort}
-                onChange={(e) => setForm((p) => ({ ...p, sort: e.target.value }))}
-                className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-
-          {error && <p className="text-[12px] text-danger">{error}</p>}
-
-          <div className="flex gap-3 justify-end pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
-            >
-              {saving ? "생성 중..." : "생성"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </ModalShell>
   );
 }

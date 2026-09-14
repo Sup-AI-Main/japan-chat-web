@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { adminFetchJson } from "@/lib/admin-fetch";
+import { ModalShell } from "@/components/inline-cms/ModalShell";
 
 interface FieldDef {
   id: string;
@@ -86,69 +87,66 @@ export default function FieldPickerModal({ entityId, entity, existingFieldIds, o
   }
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-[12px] p-6 max-w-[500px] w-[92%] shadow-lg max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-[17px] font-bold text-text mb-4">기존 필드 추가</h3>
+    <ModalShell
+      open
+      title="기존 필드 추가"
+      onClose={onClose}
+      maxWidth="600px"
+      footer={
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
+        >
+          닫기
+        </button>
+      }
+    >
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="필드 검색..."
+        className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary mb-3"
+        autoFocus
+      />
 
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="필드 검색..."
-          className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary mb-3"
-          autoFocus
-        />
-
-        <div className="flex-1 overflow-y-auto min-h-[200px]">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <p className="text-[13px] text-muted text-center py-8">
-              {search ? "검색 결과가 없습니다." : "추가 가능한 필드가 없습니다."}
-            </p>
-          ) : (
-            <div className="space-y-1">
-              {filtered.map((f) => (
-                <div
-                  key={f.id}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-[8px] hover:bg-gray-50"
-                >
-                  <div>
-                    <span className="text-[14px] text-text">
-                      {f.icon && <span className="mr-1">{f.icon}</span>}
-                      {f.label_ko}
-                    </span>
-                    <span className="text-[11px] text-muted ml-2">
-                      {f.field_type} · {f.scope_type}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleAdd(f.id)}
-                    disabled={adding === f.id}
-                    className="px-3 py-1 text-[12px] text-primary border border-primary rounded-[6px] hover:bg-primary-soft min-h-[32px] disabled:opacity-50"
-                  >
-                    {adding === f.id ? "추가 중..." : "추가"}
-                  </button>
+      <div className="flex-1 overflow-y-auto min-h-[200px]">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="text-[13px] text-muted text-center py-8">
+            {search ? "검색 결과가 없습니다." : "추가 가능한 필드가 없습니다."}
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {filtered.map((f) => (
+              <div
+                key={f.id}
+                className="flex items-center justify-between px-3 py-2.5 rounded-[8px] hover:bg-gray-50"
+              >
+                <div>
+                  <span className="text-[14px] text-text">
+                    {f.icon && <span className="mr-1">{f.icon}</span>}
+                    {f.label_ko}
+                  </span>
+                  <span className="text-[11px] text-muted ml-2">
+                    {f.field_type} · {f.scope_type}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end mt-4 pt-3 border-t border-border">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
-          >
-            닫기
-          </button>
-        </div>
+                <button
+                  onClick={() => handleAdd(f.id)}
+                  disabled={adding === f.id}
+                  className="px-3 py-1 text-[12px] text-primary border border-primary rounded-[6px] hover:bg-primary-soft min-h-[32px] disabled:opacity-50"
+                >
+                  {adding === f.id ? "추가 중..." : "추가"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </ModalShell>
   );
 }

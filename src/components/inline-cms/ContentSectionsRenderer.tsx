@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
+import { ConfirmModal } from "./ConfirmModal";
+import { EditModalShell } from "./EditModalShell";
 import type { ContentSection } from "@/lib/types";
 
 interface ContentSectionsRendererProps {
@@ -276,39 +278,14 @@ export function ContentSectionsRenderer({
       />
 
       {/* Delete Confirm */}
-      {deleteTarget && (
-        <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40"
-          onClick={() => setDeleteTarget(null)}
-        >
-          <div
-            className="bg-white rounded-[12px] p-6 max-w-[360px] w-[90%] shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[17px] font-bold text-text mb-2">안내 항목 삭제</h3>
-            <p className="text-[14px] text-muted mb-6 leading-relaxed">
-              &ldquo;{deleteTarget.emoji ? `${deleteTarget.emoji} ` : ""}
-              {deleteTarget.title}&rdquo; 을(를) 삭제하시겠습니까?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleteLoading}
-                className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleteLoading}
-                className="px-4 py-2 text-[14px] text-white bg-danger rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
-              >
-                {deleteLoading ? "삭제 중..." : "삭제"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="안내 항목 삭제"
+        message={`\u201c${deleteTarget?.emoji ? `${deleteTarget.emoji} ` : ""}${deleteTarget?.title ?? ""}\u201d 을(를) 삭제하시겠습니까?`}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+      />
 
       <Toast message={message} visible={visible} />
     </div>
@@ -428,21 +405,16 @@ function ContentSectionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-[12px] p-6 max-w-[480px] w-[90%] max-h-[90vh] overflow-y-auto shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-[17px] font-bold text-text mb-4">
-          {editTarget ? "안내 항목 수정" : "안내 항목 추가"}
-        </h3>
-
-        {error && (
-          <div className="mb-3 text-[13px] text-red-600 bg-red-50 px-3 py-2 rounded-[8px]">
-            {error}
-          </div>
-        )}
-
+    <EditModalShell
+      open={open}
+      title={editTarget ? "안내 항목 수정" : "안내 항목 추가"}
+      onClose={onClose}
+      onSave={handleSave}
+      saving={saving}
+      saveLabel={editTarget ? "수정" : "추가"}
+      savingLabel="저장 중..."
+      error={error ?? undefined}
+    >
         {/* Title */}
         <label className="block mb-3">
           <span className="text-[13px] text-muted mb-1 block">제목 *</span>
@@ -515,25 +487,6 @@ function ContentSectionModal({
           />
           <span className="text-[14px] text-text">표시</span>
         </label>
-
-        {/* Buttons */}
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
-          >
-            {saving ? "저장 중..." : editTarget ? "수정" : "추가"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </EditModalShell>
   );
 }

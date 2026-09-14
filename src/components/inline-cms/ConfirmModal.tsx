@@ -1,5 +1,7 @@
 "use client";
 
+import { ModalShell } from "./ModalShell";
+
 interface ConfirmModalProps {
   open: boolean;
   title: string;
@@ -21,17 +23,14 @@ export function ConfirmModal({
   onCancel,
   loading = false,
 }: ConfirmModalProps) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40" onClick={onCancel}>
-      <div
-        className="bg-white rounded-[12px] p-6 max-w-[360px] w-[90%] shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-[17px] font-bold text-text mb-2">{title}</h3>
-        <p className="text-[14px] text-muted mb-6 leading-relaxed">{message}</p>
-        <div className="flex gap-3 justify-end">
+    <ModalShell
+      open={open}
+      title={title}
+      onClose={onCancel}
+      maxWidth="420px"
+      footer={
+        <>
           <button
             onClick={onCancel}
             disabled={loading}
@@ -46,8 +45,10 @@ export function ConfirmModal({
           >
             {loading ? "삭제 중..." : confirmLabel}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <p className="text-[14px] text-muted leading-relaxed">{message}</p>
+    </ModalShell>
   );
 }

@@ -96,9 +96,8 @@ function OptionEditModal({
   return (
     <div
       className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-surface rounded-[16px] shadow-lg w-full max-w-[400px] mx-4 p-6">
+      <div className="bg-surface rounded-[16px] shadow-lg w-full max-w-[900px] mx-4 p-6 max-h-[calc(100dvh-24px)] md:max-h-[calc(100vh-40px)] overflow-y-auto">
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-[18px] font-bold text-text">
             {option ? "수정" : "추가"}

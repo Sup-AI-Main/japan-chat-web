@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { EditModalShell } from "./EditModalShell";
 
 interface RestaurantData {
   id?: string;
@@ -67,15 +68,17 @@ function InputField({
   onChange,
   placeholder,
   type = "text",
+  className = "",
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  className?: string;
 }) {
   return (
-    <div className="mb-3">
+    <div className={className}>
       <label className="text-[13px] font-medium text-text mb-1 block">{label}</label>
       <input
         type={type}
@@ -147,78 +150,80 @@ export function RestaurantEditModal({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-[12px] p-6 max-w-[480px] w-[90%] max-h-[80vh] overflow-y-auto shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-[18px] font-bold text-text mb-4">
-          {restaurant ? "식당 수정" : "식당 추가"}
-        </h2>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-[8px] p-3 mb-4 text-[14px] text-danger">
-            {error}
-          </div>
-        )}
-
-        {/* 기본 정보 */}
-        <div className="mb-4">
-          <h3 className="text-[15px] font-bold text-text mb-2">기본 정보</h3>
+    <EditModalShell
+      open={open}
+      title={restaurant ? "식당 수정" : "식당 추가"}
+      onClose={onClose}
+      onSave={handleSave}
+      saving={saving}
+      error={error}
+    >
+      {/* 기본 정보 */}
+      <div className="mb-6">
+        <h3 className="text-[15px] font-bold text-text mb-3">기본 정보</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
           <InputField label="식당명 (한국어)" value={form.name_kr} onChange={(v) => update("name_kr", v)} placeholder="식당 이름" />
           <InputField label="식당명 (일본어)" value={form.name_jp} onChange={(v) => update("name_jp", v)} placeholder="店名" />
           <InputField label="카테고리" value={form.category} onChange={(v) => update("category", v)} placeholder="이자카야, 라멘, 스시" />
-          <InputField label="주소" value={form.address} onChange={(v) => update("address", v)} placeholder="주소" />
           <InputField label="전화번호" value={form.phone} onChange={(v) => update("phone", v)} placeholder="000-000-0000" />
+          <InputField label="주소" value={form.address} onChange={(v) => update("address", v)} placeholder="주소" />
           <InputField label="Google Maps URL" value={form.google_maps_url} onChange={(v) => update("google_maps_url", v)} placeholder="https://maps.google.com/..." />
         </div>
+      </div>
 
-        {/* 메뉴 */}
-        <div className="mb-4">
-          <h3 className="text-[15px] font-bold text-text mb-2">메뉴</h3>
+      {/* 메뉴 */}
+      <div className="mb-6">
+        <h3 className="text-[15px] font-bold text-text mb-3">메뉴</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
           <InputField label="메뉴 (한국어)" value={form.menu_kr} onChange={(v) => update("menu_kr", v)} placeholder="추천 메뉴" />
           <InputField label="메뉴 (일본어)" value={form.menu_jp} onChange={(v) => update("menu_jp", v)} placeholder="メニュー" />
           <InputField label="메뉴 가격" value={form.menu_price} onChange={(v) => update("menu_price", v)} placeholder="1000엔~3000엔" />
           <InputField label="가격대" value={form.price_range} onChange={(v) => update("price_range", v)} placeholder="¥1000~¥3000" />
         </div>
+      </div>
 
-        {/* 영업 정보 */}
-        <div className="mb-4">
-          <h3 className="text-[15px] font-bold text-text mb-2">영업 정보</h3>
+      {/* 영업 정보 */}
+      <div className="mb-6">
+        <h3 className="text-[15px] font-bold text-text mb-3">영업 정보</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
           <InputField label="영업시간" value={form.hours} onChange={(v) => update("hours", v)} placeholder="11:00~22:00" />
           <InputField label="정기휴일" value={form.closed_days} onChange={(v) => update("closed_days", v)} placeholder="매주 수요일" />
         </div>
+      </div>
 
-        {/* 위치/거리 */}
-        <div className="mb-4">
-          <h3 className="text-[15px] font-bold text-text mb-2">위치/거리</h3>
-          <InputField label="거리 (km)" value={form.distance_km} onChange={(v) => update("distance_km", v)} placeholder="1.5" type="text" />
-          <InputField label="차량 소요시간 (분)" value={form.drive_minutes} onChange={(v) => update("drive_minutes", v)} placeholder="5" type="text" />
-          <InputField label="도보 소요시간 (분)" value={form.walk_minutes} onChange={(v) => update("walk_minutes", v)} placeholder="15" type="text" />
+      {/* 위치/거리 */}
+      <div className="mb-6">
+        <h3 className="text-[15px] font-bold text-text mb-3">위치/거리</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+          <InputField label="거리 (km)" value={form.distance_km} onChange={(v) => update("distance_km", v)} placeholder="1.5" />
+          <InputField label="차량 소요시간 (분)" value={form.drive_minutes} onChange={(v) => update("drive_minutes", v)} placeholder="5" />
+          <InputField label="도보 소요시간 (분)" value={form.walk_minutes} onChange={(v) => update("walk_minutes", v)} placeholder="15" />
         </div>
+      </div>
 
-        {/* 추가 정보 */}
-        <div className="mb-4">
-          <h3 className="text-[15px] font-bold text-text mb-2">추가 정보</h3>
-          <InputField label="설명" value={form.description} onChange={(v) => update("description", v)} placeholder="식당 설명" />
-          <label className="flex items-center gap-2 cursor-pointer mb-3">
-            <input
-              type="checkbox"
-              checked={form.recommended}
-              onChange={(e) => update("recommended", e.target.checked)}
-              className="w-4 h-4 accent-primary"
-            />
-            <span className="text-[14px] text-text">추천 식당</span>
-          </label>
+      {/* 추가 정보 */}
+      <div className="mb-6">
+        <h3 className="text-[15px] font-bold text-text mb-3">추가 정보</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+          <InputField className="md:col-span-2" label="설명" value={form.description} onChange={(v) => update("description", v)} placeholder="식당 설명" />
         </div>
+        <label className="flex items-center gap-2 cursor-pointer mt-4">
+          <input
+            type="checkbox"
+            checked={form.recommended}
+            onChange={(e) => update("recommended", e.target.checked)}
+            className="w-4 h-4 accent-primary"
+          />
+          <span className="text-[14px] text-text">추천 식당</span>
+        </label>
+      </div>
 
-        {/* 연결 정보 */}
-        <div className="mb-4">
-          <h3 className="text-[15px] font-bold text-text mb-2">연결 정보</h3>
-          <div className="mb-3">
+      {/* 연결 정보 */}
+      <div className="mb-2">
+        <h3 className="text-[15px] font-bold text-text mb-3">연결 정보</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+          <div>
             <label className="text-[13px] font-medium text-text mb-1 block">연결 유형</label>
             <select
               value={form.near_type}
@@ -233,7 +238,7 @@ export function RestaurantEditModal({
               <option value="AREA">지역</option>
             </select>
           </div>
-          <div className="mb-3">
+          <div>
             <label className="text-[13px] font-medium text-text mb-1 block">
               {form.near_type === "HOTEL" ? "호텔" : form.near_type === "GOLF" ? "골프장" : "지역"} 선택
             </label>
@@ -251,25 +256,7 @@ export function RestaurantEditModal({
             </select>
           </div>
         </div>
-
-        {/* 버튼 */}
-        <div className="flex gap-3 justify-end pt-2 border-t border-border">
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
-          >
-            {saving ? "저장 중..." : "저장"}
-          </button>
-        </div>
       </div>
-    </div>
+    </EditModalShell>
   );
 }
