@@ -1,6 +1,16 @@
-import { resolveAreaLayout } from "@/lib/supabase-cms";
+import { resolveAreaLayout, getAdminOptions } from "@/lib/supabase-cms";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
+
+export async function generateStaticParams() {
+  try {
+    const options = await getAdminOptions();
+    const areas = options.filter(o => o.group === 'AREA' && o.active !== 'FALSE');
+    return areas.map((area) => ({ area: area.code.toLowerCase() }));
+  } catch {
+    return [{ area: 'dos' }, { area: 'beppu' }];
+  }
+}
 
 export default async function AreaLayout({
   children,

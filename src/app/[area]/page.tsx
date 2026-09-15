@@ -6,7 +6,7 @@ import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
 import { routes } from "@/lib/routes";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function AreaPage({
   params,
@@ -97,7 +97,6 @@ export default async function AreaPage({
                   <Link
                     key={faq.id}
                     href={faqLink}
-                    prefetch={false}
                     className="block bg-surface border border-border rounded-[8px] p-3 hover:border-primary"
                   >
                     <span className="text-[15px] text-text">

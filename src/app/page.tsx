@@ -1,7 +1,7 @@
 import { getAdminOptions } from "@/lib/supabase-cms";
 import HomeContentClient from "@/components/HomeContentClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function HomePage() {
   const allOptions = await getAdminOptions();

@@ -6,6 +6,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
+import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
 
 interface AdminOption {
@@ -240,7 +241,7 @@ export default function HomeContentClient({
         {areas.map((area) => (
           <div key={area.code} className="relative group/card">
             <Link
-              href={`/${area.code.toLowerCase()}`}
+              href={routes.area(area.code.toLowerCase())}
               className="block bg-surface border border-border rounded-[12px] p-6 text-center hover:border-primary hover:bg-primary-soft transition-colors"
             >
               <span className="text-[24px] block mb-1">{getAreaEmoji(area.code)}</span>
@@ -282,7 +283,7 @@ export default function HomeContentClient({
             {categories.map((cat) => (
               <div key={cat.code} className="relative group/cat">
                 <Link
-                  href={`/guide/${cat.code.toLowerCase()}`}
+                  href={routes.guideCategory(cat.code.toLowerCase())}
                   className="block bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary transition-colors"
                 >
                   <span className="text-[16px] font-medium text-text">

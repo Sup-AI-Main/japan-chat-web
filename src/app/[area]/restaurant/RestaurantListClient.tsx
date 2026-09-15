@@ -177,7 +177,6 @@ export default function RestaurantListClient({
                       )}
                       <Link
                         href={`/${area}/restaurant/${rest.slug}`}
-                        prefetch={false}
                         className="block"
                       >
                         <h3 className="text-[16px] font-bold text-text mb-0.5">
@@ -266,7 +265,6 @@ export default function RestaurantListClient({
             setEditModal({ open: false, restaurant: null });
           }}
           nearOptions={nearOptions}
-          onNearTypeChange={(nearType) => fetchNearOptions(nearType)}
         />
       )}
 
