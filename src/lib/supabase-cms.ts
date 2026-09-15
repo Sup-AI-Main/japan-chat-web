@@ -135,9 +135,7 @@ export async function getAreaEntitySummaries(
  * Single-query version: fetches HOTEL + GOLF entity names in one DB call.
  * Returns grouped results to replace two separate getAreaEntitySummaries calls.
  */
-export async function getAreaEntitySummaryMap(
-  areaCode: string
-): Promise<{
+export async function getAreaEntitySummaryMap(areaCode: string): Promise<{
   hotels: { id: string; name: string }[];
   golfCourses: { id: string; name: string }[];
 }> {
@@ -1124,13 +1122,32 @@ export async function appendRestaurant(
 
   // Add near relationship if provided
   if (data.near_id && data.near_type) {
-    const nearEntityId = await resolveEntityIdBySlug(data.near_id);
-    if (nearEntityId) {
+    const { data: nearEntity, error: nearErr } = await db()
+      .from('entities')
+      .select('id, entity_type, area_id')
+      .eq('slug', data.near_id)
+      .single();
+    if (nearErr || !nearEntity) {
+      logError(
+        'VALIDATE',
+        'entities',
+        data.near_id,
+        nearErr || { message: 'Near entity not found' }
+      );
+    } else if (nearEntity.entity_type !== data.near_type) {
+      logError('VALIDATE', 'entities', data.near_id, {
+        message: `Entity type mismatch: expected ${data.near_type}, got ${nearEntity.entity_type}`,
+      });
+    } else if (nearEntity.area_id !== areaId) {
+      logError('VALIDATE', 'entities', data.near_id, {
+        message: 'Near entity is in a different area',
+      });
+    } else {
       const { error: locError } = await adminDb()
         .from('restaurant_locations')
         .insert({
           restaurant_entity_id: entity.id,
-          near_entity_id: nearEntityId,
+          near_entity_id: nearEntity.id,
           distance_text: data.near_name || '',
           sort: 1,
         });

@@ -42,6 +42,7 @@ export function GolfDetailClient({
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [restNearOptions, setRestNearOptions] = useState<Array<{ id: string; name: string }>>([]);
   const { message, visible, showToast } = useToast();
 
   const closeGolfModal = useCallback(() => {
@@ -52,6 +53,29 @@ export function GolfDetailClient({
     setEditRestOpen(false);
     setEditRestTarget(null);
   }, []);
+
+  const fetchRestNearOptions = useCallback(async (nearType: string) => {
+    try {
+      if (nearType === "GOLF") {
+        setRestNearOptions([{ id: course.slug, name: course.display_name || course.official_name }]);
+      } else if (nearType === "HOTEL") {
+        const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRestNearOptions(
+            (data.hotels || []).map((h: { id: string; slug: string; name_kr?: string; official_name: string }) => ({
+              id: h.slug,
+              name: h.name_kr || h.official_name,
+            }))
+          );
+        }
+      } else {
+        setRestNearOptions([]);
+      }
+    } catch {
+      setRestNearOptions([]);
+    }
+  }, [course, area]);
 
   // Detailed content (코스 안내, 플레이/카트, etc.) is served via content_sections table.
 
@@ -195,6 +219,7 @@ export function GolfDetailClient({
             <AddButton
               onClick={() => {
                 setEditRestTarget(null);
+                setRestNearOptions([{ id: course.slug, name: course.display_name || course.official_name }]);
                 setEditRestOpen(true);
               }}
               label="맛집 추가"
@@ -219,6 +244,12 @@ export function GolfDetailClient({
                     <EditToolbar
                       onEdit={() => {
                         setEditRestTarget(rest);
+                        const rNearType = rest.near_type || "GOLF";
+                        if (rNearType === "GOLF") {
+                          setRestNearOptions([{ id: course.slug, name: course.display_name || course.official_name }]);
+                        } else {
+                          fetchRestNearOptions(rNearType);
+                        }
                         setEditRestOpen(true);
                       }}
                       onDelete={() => setDeleteRestTarget(rest)}
@@ -287,7 +318,8 @@ export function GolfDetailClient({
           open={editRestOpen}
           onClose={closeRestModal}
           onSaved={handleRestSaved}
-          nearOptions={[{ id: course.slug, name: course.display_name || course.official_name }]}
+          nearOptions={restNearOptions}
+          onNearTypeChange={(nearType) => fetchRestNearOptions(nearType)}
         />
 
       {/* Delete Confirm Modal */}

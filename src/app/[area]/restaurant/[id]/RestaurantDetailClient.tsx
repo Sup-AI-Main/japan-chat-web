@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
+import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
 import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer } from "@/components/inline-cms";
 import type { Restaurant, ContentSection } from "@/lib/types";
@@ -36,9 +37,9 @@ export default function RestaurantDetailClient({
     setEditModal(false);
   }, []);
 
-  const fetchNearOptions = async () => {
+  const fetchNearOptions = async (overrideNearType?: string) => {
     try {
-      const nearType = restaurant.near_type || "HOTEL";
+      const nearType = overrideNearType || restaurant.near_type || "HOTEL";
       if (nearType === "HOTEL") {
         const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
         if (res.ok) {
@@ -85,7 +86,7 @@ export default function RestaurantDetailClient({
         method: "DELETE",
       });
       if (res.ok) {
-        router.push(`/${area}/restaurant`);
+        router.push(routes.areaRestaurant(area));
       }
     } finally {
       setDeleting(false);
@@ -266,6 +267,7 @@ export default function RestaurantDetailClient({
           onClose={closeEditModal}
           onSaved={(saved) => handleSaved(saved as unknown as Restaurant)}
           nearOptions={nearOptions}
+          onNearTypeChange={(nearType) => fetchNearOptions(nearType)}
         />
       )}
 

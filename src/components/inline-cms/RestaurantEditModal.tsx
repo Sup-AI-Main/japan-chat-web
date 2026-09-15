@@ -60,6 +60,7 @@ interface RestaurantEditModalProps {
   onClose: () => void;
   onSaved: (restaurant: RestaurantData) => void;
   nearOptions: NearOption[];
+  onNearTypeChange?: (nearType: string) => void;
 }
 
 function InputField({
@@ -98,6 +99,7 @@ export function RestaurantEditModal({
   onClose,
   onSaved,
   nearOptions,
+  onNearTypeChange,
 }: RestaurantEditModalProps) {
   const [form, setForm] = useState<RestaurantData>(EMPTY_RESTAURANT);
   const [saving, setSaving] = useState(false);
@@ -228,8 +230,10 @@ export function RestaurantEditModal({
             <select
               value={form.near_type}
               onChange={(e) => {
-                update("near_type", e.target.value);
+                const newType = e.target.value;
+                update("near_type", newType);
                 update("near_id", "");
+                onNearTypeChange?.(newType);
               }}
               className="w-full border border-border rounded-[8px] px-3 py-2 text-[14px] min-h-[40px] focus:outline-none focus:border-primary bg-white"
             >

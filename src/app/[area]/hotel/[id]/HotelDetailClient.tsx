@@ -142,6 +142,7 @@ export function HotelDetailClient({
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [restNearOptions, setRestNearOptions] = useState<Array<{ id: string; name: string }>>([]);
   const { message, visible, showToast } = useToast();
 
   const closeHotelModal = useCallback(() => {
@@ -152,6 +153,29 @@ export function HotelDetailClient({
     setEditRestOpen(false);
     setEditRestTarget(null);
   }, []);
+
+  const fetchRestNearOptions = useCallback(async (nearType: string) => {
+    try {
+      if (nearType === "HOTEL") {
+        setRestNearOptions([{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]);
+      } else if (nearType === "GOLF") {
+        const res = await fetch(`/api/admin/golf?area=${area.toUpperCase()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRestNearOptions(
+            (data.courses || []).map((c: { id: string; slug: string; display_name: string }) => ({
+              id: c.slug,
+              name: c.display_name,
+            }))
+          );
+        }
+      } else {
+        setRestNearOptions([]);
+      }
+    } catch {
+      setRestNearOptions([]);
+    }
+  }, [hotel, area]);
 
   const titleMain = hotel.name_kr || hotel.official_name;
   const titleSub = hotel.name_jp || (hotel.name_kr ? hotel.official_name : "");
@@ -461,6 +485,7 @@ export function HotelDetailClient({
             <AddButton
               onClick={() => {
                 setEditRestTarget(null);
+                setRestNearOptions([{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]);
                 setEditRestOpen(true);
               }}
               label="맛집 추가"
@@ -485,6 +510,12 @@ export function HotelDetailClient({
                     <EditToolbar
                       onEdit={() => {
                         setEditRestTarget(rest);
+                        const rNearType = rest.near_type || "HOTEL";
+                        if (rNearType === "HOTEL") {
+                          setRestNearOptions([{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]);
+                        } else {
+                          fetchRestNearOptions(rNearType);
+                        }
                         setEditRestOpen(true);
                       }}
                       onDelete={() => setDeleteRestTarget(rest)}
@@ -540,7 +571,8 @@ export function HotelDetailClient({
         open={editRestOpen}
         onClose={closeRestModal}
         onSaved={handleRestSaved}
-        nearOptions={[{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]}
+        nearOptions={restNearOptions}
+        onNearTypeChange={(nearType) => fetchRestNearOptions(nearType)}
       />
 
       {/* Delete Confirm Modal */}

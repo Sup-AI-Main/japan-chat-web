@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { appendFaq, updateFaq, deleteFaq, getAdminFaqs, getAdminOptions } from "@/lib/supabase-cms";
 import { ok, created, badRequest, notFound, serverError, safeJson } from "@/lib/crud/response";
+import { getSupabaseServer } from "@/lib/supabase/server";
+
+async function validateRelatedEntity(
+  relatedId: string,
+  relatedType: string,
+  areaCode: string
+): Promise<string | null> {
+  const { data: entity } = await getSupabaseServer()
+    .from("entities")
+    .select("id, entity_type, area_id, areas!inner(code)")
+    .eq("id", relatedId)
+    .single();
+  if (!entity) return "연결된 항목을 찾을 수 없습니다";
+  const entityAreaCode = (entity.areas as unknown as { code: string })?.code;
+  if (entity.entity_type !== relatedType) {
+    return `연결 유형이 일치하지 않습니다: 기대 ${relatedType}, 실제 ${entity.entity_type}`;
+  }
+  if (entityAreaCode && entityAreaCode !== areaCode) {
+    return `연결 항목이 현재 지역(${areaCode})에 속하지 않습니다`;
+  }
+  return null;
+}
 
 /** GET: 관리자용 전체 질문 조회 (숨김 포함) */
 export async function GET(request: NextRequest) {
@@ -67,6 +89,11 @@ export async function POST(request: NextRequest) {
       return badRequest("특정 장소를 선택하세요");
     }
 
+    if (question_scope === "SPECIFIC" && related_type && related_id) {
+      const validationError = await validateRelatedEntity(related_id, related_type, area.toUpperCase());
+      if (validationError) return badRequest(validationError);
+    }
+
     // Get max sort for this group
     const { getFaq } = await import("@/lib/supabase-cms");
     const existingFaqs = await getFaq(area.toUpperCase() === "ALL" ? undefined : area.toUpperCase(), category.toUpperCase());
@@ -110,6 +137,11 @@ export async function PUT(request: NextRequest) {
 
     if (!id || !area || !category || !question_scope || !question || !answer) {
       return badRequest("필수 값이 누락되었습니다");
+    }
+
+    if (question_scope === "SPECIFIC" && related_type && related_id) {
+      const validationError = await validateRelatedEntity(related_id, related_type, area.toUpperCase());
+      if (validationError) return badRequest(validationError);
     }
 
     // Get existing data to preserve sort and other fields
