@@ -2,7 +2,8 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
 import {
-  getAdminOptions,
+  resolveAreaFromAdmin,
+  resolveCategoryFromAdmin,
   getGolfCourses,
   getHotels,
   getRestaurants,
@@ -15,22 +16,14 @@ export default async function NewFaqPage({
   params: Promise<{ area: string; category: string }>;
 }) {
   const { area, category } = await params;
-  const areaUp = area.toUpperCase();
-  const catUp = category.toUpperCase();
 
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
 
-  const options = await getAdminOptions();
-
-  const currentArea = options.find(
-    (o) => o.option_type === "AREA" && o.code === areaUp && o.active !== "FALSE"
-  );
+  const currentArea = await resolveAreaFromAdmin(area);
   if (!currentArea) notFound();
 
-  const currentCategory = options.find(
-    (o) => o.option_type === "CATEGORY" && o.code === catUp && o.active !== "FALSE"
-  );
+  const currentCategory = await resolveCategoryFromAdmin(category);
   if (!currentCategory) notFound();
 
   const areaCode = currentArea.code;

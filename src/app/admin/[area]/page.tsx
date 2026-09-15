@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
-import { getAdminOptions } from "@/lib/supabase-cms";
+import { resolveAreaFromAdmin, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder, GROUP_AREA, GROUP_COMMON } from "@/lib/display";
 
 export default async function AdminAreaPage({
@@ -10,15 +10,11 @@ export default async function AdminAreaPage({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  const areaUp = area.toUpperCase();
 
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
 
-  const allOptions = await getAdminOptions();
-
-  const areas = allOptions.filter((o) => o.option_type === "AREA" && o.active !== "FALSE");
-  const currentArea = areas.find((a) => a.code === areaUp);
+  const currentArea = await resolveAreaFromAdmin(area);
   if (!currentArea) notFound();
 
   const areaCode = currentArea.code;
@@ -28,6 +24,7 @@ export default async function AdminAreaPage({
   // DOS/BEPPU → group=AREA 카테고리
   const targetGroup = areaCode === "ALL" ? GROUP_COMMON : GROUP_AREA;
 
+  const allOptions = await getAdminOptions();
   const categories = allOptions
     .filter((o) => o.option_type === "CATEGORY" && o.active !== "FALSE" && o.group === targetGroup)
     .sort((a, b) => a.sort - b.sort);

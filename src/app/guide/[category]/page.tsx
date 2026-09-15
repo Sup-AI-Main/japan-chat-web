@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCommonCategories, getFaq } from "@/lib/supabase-cms";
+import { resolveCommonCategory, getFaq } from "@/lib/supabase-cms";
 import { getCategoryEmoji, getCategoryColor } from "@/lib/display";
 import GuideFaqClient from "@/components/GuideFaqClient";
 
@@ -12,12 +12,8 @@ export default async function GuideCategoryPage({
   params: Promise<{ category: string }>;
 }) {
   const { category } = await params;
-  const catUp = category.toUpperCase();
 
-  const categories = await getCommonCategories();
-  const currentCategory = categories.find(
-    (c) => c.code === catUp
-  );
+  const currentCategory = await resolveCommonCategory(category);
   if (!currentCategory) notFound();
 
   const categoryCode = currentCategory.code;

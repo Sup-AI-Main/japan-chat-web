@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
-import { getAdminFaqs, getAdminOptions } from "@/lib/supabase-cms";
+import { resolveAreaFromAdmin, resolveCategoryFromAdmin, getAdminFaqs } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
 import AdminFaqList from "./AdminFaqList";
@@ -12,22 +12,14 @@ export default async function AdminCategoryPage({
   params: Promise<{ area: string; category: string }>;
 }) {
   const { area, category } = await params;
-  const areaUp = area.toUpperCase();
-  const catUp = category.toUpperCase();
 
   const authed = await isAuthenticated();
   if (!authed) redirect("/admin");
 
-  const options = await getAdminOptions();
-
-  const currentArea = options.find(
-    (o) => o.option_type === "AREA" && o.code === areaUp && o.active !== "FALSE"
-  );
+  const currentArea = await resolveAreaFromAdmin(area);
   if (!currentArea) notFound();
 
-  const currentCategory = options.find(
-    (o) => o.option_type === "CATEGORY" && o.code === catUp && o.active !== "FALSE"
-  );
+  const currentCategory = await resolveCategoryFromAdmin(category);
   if (!currentCategory) notFound();
 
   const areaCode = currentArea.code;

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getActiveAreas, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getHotels, getGolfCourses } from "@/lib/supabase-cms";
+import { resolveArea, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getHotels, getGolfCourses } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
@@ -13,10 +13,7 @@ export default async function AreaPage({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  const areaUp = area.toUpperCase();
-
-  const areas = (await getActiveAreas()).filter((a) => a.code !== "ALL");
-  const currentArea = areas.find((a) => a.code === areaUp);
+  const currentArea = await resolveArea(area);
   if (!currentArea) notFound();
 
   const areaCode = currentArea.code;

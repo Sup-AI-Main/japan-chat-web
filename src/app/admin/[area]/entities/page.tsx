@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
-import { getActiveAreas } from "@/lib/supabase-cms";
+import { resolveArea } from "@/lib/supabase-cms";
 import EntityList from "@/components/admin/EntityList";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +14,12 @@ export default async function EntitiesPage({
   if (!authed) redirect("/admin");
 
   const { area } = await params;
-  const areaUp = area.toUpperCase();
-
-  const allAreas = await getActiveAreas();
-  const currentArea = allAreas.find((a) => a.code === areaUp);
-  if (!currentArea) redirect("/admin/home");
+  const currentArea = await resolveArea(area);
+  if (!currentArea) notFound();
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-6">
-      <EntityList areaCode={areaUp} />
+      <EntityList areaCode={currentArea.code} />
     </div>
   );
 }

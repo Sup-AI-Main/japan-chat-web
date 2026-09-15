@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getGolfCourses, getActiveAreas } from "@/lib/supabase-cms";
+import { getGolfCourses, resolveArea } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
 import GolfListClient from "./GolfListClient";
 
@@ -12,16 +12,15 @@ export default async function GolfListPage({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  const areas = await getActiveAreas();
-  const areaUp = area.toUpperCase();
-  if (!areas.some((a) => a.code === areaUp)) notFound();
+  const currentArea = await resolveArea(area);
+  if (!currentArea) notFound();
 
-  const currentArea = areas.find((a) => a.code.toUpperCase() === areaUp);
-  const areaLabel = currentArea?.label || area;
+  const areaCode = currentArea.code;
+  const areaLabel = currentArea.label;
 
   let courses;
   try {
-    courses = await getGolfCourses(areaUp);
+    courses = await getGolfCourses(areaCode);
   } catch {
     return (
       <main className="min-h-screen px-4 py-6">
@@ -39,13 +38,13 @@ export default async function GolfListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaUp)} {areaLabel}
+          ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
         <GolfListClient
           courses={courses}
           area={area}
           areaLabel={areaLabel}
-          areaEmoji={getAreaEmoji(areaUp)}
+          areaEmoji={getAreaEmoji(areaCode)}
         />
       </div>
     </main>

@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
-import { getHotels, getGolfCourses, getActiveAreas, getTravelTimes } from "@/lib/supabase-cms";
+import { getHotels, getGolfCourses, resolveArea, getActiveAreas, getTravelTimes } from "@/lib/supabase-cms";
 import ManageEntitiesClient from "./ManageEntitiesClient";
 
 export const dynamic = "force-dynamic";
@@ -14,21 +14,21 @@ export default async function ManagePage({
   if (!authed) redirect("/admin");
 
   const { area } = await params;
-  const areaUp = area.toUpperCase();
+  const currentArea = await resolveArea(area);
+  if (!currentArea) notFound();
 
-  const allAreas = await getActiveAreas();
-  const currentArea = allAreas.find((a) => a.code === areaUp);
-  if (!currentArea) redirect("/admin/home");
+  const areaCode = currentArea.code;
 
-  const [hotels, golfCourses, travelTimes] = await Promise.all([
-    getHotels(areaUp).catch(() => []),
-    getGolfCourses(areaUp).catch(() => []),
-    getTravelTimes(areaUp).catch(() => []),
+  const [hotels, golfCourses, travelTimes, allAreas] = await Promise.all([
+    getHotels(areaCode).catch(() => []),
+    getGolfCourses(areaCode).catch(() => []),
+    getTravelTimes(areaCode).catch(() => []),
+    getActiveAreas().catch(() => []),
   ]);
 
   return (
     <ManageEntitiesClient
-      area={areaUp}
+      area={areaCode}
       areaName={currentArea.label}
       initialHotels={hotels}
       initialGolfCourses={golfCourses}

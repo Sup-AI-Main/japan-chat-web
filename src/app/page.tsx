@@ -1,4 +1,4 @@
-import { getActiveAreas, getCommonCategories, getAdminOptions } from "@/lib/supabase-cms";
+import { getAdminOptions } from "@/lib/supabase-cms";
 import HomeContentClient from "@/components/HomeContentClient";
 
 export const dynamic = "force-dynamic";

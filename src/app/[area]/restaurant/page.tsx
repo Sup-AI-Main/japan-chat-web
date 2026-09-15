@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurants, getActiveAreas } from "@/lib/supabase-cms";
+import { getRestaurants, resolveArea } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import RestaurantListClient from "./RestaurantListClient";
 
@@ -12,16 +12,15 @@ export default async function RestaurantListPage({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  const areas = await getActiveAreas();
-  const areaUp = area.toUpperCase();
-  if (!areas.some((a) => a.code === areaUp)) notFound();
+  const currentArea = await resolveArea(area);
+  if (!currentArea) notFound();
 
-  const currentArea = areas.find((a) => a.code.toUpperCase() === areaUp);
-  const areaLabel = currentArea?.label || area;
+  const areaCode = currentArea.code;
+  const areaLabel = currentArea.label;
 
   let restaurants;
   try {
-    restaurants = await getRestaurants(areaUp);
+    restaurants = await getRestaurants(areaCode);
   } catch {
     return (
       <main className="min-h-screen px-4 py-6">
@@ -39,17 +38,17 @@ export default async function RestaurantListPage({
           href={`/${area}`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getAreaEmoji(areaUp)} {areaLabel}
+          ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
         <h1 className="text-[24px] font-bold text-text mb-6">
-          {getAreaEmoji(areaUp)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 맛집
+          {getAreaEmoji(areaCode)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 맛집
         </h1>
 
         <RestaurantListClient
           restaurants={restaurants}
           area={area}
           areaLabel={areaLabel}
-          areaEmoji={getAreaEmoji(areaUp)}
+          areaEmoji={getAreaEmoji(areaCode)}
         />
       </div>
     </main>

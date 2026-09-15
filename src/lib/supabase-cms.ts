@@ -208,6 +208,71 @@ export async function getActiveAreas(): Promise<AdminOption[]> {
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Area / Category Resolver (centralized slug → code resolution)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve area from URL slug. Returns the matching AdminOption or null.
+ * Throws Error on DB failure (so Next.js error boundary catches it).
+ */
+export async function resolveArea(slug: string): Promise<AdminOption | null> {
+  const code = slug.toUpperCase();
+  const areas = await getActiveAreas();
+  return areas.find((a) => a.code === code) ?? null;
+}
+
+/**
+ * Resolve area from admin options. Returns the matching AdminOption or null.
+ * Throws Error on DB failure.
+ */
+export async function resolveAreaFromAdmin(slug: string): Promise<AdminOption | null> {
+  const code = slug.toUpperCase();
+  const options = await getAdminOptions();
+  return options.find((o) => o.option_type === "AREA" && o.code === code && o.active !== "FALSE") ?? null;
+}
+
+/**
+ * Resolve category from admin options. Returns the matching AdminOption or null.
+ * Throws Error on DB failure.
+ */
+export async function resolveCategoryFromAdmin(slug: string): Promise<AdminOption | null> {
+  const code = slug.toUpperCase();
+  const options = await getAdminOptions();
+  return options.find((o) => o.option_type === "CATEGORY" && o.code === code && o.active !== "FALSE") ?? null;
+}
+
+/**
+ * Resolve common category from categories table. Returns the matching AdminOption or null.
+ * Throws Error on DB failure.
+ */
+export async function resolveCommonCategory(slug: string): Promise<AdminOption | null> {
+  const code = slug.toUpperCase();
+  const categories = await getCommonCategories();
+  return categories.find((c) => c.code === code) ?? null;
+}
+
+/**
+ * Resolve area from URL slug using layout-safe approach (no throw on DB error).
+ * Falls back to AREA_BG lookup if DB fails.
+ */
+export async function resolveAreaLayout(slug: string): Promise<{ code: string; bgClass: string }> {
+  const code = slug.toUpperCase();
+  const AREA_BG: Record<string, string> = {
+    DOS: "bg-dos",
+    BEPPU: "bg-beppu",
+    ALL: "bg-main",
+  };
+  try {
+    const areas = await getActiveAreas();
+    const found = areas.find((a) => a.code === code);
+    if (found) return { code: found.code, bgClass: AREA_BG[found.code] ?? "bg-main" };
+  } catch {
+    // DB error: fall through to fallback
+  }
+  return { code, bgClass: AREA_BG[code] ?? "bg-main" };
+}
+
 export async function getActiveCategories(): Promise<AdminOption[]> {
   const { data, error } = await db()
     .from('categories')
