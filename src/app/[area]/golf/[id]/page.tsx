@@ -1,9 +1,18 @@
 import { notFound } from "next/navigation";
-import { getGolfCourseById, getFaq, getRestaurants, getContentSections } from "@/lib/supabase-cms";
+import { getGolfCourseById, getGolfCourses, getFaqForEntity, getRestaurantsNearEntity, getContentSections } from "@/lib/supabase-cms";
 import type { FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { GolfDetailClient } from "./GolfDetailClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  try {
+    const courses = await getGolfCourses();
+    return courses.map((c) => ({ area: c.area.toLowerCase(), id: c.slug }));
+  } catch {
+    return [];
+  }
+}
 
 export default async function GolfDetailPage({
   params,
@@ -26,35 +35,16 @@ export default async function GolfDetailPage({
 
   if (!course || course.area.toUpperCase() !== area.toUpperCase()) notFound();
 
-  // Get related FAQs
-  let faqs: FaqItem[] = [];
-  try {
-    faqs = (await getFaq(area.toUpperCase(), "GOLF")).filter(
-      (f) =>
-        f.question_scope === "AREA" ||
-        (f.related_type === "GOLF" && f.related_id === id)
-    );
-  } catch {
-    faqs = [];
-  }
+  // Parallel fetch: all independent queries run concurrently
+  const results = await Promise.allSettled([
+    getFaqForEntity(area.toUpperCase(), "GOLF", id),
+    getRestaurantsNearEntity(area.toUpperCase(), "GOLF", id),
+    getContentSections("GOLF", id),
+  ]);
 
-  // Get nearby restaurants
-  let restaurants: Restaurant[] = [];
-  try {
-    restaurants = (await getRestaurants(area.toUpperCase())).filter(
-      (r) => r.near_type === "GOLF" && r.near_id === id
-    );
-  } catch {
-    restaurants = [];
-  }
-
-  // Get content sections
-  let contentSections: ContentSection[] = [];
-  try {
-    contentSections = await getContentSections("GOLF", id);
-  } catch {
-    contentSections = [];
-  }
+  const faqs: FaqItem[] = results[0].status === "fulfilled" ? results[0].value : [];
+  const restaurants: Restaurant[] = results[1].status === "fulfilled" ? results[1].value : [];
+  const contentSections: ContentSection[] = results[2].status === "fulfilled" ? results[2].value : [];
 
   return (
     <GolfDetailClient

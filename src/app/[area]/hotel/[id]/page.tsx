@@ -1,15 +1,25 @@
 import { notFound } from "next/navigation";
 import {
   getHotelById,
-  getFaq,
-  getTravelTimes,
-  getRestaurants,
+  getHotels,
+  getFaqForEntity,
+  getTravelTimesForHotel,
+  getRestaurantsNearEntity,
   getContentSections,
 } from "@/lib/supabase-cms";
 import type { TravelTime, FaqItem, Restaurant, ContentSection } from "@/lib/types";
 import { HotelDetailClient } from "./HotelDetailClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  try {
+    const hotels = await getHotels();
+    return hotels.map((h) => ({ area: h.area.toLowerCase(), id: h.slug }));
+  } catch {
+    return [];
+  }
+}
 
 export default async function HotelDetailPage({
   params,
@@ -32,42 +42,18 @@ export default async function HotelDetailPage({
 
   if (!hotel || hotel.area.toUpperCase() !== area.toUpperCase()) notFound();
 
-  let travelTimes: TravelTime[] = [];
-  try {
-    travelTimes = (await getTravelTimes(area.toUpperCase())).filter(
-      (t) => t.hotel_id === id
-    );
-  } catch {
-    travelTimes = [];
-  }
+  // Parallel fetch: all independent queries run concurrently
+  const results = await Promise.allSettled([
+    getTravelTimesForHotel(id),
+    getFaqForEntity(area.toUpperCase(), "HOTEL", id),
+    getRestaurantsNearEntity(area.toUpperCase(), "HOTEL", id),
+    getContentSections("HOTEL", id),
+  ]);
 
-  let faqs: FaqItem[] = [];
-  try {
-    faqs = (await getFaq(area.toUpperCase(), "HOTEL")).filter(
-      (f) =>
-        f.question_scope === "AREA" ||
-        (f.related_type === "HOTEL" && f.related_id === id)
-    );
-  } catch {
-    faqs = [];
-  }
-
-  let restaurants: Restaurant[] = [];
-  try {
-    restaurants = (await getRestaurants(area.toUpperCase())).filter(
-      (r) => r.near_type === "HOTEL" && r.near_id === id
-    );
-  } catch {
-    restaurants = [];
-  }
-
-  // Get content sections
-  let contentSections: ContentSection[] = [];
-  try {
-    contentSections = await getContentSections("HOTEL", id);
-  } catch {
-    contentSections = [];
-  }
+  const travelTimes: TravelTime[] = results[0].status === "fulfilled" ? results[0].value : [];
+  const faqs: FaqItem[] = results[1].status === "fulfilled" ? results[1].value : [];
+  const restaurants: Restaurant[] = results[2].status === "fulfilled" ? results[2].value : [];
+  const contentSections: ContentSection[] = results[3].status === "fulfilled" ? results[3].value : [];
 
   return (
     <HotelDetailClient

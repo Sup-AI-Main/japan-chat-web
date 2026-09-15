@@ -1,11 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurantById, getContentSections } from "@/lib/supabase-cms";
+import { getRestaurantById, getRestaurants, getContentSections } from "@/lib/supabase-cms";
 import { getCategoryEmoji } from "@/lib/display";
 import type { ContentSection } from "@/lib/types";
 import RestaurantDetailClient from "./RestaurantDetailClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  try {
+    const restaurants = await getRestaurants();
+    return restaurants.map((r) => ({ area: r.area.toLowerCase(), id: r.slug }));
+  } catch {
+    return [];
+  }
+}
 
 export default async function RestaurantDetailPage({
   params,
