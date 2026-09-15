@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveArea, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getAreaEntitySummaries } from "@/lib/supabase-cms";
+import { resolveArea, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getAreaEntitySummaryMap } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
@@ -21,12 +21,11 @@ export default async function AreaPage({
   const areaLabel = currentArea.label;
 
   // 병렬 fetch: 독립적인 데이터를 동시에 가져옴
-  const [categories, allFaq, travelTimes, hotelsSummary, golfSummary, commonCats] = await Promise.all([
+  const [categories, allFaq, travelTimes, entityMap, commonCats] = await Promise.all([
     getAreaCategories(),
     getFaq(areaCode).catch(() => [] as FaqItem[]),
     getTravelTimes(areaCode).catch(() => [] as TravelTime[]),
-    getAreaEntitySummaries(areaCode, 'HOTEL').catch(() => [] as { id: string; name: string }[]),
-    getAreaEntitySummaries(areaCode, 'GOLF').catch(() => [] as { id: string; name: string }[]),
+    getAreaEntitySummaryMap(areaCode).catch(() => ({ hotels: [] as { id: string; name: string }[], golfCourses: [] as { id: string; name: string }[] })),
     getCommonCategories(),
   ]);
 
@@ -36,8 +35,8 @@ export default async function AreaPage({
   }));
 
   const popularFaqs = allFaq.slice(0, 3);
-  const hotels = hotelsSummary;
-  const golfCourses = golfSummary;
+  const hotels = entityMap.hotels;
+  const golfCourses = entityMap.golfCourses;
   const commonCodes = new Set(commonCats.map((c) => c.code));
 
   return (

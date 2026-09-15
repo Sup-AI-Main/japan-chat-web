@@ -131,6 +131,46 @@ export async function getAreaEntitySummaries(
   return (data || []).map((e) => ({ id: e.slug, name: e.display_name }));
 }
 
+/**
+ * Single-query version: fetches HOTEL + GOLF entity names in one DB call.
+ * Returns grouped results to replace two separate getAreaEntitySummaries calls.
+ */
+export async function getAreaEntitySummaryMap(
+  areaCode: string
+): Promise<{
+  hotels: { id: string; name: string }[];
+  golfCourses: { id: string; name: string }[];
+}> {
+  const empty = {
+    hotels: [] as { id: string; name: string }[],
+    golfCourses: [] as { id: string; name: string }[],
+  };
+  const areaId = await resolveAreaId(areaCode);
+  if (!areaId) return empty;
+
+  const { data, error } = await db()
+    .from('entities')
+    .select('slug, display_name, entity_type')
+    .in('entity_type', ['HOTEL', 'GOLF'])
+    .eq('area_id', areaId)
+    .eq('active', true)
+    .order('sort');
+
+  if (error) {
+    logError('READ', 'entities', undefined, error);
+    return empty;
+  }
+
+  const hotels: { id: string; name: string }[] = [];
+  const golfCourses: { id: string; name: string }[] = [];
+  for (const e of data || []) {
+    const item = { id: e.slug, name: e.display_name };
+    if (e.entity_type === 'HOTEL') hotels.push(item);
+    else if (e.entity_type === 'GOLF') golfCourses.push(item);
+  }
+  return { hotels, golfCourses };
+}
+
 async function resolveEntityIdBySlug(slug: string): Promise<string | null> {
   const { data, error } = await db().from('entities').select('id').eq('slug', slug).single();
   if (error) return null;
