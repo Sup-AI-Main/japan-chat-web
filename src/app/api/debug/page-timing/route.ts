@@ -19,7 +19,10 @@ async function timed<T>(label: string, fn: () => Promise<T>): Promise<{ label: s
   try {
     const result = await fn();
     if (Array.isArray(result)) rows = result.length;
-    else if (result && typeof result === 'object' && 'hotels' in result) rows = (result as { hotels: unknown[] }).hotels.length + (result as { golfCourses: unknown[] }).golfCourses.length;
+    else if (result && typeof result === 'object' && 'hotels' in result) {
+      const m = result as { hotels: unknown[]; golfCourses: unknown[] };
+      rows = m.hotels.length + m.golfCourses.length;
+    }
     else if (result) rows = 1;
   } catch {
     ok = false;
@@ -55,7 +58,7 @@ export async function GET() {
 
   // Sequential sum of NEW approach
   const seqTotal = Object.values(timings)
-    .filter((t): t is { ms: number } => typeof t === 'object' && t !== null && 'ms' in t && !String(t.label).startsWith('old_'))
+    .filter((t): t is { ms: number; label: string } => typeof t === 'object' && t !== null && 'ms' in t && 'label' in t && !String((t as Record<string, unknown>).label).startsWith('old_'))
     .reduce((sum, t) => sum + t.ms, 0);
 
   // Parallel measurement: NEW approach (5 queries)
