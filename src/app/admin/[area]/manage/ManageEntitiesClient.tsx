@@ -224,13 +224,12 @@ export default function ManageEntitiesClient({
 
   const hotelsForTravelTime = hotels.map((h) => ({
     id: h.id,
-    name_kr: h.name_kr || h.official_name || "",
-    official_name: h.official_name || "",
+    name: h.name_kr || h.official_name || "",
   }));
 
   const golfForTravelTime = golfCourses.map((g) => ({
     id: g.id,
-    display_name: g.display_name || g.official_name || "",
+    name: g.display_name || g.official_name || "",
   }));
 
   return (

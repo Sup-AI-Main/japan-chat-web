@@ -5,7 +5,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { useToast, Toast } from "@/components/Toast";
-import type { TravelTime, Hotel, GolfCourse } from "@/lib/types";
+import type { TravelTime } from "@/lib/types";
 
 interface TravelTimeEditData {
   id?: string;
@@ -20,8 +20,8 @@ interface TravelTimeEditData {
 
 interface AreaTravelTimesClientProps {
   initialTravelTimes: TravelTime[];
-  hotels: Pick<Hotel, "id" | "name_kr" | "official_name">[];
-  golfCourses: Pick<GolfCourse, "id" | "display_name">[];
+  hotels: { id: string; name: string }[];
+  golfCourses: { id: string; name: string }[];
   area: string;
 }
 
@@ -35,8 +35,8 @@ function TravelTimeEditModal({
   onSaved,
 }: {
   data: TravelTimeEditData | null;
-  hotels: Pick<Hotel, "id" | "name_kr" | "official_name">[];
-  golfCourses: Pick<GolfCourse, "id" | "display_name">[];
+  hotels: { id: string; name: string }[];
+  golfCourses: { id: string; name: string }[];
   area: string;
   open: boolean;
   onClose: () => void;
@@ -115,7 +115,7 @@ function TravelTimeEditModal({
               <option value="">호텔 선택</option>
               {hotels.map((h) => (
                 <option key={h.id} value={h.id}>
-                  {h.name_kr || h.official_name}
+                  {h.name}
                 </option>
               ))}
             </select>
@@ -132,7 +132,7 @@ function TravelTimeEditModal({
               <option value="">골프장 선택</option>
               {golfCourses.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.display_name}
+                  {g.name}
                 </option>
               ))}
             </select>
@@ -213,8 +213,8 @@ export default function AreaTravelTimesClient({
     setEditTarget(null);
   }, []);
 
-  const hotelMap = new Map(hotels.map((h) => [h.id, h.name_kr || h.official_name]));
-  const golfMap = new Map(golfCourses.map((g) => [g.id, g.display_name]));
+  const hotelMap = new Map(hotels.map((h) => [h.id, h.name]));
+  const golfMap = new Map(golfCourses.map((g) => [g.id, g.name]));
 
   // Group by hotel
   const grouped = new Map<string, { hotelName: string; courses: TravelTime[] }>();

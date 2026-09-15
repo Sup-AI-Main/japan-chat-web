@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveArea, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getHotels, getGolfCourses } from "@/lib/supabase-cms";
+import { resolveArea, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getAreaEntitySummaries } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
+import { routes } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -19,45 +20,24 @@ export default async function AreaPage({
   const areaCode = currentArea.code;
   const areaLabel = currentArea.label;
 
-  // group=AREA 카테고리만 표시 (admin_options 기반)
-  const categories = await getAreaCategories();
+  // 병렬 fetch: 독립적인 데이터를 동시에 가져옴
+  const [categories, allFaq, travelTimes, hotelsSummary, golfSummary, commonCats] = await Promise.all([
+    getAreaCategories(),
+    getFaq(areaCode).catch(() => [] as FaqItem[]),
+    getTravelTimes(areaCode).catch(() => [] as TravelTime[]),
+    getAreaEntitySummaries(areaCode, 'HOTEL').catch(() => [] as { id: string; name: string }[]),
+    getAreaEntitySummaries(areaCode, 'GOLF').catch(() => [] as { id: string; name: string }[]),
+    getCommonCategories(),
+  ]);
 
   const categoryLinks = categories.map((cat) => ({
     ...cat,
     slug: cat.code.toLowerCase(),
   }));
 
-  // 인기 FAQ: 해당 지역의 모든 FAQ에서 상위 3개
-  let popularFaqs: FaqItem[] = [];
-  try {
-    const allFaq = await getFaq(areaCode);
-    popularFaqs = allFaq.slice(0, 3);
-  } catch {
-    // Silently handle
-  }
-
-  // 해당 지역의 차량 이동시간
-  let travelTimes: TravelTime[] = [];
-  try {
-    travelTimes = await getTravelTimes(areaCode);
-  } catch {
-    travelTimes = [];
-  }
-
-  // 호텔/골프장 목록 (관리자 dropdown용)
-  let hotels: { id: string; name_kr: string; official_name: string }[] = [];
-  let golfCourses: { id: string; display_name: string }[] = [];
-  try {
-    const allHotels = await getHotels(areaCode);
-    hotels = allHotels.map((h) => ({ id: h.id, name_kr: h.name_kr || '', official_name: h.official_name }));
-  } catch { /* silent */ }
-  try {
-    const allGolf = await getGolfCourses(areaCode);
-    golfCourses = allGolf.map((g) => ({ id: g.id, display_name: g.display_name }));
-  } catch { /* silent */ }
-
-  // 공통 카테고리 코드 목록 (FAQ 링크 분기용)
-  const commonCats = await getCommonCategories();
+  const popularFaqs = allFaq.slice(0, 3);
+  const hotels = hotelsSummary;
+  const golfCourses = golfSummary;
   const commonCodes = new Set(commonCats.map((c) => c.code));
 
   return (
@@ -65,7 +45,7 @@ export default async function AreaPage({
       <div className="max-w-[720px] mx-auto">
         <div className="mb-6">
           <Link
-            href="/"
+            href={routes.home()}
             className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
           >
             ← 지역 변경
@@ -80,6 +60,7 @@ export default async function AreaPage({
             <Link
               key={cat.code}
               href={`/${area}/${cat.slug}`}
+              prefetch={false}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{
                 backgroundColor: getCategoryBg(cat.code),
@@ -111,12 +92,13 @@ export default async function AreaPage({
               {popularFaqs.map((faq) => {
                 const isCommon = commonCodes.has(faq.category);
                 const faqLink = isCommon
-                  ? `/guide/${faq.category.toLowerCase()}`
+                  ? routes.guideCategory(faq.category.toLowerCase())
                   : `/${area}/${faq.category.toLowerCase()}`;
                 return (
                   <Link
                     key={faq.id}
                     href={faqLink}
+                    prefetch={false}
                     className="block bg-surface border border-border rounded-[8px] p-3 hover:border-primary"
                   >
                     <span className="text-[15px] text-text">

@@ -53,20 +53,29 @@ function isActive(v: unknown): boolean {
 // Cache for area/category lookups to avoid repeated queries
 let _areaCache: Map<string, string> | null = null; // code → id
 let _categoryCache: Map<string, string> | null = null; // code → id
+let _areaIdCache: Map<string, string> | null = null; // id → code
+let _categoryIdCache: Map<string, string> | null = null; // id → code
+let _areaCacheTime = 0;
+let _categoryCacheTime = 0;
+const CACHE_TTL = 60_000; // 60s
 
 async function getAreaCodeMap(): Promise<Map<string, string>> {
-  if (_areaCache) return _areaCache;
+  if (_areaCache && Date.now() - _areaCacheTime < CACHE_TTL) return _areaCache;
   const { data, error } = await db().from('areas').select('id, code');
   if (error) throw error;
   _areaCache = new Map((data || []).map((a) => [a.code, a.id]));
+  _areaIdCache = new Map((data || []).map((a) => [a.id, a.code]));
+  _areaCacheTime = Date.now();
   return _areaCache;
 }
 
 async function getCategoryCodeMap(): Promise<Map<string, string>> {
-  if (_categoryCache) return _categoryCache;
+  if (_categoryCache && Date.now() - _categoryCacheTime < CACHE_TTL) return _categoryCache;
   const { data, error } = await db().from('categories').select('id, code');
   if (error) throw error;
   _categoryCache = new Map((data || []).map((c) => [c.code, c.id]));
+  _categoryIdCache = new Map((data || []).map((c) => [c.id, c.code]));
+  _categoryCacheTime = Date.now();
   return _categoryCache;
 }
 
@@ -80,37 +89,52 @@ async function resolveCategoryId(code: string): Promise<string | null> {
   return map.get(code.toUpperCase()) ?? null;
 }
 
+/** Invalidate area lookup caches (call after area CRUD) */
+export function invalidateAreaCache() {
+  _areaCache = null;
+  _areaIdCache = null;
+  _areaCacheTime = 0;
+}
+
+/** Invalidate category lookup caches (call after category CRUD) */
+export function invalidateCategoryCache() {
+  _categoryCache = null;
+  _categoryIdCache = null;
+  _categoryCacheTime = 0;
+}
+
+/**
+ * Lightweight entity name query — entities table only, no joins.
+ * Used by area main page for admin travel-time edit dropdowns.
+ * Returns slug (used as id in UI) + display_name.
+ */
+export async function getAreaEntitySummaries(
+  areaCode: string,
+  entityType: 'HOTEL' | 'GOLF'
+): Promise<{ id: string; name: string }[]> {
+  const areaId = await resolveAreaId(areaCode);
+  if (!areaId) return [];
+
+  const { data, error } = await db()
+    .from('entities')
+    .select('slug, display_name')
+    .eq('entity_type', entityType)
+    .eq('area_id', areaId)
+    .eq('active', true)
+    .order('sort');
+
+  if (error) {
+    logError('READ', 'entities', undefined, error);
+    return [];
+  }
+
+  return (data || []).map((e) => ({ id: e.slug, name: e.display_name }));
+}
+
 async function resolveEntityIdBySlug(slug: string): Promise<string | null> {
   const { data, error } = await db().from('entities').select('id').eq('slug', slug).single();
   if (error) return null;
   return data?.id ?? null;
-}
-
-// Reverse lookups (UUID → code/slug)
-async function resolveAreaCode(areaId: string): Promise<string> {
-  const { data } = await db().from('areas').select('code').eq('id', areaId).single();
-  return data?.code ?? '';
-}
-
-async function resolveCategoryCode(categoryId: string): Promise<string> {
-  const { data } = await db().from('categories').select('code').eq('id', categoryId).single();
-  return data?.code ?? '';
-}
-
-async function resolveEntitySlug(entityId: string): Promise<string> {
-  const { data } = await db().from('entities').select('slug').eq('id', entityId).single();
-  return data?.slug ?? '';
-}
-
-// Build area code map by id for batch resolution
-async function getAreaCodeByIdMap(): Promise<Map<string, string>> {
-  const { data } = await db().from('areas').select('id, code');
-  return new Map((data || []).map((a) => [a.id, a.code]));
-}
-
-async function getCategoryCodeByIdMap(): Promise<Map<string, string>> {
-  const { data } = await db().from('categories').select('id, code');
-  return new Map((data || []).map((c) => [c.id, c.code]));
 }
 
 // Get entity + area info for building GolfCourse/Hotel/Restaurant shapes
@@ -209,17 +233,33 @@ export async function getActiveAreas(): Promise<AdminOption[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Area / Category Resolver (centralized slug → code resolution)
+// Area / Category Resolver — delegates to unified src/lib/area.ts
 // ---------------------------------------------------------------------------
+
+import { resolveAreaBySlug, type Area } from '@/lib/area';
+
+function areaToAdminOption(a: Area): AdminOption {
+  return {
+    id: a.id,
+    option_type: 'AREA',
+    code: a.code,
+    label: a.nameKr,
+    icon: a.icon,
+    description: a.description,
+    group: '',
+    active: a.active ? 'TRUE' : 'FALSE',
+    sort: a.sort,
+    updated_at: '',
+  };
+}
 
 /**
  * Resolve area from URL slug. Returns the matching AdminOption or null.
  * Throws Error on DB failure (so Next.js error boundary catches it).
  */
 export async function resolveArea(slug: string): Promise<AdminOption | null> {
-  const code = slug.toUpperCase();
-  const areas = await getActiveAreas();
-  return areas.find((a) => a.code === code) ?? null;
+  const area = await resolveAreaBySlug(slug);
+  return area ? areaToAdminOption(area) : null;
 }
 
 /**
@@ -227,9 +267,8 @@ export async function resolveArea(slug: string): Promise<AdminOption | null> {
  * Throws Error on DB failure.
  */
 export async function resolveAreaFromAdmin(slug: string): Promise<AdminOption | null> {
-  const code = slug.toUpperCase();
-  const options = await getAdminOptions();
-  return options.find((o) => o.option_type === "AREA" && o.code === code && o.active !== "FALSE") ?? null;
+  const area = await resolveAreaBySlug(slug);
+  return area ? areaToAdminOption(area) : null;
 }
 
 /**
@@ -239,7 +278,10 @@ export async function resolveAreaFromAdmin(slug: string): Promise<AdminOption | 
 export async function resolveCategoryFromAdmin(slug: string): Promise<AdminOption | null> {
   const code = slug.toUpperCase();
   const options = await getAdminOptions();
-  return options.find((o) => o.option_type === "CATEGORY" && o.code === code && o.active !== "FALSE") ?? null;
+  return (
+    options.find((o) => o.option_type === 'CATEGORY' && o.code === code && o.active !== 'FALSE') ??
+    null
+  );
 }
 
 /**
@@ -259,18 +301,17 @@ export async function resolveCommonCategory(slug: string): Promise<AdminOption |
 export async function resolveAreaLayout(slug: string): Promise<{ code: string; bgClass: string }> {
   const code = slug.toUpperCase();
   const AREA_BG: Record<string, string> = {
-    DOS: "bg-dos",
-    BEPPU: "bg-beppu",
-    ALL: "bg-main",
+    DOS: 'bg-dos',
+    BEPPU: 'bg-beppu',
+    ALL: 'bg-main',
   };
   try {
-    const areas = await getActiveAreas();
-    const found = areas.find((a) => a.code === code);
-    if (found) return { code: found.code, bgClass: AREA_BG[found.code] ?? "bg-main" };
+    const area = await resolveAreaBySlug(slug);
+    if (area) return { code: area.code, bgClass: AREA_BG[area.code] ?? 'bg-main' };
   } catch {
     // DB error: fall through to fallback
   }
-  return { code, bgClass: AREA_BG[code] ?? "bg-main" };
+  return { code, bgClass: AREA_BG[code] ?? 'bg-main' };
 }
 
 export async function getActiveCategories(): Promise<AdminOption[]> {
@@ -1278,28 +1319,15 @@ export async function deleteTravelTime(id: string): Promise<boolean> {
 // FAQ
 // ---------------------------------------------------------------------------
 
-async function mapFaqRow(
-  row: Record<string, unknown>,
-  areaCodeById: Map<string, string>,
-  categoryCodeById: Map<string, string>,
-  relatedEntityMap: Map<string, { slug: string; display_name: string }>
-): Promise<FaqItem> {
-  const areaId = row.area_id as string | null;
-  const categoryId = row.category_id as string | null;
-  const relatedEntityId = row.related_entity_id as string | null;
+function mapFaqRow(row: Record<string, unknown>): FaqItem {
+  const areaRelation = row.area as { code: string } | null;
+  const categoryRelation = row.category as { code: string } | null;
+  const entityRelation = row.related_entity as { slug: string; display_name: string } | null;
 
-  const areaCode = areaId ? areaCodeById.get(areaId) || '' : 'ALL';
-  const categoryCode = categoryId ? categoryCodeById.get(categoryId) || '' : '';
-
-  let relatedSlug = '';
-  let relatedName = '';
-  if (relatedEntityId) {
-    const relEntity = relatedEntityMap.get(relatedEntityId);
-    if (relEntity) {
-      relatedSlug = relEntity.slug;
-      relatedName = relEntity.display_name;
-    }
-  }
+  const areaCode = areaRelation?.code ?? 'ALL';
+  const categoryCode = categoryRelation?.code ?? '';
+  const relatedSlug = entityRelation?.slug ?? '';
+  const relatedName = entityRelation?.display_name ?? '';
 
   return {
     id: row.id as string,
@@ -1320,35 +1348,30 @@ async function mapFaqRow(
 }
 
 export async function getFaq(area?: string, category?: string): Promise<FaqItem[]> {
-  const [areaCodeById, categoryCodeById] = await Promise.all([
-    getAreaCodeByIdMap(),
-    getCategoryCodeByIdMap(),
+  // Resolve area/category IDs for filtering (cached)
+  const [areaId, catId] = await Promise.all([
+    area && area.toUpperCase() !== 'ALL' ? resolveAreaId(area) : Promise.resolve(null),
+    category ? resolveCategoryId(category) : Promise.resolve(null),
   ]);
 
+  // Single query with relation join — no separate map lookups or entity batch
   let query = db()
     .from('faq')
     .select(
-      'id, area_id, category_id, related_entity_id, scope, question, answer, source_url, status, active, sort, updated_at'
+      'id, scope, question, answer, source_url, status, active, sort, updated_at, area:areas(code), category:categories(code), related_entity:entities!related_entity_id(slug, display_name)'
     )
     .eq('active', true);
 
-  // Area filter: match specific area OR common (area_id IS NULL)
   if (area && area.toUpperCase() !== 'ALL') {
-    const areaId = await resolveAreaId(area);
     if (areaId) {
-      // We need OR logic: area_id = areaId OR area_id IS NULL
-      // Supabase doesn't support OR directly in filter, so use .or()
       query = query.or(`area_id.eq.${areaId},area_id.is.null`);
     }
   } else if (area && area.toUpperCase() === 'ALL') {
     query = query.is('area_id', null);
   }
 
-  if (category) {
-    const catId = await resolveCategoryId(category);
-    if (catId) {
-      query = query.eq('category_id', catId);
-    }
+  if (category && catId) {
+    query = query.eq('category_id', catId);
   }
 
   const { data, error } = await query.order('sort');
@@ -1357,42 +1380,23 @@ export async function getFaq(area?: string, category?: string): Promise<FaqItem[
     throw error;
   }
 
-  // Batch-fetch related entities to avoid N+1
-  const relatedIds = [
-    ...new Set((data || []).map((r) => r.related_entity_id).filter(Boolean)),
-  ] as string[];
-  const relatedEntityMap = new Map<string, { slug: string; display_name: string }>();
-  if (relatedIds.length > 0) {
-    const { data: relEntities } = await db()
-      .from('entities')
-      .select('id, slug, display_name')
-      .in('id', relatedIds);
-    for (const e of relEntities || []) {
-      relatedEntityMap.set(e.id, { slug: e.slug, display_name: e.display_name });
-    }
-  }
-
-  const results: FaqItem[] = [];
-  for (const row of data || []) {
-    results.push(await mapFaqRow(row, areaCodeById, categoryCodeById, relatedEntityMap));
-  }
-  return results;
+  return (data || []).map(mapFaqRow);
 }
 
 export async function getAdminFaqs(area?: string, category?: string): Promise<FaqItem[]> {
-  const [areaCodeById, categoryCodeById] = await Promise.all([
-    getAreaCodeByIdMap(),
-    getCategoryCodeByIdMap(),
+  const [areaId, catId] = await Promise.all([
+    area && area.toUpperCase() !== 'ALL' ? resolveAreaId(area) : Promise.resolve(null),
+    category ? resolveCategoryId(category) : Promise.resolve(null),
   ]);
 
+  // Admin: no active filter, include inactive
   let query = db()
     .from('faq')
     .select(
-      'id, area_id, category_id, related_entity_id, scope, question, answer, source_url, status, active, sort, updated_at'
+      'id, scope, question, answer, source_url, status, active, sort, updated_at, area:areas(code), category:categories(code), related_entity:entities!related_entity_id(slug, display_name)'
     );
 
   if (area && area.toUpperCase() !== 'ALL') {
-    const areaId = await resolveAreaId(area);
     if (areaId) {
       query = query.or(`area_id.eq.${areaId},area_id.is.null`);
     }
@@ -1400,11 +1404,8 @@ export async function getAdminFaqs(area?: string, category?: string): Promise<Fa
     query = query.is('area_id', null);
   }
 
-  if (category) {
-    const catId = await resolveCategoryId(category);
-    if (catId) {
-      query = query.eq('category_id', catId);
-    }
+  if (category && catId) {
+    query = query.eq('category_id', catId);
   }
 
   const { data, error } = await query.order('sort');
@@ -1413,38 +1414,14 @@ export async function getAdminFaqs(area?: string, category?: string): Promise<Fa
     throw error;
   }
 
-  // Batch-fetch related entities to avoid N+1
-  const relatedIds = [
-    ...new Set((data || []).map((r) => r.related_entity_id).filter(Boolean)),
-  ] as string[];
-  const relatedEntityMap = new Map<string, { slug: string; display_name: string }>();
-  if (relatedIds.length > 0) {
-    const { data: relEntities } = await db()
-      .from('entities')
-      .select('id, slug, display_name')
-      .in('id', relatedIds);
-    for (const e of relEntities || []) {
-      relatedEntityMap.set(e.id, { slug: e.slug, display_name: e.display_name });
-    }
-  }
-
-  const results: FaqItem[] = [];
-  for (const row of data || []) {
-    results.push(await mapFaqRow(row, areaCodeById, categoryCodeById, relatedEntityMap));
-  }
-  return results;
+  return (data || []).map(mapFaqRow);
 }
 
 export async function getFaqById(id: string): Promise<FaqItem | null> {
-  const [areaCodeById, categoryCodeById] = await Promise.all([
-    getAreaCodeByIdMap(),
-    getCategoryCodeByIdMap(),
-  ]);
-
   const { data, error } = await db()
     .from('faq')
     .select(
-      'id, area_id, category_id, related_entity_id, scope, question, answer, source_url, status, active, sort, updated_at'
+      'id, scope, question, answer, source_url, status, active, sort, updated_at, area:areas(code), category:categories(code), related_entity:entities!related_entity_id(slug, display_name)'
     )
     .eq('id', id)
     .single();
@@ -1453,22 +1430,7 @@ export async function getFaqById(id: string): Promise<FaqItem | null> {
     logError('READ', 'faq', id, error);
     throw error;
   }
-  // Batch-fetch related entity (single item)
-  const relatedEntityMap = new Map<string, { slug: string; display_name: string }>();
-  if (data.related_entity_id) {
-    const { data: relEntity } = await db()
-      .from('entities')
-      .select('id, slug, display_name')
-      .eq('id', data.related_entity_id)
-      .single();
-    if (relEntity) {
-      relatedEntityMap.set(relEntity.id, {
-        slug: relEntity.slug,
-        display_name: relEntity.display_name,
-      });
-    }
-  }
-  return mapFaqRow(data, areaCodeById, categoryCodeById, relatedEntityMap);
+  return mapFaqRow(data);
 }
 
 export async function appendFaq(data: Record<string, string>): Promise<string> {
