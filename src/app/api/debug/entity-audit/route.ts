@@ -19,8 +19,8 @@ export async function GET() {
   const { data: categories } = await db.from('categories').select('id, code, label, group_type');
 
   const entityRows = (entities || []).map((e) => {
-    const areaRel = e.areas as { code: string } | null;
-    const catRel = e.categories as { code: string } | null;
+    const areaRel = Array.isArray(e.areas) ? e.areas[0] as { code: string } | undefined : e.areas as { code: string } | null;
+    const catRel = Array.isArray(e.categories) ? e.categories[0] as { code: string } | undefined : e.categories as { code: string } | null;
     return {
       slug: e.slug,
       display_name: e.display_name,
