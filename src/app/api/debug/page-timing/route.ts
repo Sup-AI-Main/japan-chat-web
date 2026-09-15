@@ -20,7 +20,7 @@ async function timed<T>(label: string, fn: () => Promise<T>): Promise<{ label: s
     const result = await fn();
     if (Array.isArray(result)) rows = result.length;
     else if (result && typeof result === 'object' && 'hotels' in result) {
-      const m = result as { hotels: unknown[]; golfCourses: unknown[] };
+      const m = result as unknown as { hotels: unknown[]; golfCourses: unknown[] };
       rows = m.hotels.length + m.golfCourses.length;
     }
     else if (result) rows = 1;
