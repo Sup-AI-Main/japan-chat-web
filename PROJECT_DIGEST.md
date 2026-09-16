@@ -21,6 +21,23 @@
 - Apply utility-first Tailwind CSS.
 - Keep components modular and atomic.
 
+## Rendering Architecture (ISR)
+
+All public pages use standard Next.js ISR (Incremental Static Regeneration).
+
+- `generateStaticParams` on all public pages/layouts for build-time prerender
+- `export const revalidate` per route (300s list, 60s detail, 3600s guide/faq)
+- `force-dynamic` only on admin pages and debug APIs
+- `cacheComponents: true` is NOT used (rolled back 2026-09)
+- DB queries use `Promise.allSettled` for parallel execution
+- Public read functions in `src/lib/supabase-cms.ts` (no cookies/headers)
+
+### Performance Targets
+
+- List pages: ~60ms warm (SSG + ISR HIT)
+- Detail pages: ~60ms warm (SSG + ISR HIT)
+- Cold start: <6s (first request after deploy)
+
 ## Admin Modal System
 
 All admin CRUD modals use a shared shell architecture:

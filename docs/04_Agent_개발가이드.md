@@ -189,17 +189,43 @@ deleteRestaurantRow(id)
 
 ---
 
-# 7. 캐시
+# 7. 캐시 / ISR
 
-Next.js 환경에 맞는 서버 캐시 사용.
+## 렌더링 전략
 
-고객:
+모든 public 페이지는 표준 ISR(Incremental Static Regeneration)을 사용한다.
 
-- 10~30분
+`cacheComponents: true`는 사용하지 않는다. (2026-09 롤백 완료)
 
-관리자 저장:
+## revalidate 설정
 
-- 저장 후 관련 캐시 무효화
+| 경로 | revalidate | 비고 |
+|------|-----------|------|
+| `/` (homepage) | 300s | |
+| `/[area]` (area home) | 300s | generateStaticParams |
+| `/[area]/golf`, `/hotel`, `/restaurant` (list) | 300s | generateStaticParams |
+| `/[area]/golf/[id]`, `/hotel/[id]`, `/restaurant/[id]` (detail) | 60s | generateStaticParams |
+| `/guide`, `/faq` | 3600s | |
+
+## 필수 규칙
+
+- 모든 public 페이지에 `export const revalidate` 적용
+- 모든 public 페이지에 `generateStaticParams` 추가 (prerender + ISR)
+- `force-dynamic`은 admin 페이지와 debug API에만 사용
+- `prefetch={false}` 제거 (Link 기본 prefetch 사용)
+- DB 쿼리는 `Promise.allSettled`로 병렬 실행
+- over-fetch 금지: 목록은 필요한 컬럼만 select
+
+## 금지
+
+- `cacheComponents: true` 사용
+- `"use cache"` / `cacheLife` / `cacheTag` 사용
+- 페이지 전체를 Suspense로 감싸기
+- `*Cached` suffix 함수 대량 복제
+
+## 관리자 저장
+
+- 저장 후 관련 캐시 무효화 (`revalidatePath` / `revalidateTag`)
 
 ---
 

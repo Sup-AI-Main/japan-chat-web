@@ -1639,15 +1639,15 @@ Write:
 
 # 59. Performance TODO
 
-- [ ] 목록 query에 `select('*')` 없음
-- [ ] N+1 query 없음
-- [ ] 핵심 WHERE/ORDER BY index 존재
+- [x] 목록 query에 `select('*')` 없음 (타겟 select 적용)
+- [x] N+1 query 없음 (병렬 Promise.allSettled)
+- [x] 핵심 WHERE/ORDER BY index 존재
 - [ ] 관리자 dropdown 최소 컬럼
-- [ ] 큰 text 목록 query에서 제외
-- [ ] 필요 시 Promise.all 병렬화
+- [x] 큰 text 목록 query에서 제외
+- [x] 필요 시 Promise.all 병렬화 (detail 페이지 적용)
 - [ ] pagination 가능 구조
 - [ ] sort batch update 고려
-- [ ] RPC는 atomic 작업에만 사용
+- [x] RPC는 atomic 작업에만 사용
 
 ---
 
@@ -1679,12 +1679,16 @@ Write:
 
 # 62. Cache TODO
 
-- [ ] Google Sheet TTL cache 제거
-- [ ] DB read cache 전략 재설계
-- [ ] admin write 후 invalidate
-- [ ] stale F5 문제 없음
-- [ ] Zustand cache sync
-- [ ] force-dynamic 남발 없음
+- [x] Google Sheet TTL cache 제거 (완료)
+- [x] DB read cache 전략 재설계 → 표준 ISR (generateStaticParams + revalidate)
+- [x] admin write 후 invalidate (revalidatePath 사용)
+- [x] stale F5 문제 없음 (ISR HIT 확인)
+- [x] Zustand cache sync (유지)
+- [x] force-dynamic 남발 없음 (admin/debug에만 적용)
+- [x] cacheComponents 롤백 (2026-09, 표준 ISR로 복원)
+- [x] prefetch={false} 제거 (Link 기본 prefetch 사용)
+- [x] DB 쿼리 병렬화 (Promise.allSettled)
+- [x] over-fetch 제거 (타겟 쿼리: getTravelTimesForHotel, getRestaurantsNearEntity, getFaqForEntity)
 
 ---
 
