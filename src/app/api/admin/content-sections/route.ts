@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!parent_entity_id && (!parent_type || !parent_id)) {
       return badRequest("Missing required fields: either parent_entity_id or (parent_type + parent_id)");
     }
-    const id = await appendContentSection({
+    const row = await appendContentSection({
       parent_type: parent_type || "",
       parent_id: parent_id || "",
       parent_entity_id: parent_entity_id || "",
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       emoji: emoji || "",
       sort: sort || "",
     });
-    return created({ id });
+    return created(row);
   } catch (err) {
     console.error("CONTENT_SECTION_CREATE_FAIL", err);
     const msg = err instanceof Error ? err.message : "Internal Server Error";

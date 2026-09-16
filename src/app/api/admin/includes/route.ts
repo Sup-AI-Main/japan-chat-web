@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await safeJson<Record<string, string>>(req);
     if (!body) return badRequest("Empty request body");
-    const id = await appendIncludeExclude(body);
-    return created({ id });
+    const row = await appendIncludeExclude(body);
+    return created(row);
   } catch (err) {
     console.error("INCLUDES_CREATE_FAIL", err);
     const msg = err instanceof Error ? err.message : "Internal Server Error";

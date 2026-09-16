@@ -128,11 +128,22 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
           )
         );
       } else {
-        const newId = data && typeof data === 'object' && 'id' in data ? (data as { id: string }).id : '';
-        setItems((prev) => [
-          ...prev,
-          { ...body, id: newId, sort: parseInt(body.sort) || 99, updated_at: "" },
-        ]);
+        // data = { success: true, data: { ...row } } from created(row)
+        const row = data && typeof data === 'object' && 'data' in data
+          ? (data as { data: Record<string, unknown> }).data
+          : null;
+        const newItem: IncludeExclude = {
+          id: (row?.id as string) || '',
+          parent_type: parentType,
+          parent_id: parentId,
+          type: body.type,
+          text_kr: body.text_kr,
+          text_jp: body.text_jp,
+          sort: parseInt(body.sort) || 99,
+          is_visible: body.is_visible,
+          updated_at: (row?.updated_at as string) || '',
+        };
+        setItems((prev) => [...prev, newItem]);
       }
       showToast("수정 완료");
       setTimeout(() => {

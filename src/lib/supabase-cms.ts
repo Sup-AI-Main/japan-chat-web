@@ -1910,7 +1910,9 @@ export async function getContentSections(
   return results;
 }
 
-export async function appendContentSection(data: Record<string, string>): Promise<string> {
+export async function appendContentSection(
+  data: Record<string, string>
+): Promise<Record<string, unknown>> {
   let entityId: string | null = null;
   if (data.parent_entity_id) {
     entityId = data.parent_entity_id;
@@ -1931,13 +1933,13 @@ export async function appendContentSection(data: Record<string, string>): Promis
       sort: parseInt(data.sort || '999') || 999,
       is_visible: data.is_visible !== 'FALSE',
     })
-    .select('id')
+    .select('*')
     .single();
   if (error) {
     logError('INSERT', 'content_sections', data.parent_id, error);
     throw error;
   }
-  return row?.id || '';
+  return row || {};
 }
 
 export async function updateContentSection(
@@ -2056,7 +2058,9 @@ export async function getIncludesExcludes(
   return results;
 }
 
-export async function appendIncludeExclude(data: Record<string, string>): Promise<string> {
+export async function appendIncludeExclude(
+  data: Record<string, string>
+): Promise<Record<string, unknown>> {
   let entityId: string | null = null;
   if (data.parent_entity_id) {
     entityId = data.parent_entity_id;
@@ -2075,13 +2079,13 @@ export async function appendIncludeExclude(data: Record<string, string>): Promis
       text_kr: data.text_kr || '',
       sort: parseInt(data.sort || '999') || 999,
     })
-    .select('id')
+    .select('*')
     .single();
   if (error) {
     logError('INSERT', 'includes_excludes', data.parent_id, error);
     throw error;
   }
-  return row?.id || '';
+  return row || {};
 }
 
 export async function updateIncludeExclude(

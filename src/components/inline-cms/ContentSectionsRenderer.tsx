@@ -385,8 +385,10 @@ function ContentSectionModal({
           throw new Error(data.error || "추가에 실패했습니다.");
         }
         const data = await res.json();
+        // data = { success: true, data: { ...row } } from created(row)
+        const row = data?.data || {};
         onSaved({
-          id: data.id,
+          id: row.id,
           parent_type: parentType,
           parent_id: parentId,
           title: title.trim(),
@@ -394,7 +396,7 @@ function ContentSectionModal({
           emoji: emoji.trim(),
           sort: sort ? parseInt(sort, 10) : 99,
           is_visible: isVisible ? "TRUE" : "FALSE",
-          updated_at: new Date().toISOString(),
+          updated_at: row.updated_at || new Date().toISOString(),
         });
       }
     } catch (err) {
