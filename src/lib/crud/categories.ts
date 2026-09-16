@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { logChange } from "@/lib/crud/change-log";
 import { requireFields, toInt, toStr } from "@/lib/crud/validation";
 import { ConflictError } from "@/lib/types";
+import { invalidateCategoryCache } from "@/lib/supabase-cms";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,6 +108,7 @@ export async function createCategory(
     afterJson: row,
   });
 
+  invalidateCategoryCache();
   return row as CategoryRow;
 }
 
@@ -172,6 +174,7 @@ export async function updateCategory(
     afterJson: updated,
   });
 
+  invalidateCategoryCache();
   return updated as CategoryRow;
 }
 
@@ -205,4 +208,5 @@ export async function getCategoryImpactReport(id: string): Promise<CategoryImpac
 export async function deleteCategory(id: string): Promise<void> {
   const { deleteCategoryFull } = await import("@/lib/crud/compound-delete");
   await deleteCategoryFull(id, true);
+  invalidateCategoryCache();
 }

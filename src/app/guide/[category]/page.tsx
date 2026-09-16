@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { resolveCommonCategory, getFaq } from "@/lib/supabase-cms";
 import { getCategoryEmoji, getCategoryColor } from "@/lib/display";
 import GuideFaqClient from "@/components/GuideFaqClient";
+import { routes } from "@/lib/routes";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function GuideCategoryPage({
   params,
@@ -40,7 +41,7 @@ export default async function GuideCategoryPage({
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[720px] mx-auto">
         <Link
-          href="/guide"
+          href={routes.guide()}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
           ← 📋 공통 안내

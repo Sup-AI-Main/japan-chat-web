@@ -8,6 +8,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { logChange } from "@/lib/crud/change-log";
 import { requireFields, toInt, toStr } from "@/lib/crud/validation";
 import { ConflictError } from "@/lib/types";
+import { invalidateAreaCache as invalidateCmsAreaCache } from "@/lib/supabase-cms";
+import { invalidateAreaCache as invalidateAreaResolverCache } from "@/lib/area";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -99,6 +101,8 @@ export async function createArea(
     afterJson: row,
   });
 
+  invalidateCmsAreaCache();
+  invalidateAreaResolverCache();
   return row as AreaRow;
 }
 
@@ -158,6 +162,8 @@ export async function updateArea(
     afterJson: updated,
   });
 
+  invalidateCmsAreaCache();
+  invalidateAreaResolverCache();
   return updated as AreaRow;
 }
 
@@ -191,4 +197,6 @@ function faqCount(v: number | null): number {
 export async function deleteArea(id: string): Promise<void> {
   const { deleteAreaFull } = await import("@/lib/crud/compound-delete");
   await deleteAreaFull(id, true);
+  invalidateCmsAreaCache();
+  invalidateAreaResolverCache();
 }

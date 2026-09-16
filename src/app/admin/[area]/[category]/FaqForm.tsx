@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { routes } from "@/lib/routes";
 
 interface Place {
   type: string;
@@ -111,7 +112,7 @@ export default function FaqForm({
       });
 
       if (res.ok) {
-        router.push(`/admin/${area}/${category}`);
+        router.push(routes.adminAreaCategory(area, category));
       } else {
         const data = await res.json();
         setError(data.error || "저장에 실패했습니다.");
@@ -250,7 +251,7 @@ export default function FaqForm({
       {/* Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
         <Link
-          href={`/admin/${area}/${category}`}
+          href={routes.adminAreaCategory(area, category)}
           className="px-6 py-3 border border-border rounded-[10px] text-[16px] text-text hover:bg-bg min-h-[44px] flex items-center justify-center"
         >
           취소

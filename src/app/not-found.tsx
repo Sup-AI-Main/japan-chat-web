@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { routes } from "@/lib/routes";
 
 export default function NotFound() {
   return (
@@ -16,7 +17,7 @@ export default function NotFound() {
             삭제된 안내일 수 있습니다.
           </p>
           <Link
-            href="/"
+            href={routes.home()}
             className="inline-block bg-text text-white text-[14px] font-medium px-6 py-3 rounded-full hover:opacity-90 transition-opacity"
           >
             🏠 홈으로 이동

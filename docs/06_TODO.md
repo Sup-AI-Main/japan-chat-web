@@ -132,8 +132,6 @@
 - [x] 특정 호텔 FAQ 정상 연결
 - [x] 특정 골프장 FAQ 정상 연결
 - [x] 특정 맛집 FAQ 정상 연결
-- [x] 연결 유형 변경 시 dropdown 옵션 갱신 확인
-- [x] 서버 저장 시 entity type + area 검증
 
 ---
 
@@ -288,8 +286,6 @@
 - [x] 관리자 골프장 기본정보 편집 (골프장 목록 API)
 - [x] 관리자 호텔 기본정보 편집 (인라인 CMS + HotelEditModal)
 - [x] 관리자 맛집 CRUD (인라인 CMS + RestaurantEditModal)
-- [x] 연결 유형 변경 시 nearOptions 재조회 (onNearTypeChange 콜백)
-- [x] 서버사이드 연결 entity 검증 (type + area 일치 확인)
 - [ ] 관리자 이동시간 편집
 - [ ] Sheet 데이터 미리보기
 - [ ] 캐시 수동 새로고침

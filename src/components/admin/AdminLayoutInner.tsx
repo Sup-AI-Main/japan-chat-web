@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "@/components/LogoutButton";
+import { routes } from "@/lib/routes";
 
 const LABELS: Record<string, string> = {
   home: "홈",
@@ -28,7 +29,7 @@ export default function AdminLayoutInner({
 }) {
   const pathname = usePathname();
 
-  if (pathname === "/admin") {
+  if (pathname === routes.admin()) {
     return <>{children}</>;
   }
 
@@ -43,14 +44,14 @@ export default function AdminLayoutInner({
         <div className="max-w-[1200px] mx-auto px-4 flex items-center justify-between min-h-[44px]">
           <div className="flex items-center gap-1 text-[14px] overflow-x-auto">
             <Link
-              href="/"
+              href={routes.home()}
               className="text-muted hover:text-primary min-h-[44px] flex items-center shrink-0"
             >
               🏠
             </Link>
             <span className="text-muted mx-1">&gt;</span>
             <Link
-              href="/admin/home"
+              href={routes.adminHome()}
               className="text-muted hover:text-primary min-h-[44px] flex items-center shrink-0"
             >
               관리자

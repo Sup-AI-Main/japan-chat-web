@@ -1,7 +1,9 @@
 import { redirect, notFound } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
-import { getHotels, getGolfCourses, resolveArea, getActiveAreas, getTravelTimes } from "@/lib/supabase-cms";
+import { getHotels, getGolfCourses, resolveArea, getTravelTimes } from "@/lib/supabase-cms";
+import { getActiveAreas } from "@/lib/area";
 import ManageEntitiesClient from "./ManageEntitiesClient";
+import { routes } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ export default async function ManagePage({
   params: Promise<{ area: string }>;
 }) {
   const authed = await isAuthenticated();
-  if (!authed) redirect("/admin");
+  if (!authed) redirect(routes.admin());
 
   const { area } = await params;
   const currentArea = await resolveArea(area);
@@ -36,10 +38,10 @@ export default async function ManagePage({
       allAreas={allAreas.map((a) => ({
         id: a.id,
         code: a.code,
-        name_kr: a.label,
+        name_kr: a.nameKr,
         name_jp: a.description || "",
         icon: a.icon,
-        active: a.active !== "FALSE",
+        active: a.active,
         sort: a.sort,
       }))}
     />

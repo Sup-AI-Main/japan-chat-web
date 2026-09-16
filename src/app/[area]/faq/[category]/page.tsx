@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFaq, resolveArea, resolveCommonCategory } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
+import { routes } from "@/lib/routes";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function FaqCategoryPage({
   params,
@@ -44,7 +45,7 @@ export default async function FaqCategoryPage({
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[720px] mx-auto">
         <Link
-          href={`/${area}`}
+          href={routes.area(area)}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
           ← {getAreaEmoji(areaCode)} {areaLabel}
