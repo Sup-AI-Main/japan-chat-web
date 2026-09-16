@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import {
-  listFieldDefinitions,
-  createFieldDefinition,
-  updateFieldDefinition,
-  getFieldDefinition,
-  deleteFieldDefinitionFull,
+  listSectionDefinitions,
+  createSectionDefinition,
+  updateSectionDefinition,
+  deleteSectionDefinition,
+  getSectionDefinition,
   ok,
   created,
   badRequest,
@@ -22,11 +22,8 @@ export async function GET(req: NextRequest) {
   if (!authed) return unauthorized();
 
   try {
-    const params = req.nextUrl.searchParams;
-    const scope_type = params.get("scope_type") || undefined;
-    const scope_entity_id = params.get("scope_entity_id") || undefined;
-
-    const definitions = await listFieldDefinitions({ scope_type, scope_entity_id });
+    const entityType = req.nextUrl.searchParams.get("entity_type") || undefined;
+    const definitions = await listSectionDefinitions(entityType);
     return ok(definitions);
   } catch (err) {
     return serverError(err);
@@ -41,14 +38,7 @@ export async function POST(req: NextRequest) {
     const body = await safeJson(req);
     if (!body) return badRequest("요청 본문이 비어 있습니다.");
 
-    const missing: string[] = [];
-    if (!body.label_ko) missing.push("label_ko");
-    if (!body.scope_type) missing.push("scope_type");
-    if (missing.length > 0) {
-      return badRequest(`필수 항목 누락: ${missing.join(", ")}`);
-    }
-
-    const definition = await createFieldDefinition(body);
+    const definition = await createSectionDefinition(body);
     return created(definition);
   } catch (err) {
     return serverError(err);
@@ -66,16 +56,14 @@ export async function PUT(req: NextRequest) {
     const { id, updated_at, ...data } = body as Record<string, unknown>;
     if (!id) return badRequest("id가 필요합니다.");
 
-    const result = await updateFieldDefinition(
+    const result = await updateSectionDefinition(
       id as string,
       data,
       updated_at as string | undefined
     );
 
     // Revalidate all public pages for this entity type
-    if (result.scope_entity_type) {
-      await revalidateEntityPaths(result.scope_entity_type);
-    }
+    await revalidateEntityPaths(result.entity_type);
 
     return ok(result);
   } catch (err) {
@@ -95,11 +83,11 @@ export async function DELETE(req: NextRequest) {
     if (!id) return badRequest("id가 필요합니다.");
 
     // Get entity_type before deleting for revalidation
-    const existing = await getFieldDefinition(id);
-    await deleteFieldDefinitionFull(id);
+    const existing = await getSectionDefinition(id);
+    await deleteSectionDefinition(id);
 
-    if (existing?.scope_entity_type) {
-      await revalidateEntityPaths(existing.scope_entity_type);
+    if (existing) {
+      await revalidateEntityPaths(existing.entity_type);
     }
 
     return ok({ deleted: true });

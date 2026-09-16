@@ -44,9 +44,12 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
         `/api/admin/includes?parent_type=${parentType}&parent_id=${parentId}`,
         { cache: "no-store" }
       );
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data.items || []);
+      const text = await res.text();
+      if (res.ok && text) {
+        try {
+          const data = JSON.parse(text);
+          setItems(data.items || []);
+        } catch { /* ignore parse error */ }
       }
     } catch {
       // silent
@@ -93,38 +96,51 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
         is_visible: formData.is_visible,
       };
 
+      let res: Response;
       if (editItem) {
-        const res = await fetch("/api/admin/includes", {
+        res = await fetch("/api/admin/includes", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editItem.id, ...body }),
         });
-        if (res.ok) {
-          setItems((prev) =>
-            prev.map((i) =>
-              i.id === editItem.id ? { ...i, ...body, sort: parseInt(body.sort) || 99 } : i
-            )
-          );
-        }
       } else {
-        const res = await fetch("/api/admin/includes", {
+        res = await fetch("/api/admin/includes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (res.ok) {
-          const data = await res.json();
-          setItems((prev) => [
-            ...prev,
-            { ...body, id: data.id, sort: parseInt(body.sort) || 99, updated_at: "" },
-          ]);
-        }
+      }
+
+      const text = await res.text();
+      let data: Record<string, unknown> | null = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch { /* ignore */ }
+      }
+
+      if (!res.ok) {
+        throw new Error((data?.error as string) || `요청 실패 (${res.status})`);
+      }
+
+      if (editItem) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === editItem.id ? { ...i, ...body, sort: parseInt(body.sort) || 99 } : i
+          )
+        );
+      } else {
+        const newId = data && typeof data === 'object' && 'id' in data ? (data as { id: string }).id : '';
+        setItems((prev) => [
+          ...prev,
+          { ...body, id: newId, sort: parseInt(body.sort) || 99, updated_at: "" },
+        ]);
       }
       showToast("수정 완료");
       setTimeout(() => {
         setShowForm(false);
         setEditItem(null);
       }, 500);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "저장 실패");
     } finally {
       setSaving(false);
     }
@@ -136,12 +152,18 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
       const res = await fetch(`/api/admin/includes?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
-        setDeleteTarget(null);
+      const text = await res.text();
+      if (!res.ok) {
+        let errMsg = `삭제 실패 (${res.status})`;
+        if (text) {
+          try { errMsg = JSON.parse(text).error || errMsg; } catch { /* ignore */ }
+        }
+        throw new Error(errMsg);
       }
-    } catch {
-      // silent
+      setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "삭제 실패");
     }
   };
 
@@ -153,13 +175,19 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, is_visible: newVisible }),
       });
-      if (res.ok) {
-        setItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, is_visible: newVisible } : i))
-        );
+      const text = await res.text();
+      if (!res.ok) {
+        let errMsg = `요청 실패 (${res.status})`;
+        if (text) {
+          try { errMsg = JSON.parse(text).error || errMsg; } catch { /* ignore */ }
+        }
+        throw new Error(errMsg);
       }
-    } catch {
-      // silent
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, is_visible: newVisible } : i))
+      );
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "변경 실패");
     }
   };
 
@@ -380,7 +408,11 @@ export function IncludeExcludeSummary({ parentType, parentId }: IncludeExcludeSe
 
   useEffect(() => {
     fetch(`/api/admin/includes?parent_type=${parentType}&parent_id=${parentId}`, { cache: "no-store" })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const text = await r.text();
+        if (!r.ok || !text) return { items: [] };
+        try { return JSON.parse(text); } catch { return { items: [] }; }
+      })
       .then((d) => setItems(d.items || []))
       .catch(() => {})
       .finally(() => setLoaded(true));

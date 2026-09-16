@@ -55,6 +55,15 @@ export {
   getApplicableFieldDefinitions,
 } from "./field-definitions";
 
+// Section Definitions
+export {
+  listSectionDefinitions,
+  getSectionDefinition,
+  createSectionDefinition,
+  updateSectionDefinition,
+  deleteSectionDefinition,
+} from "./section-definitions";
+
 // Entity Field Values
 export {
   getEntityFieldValues,

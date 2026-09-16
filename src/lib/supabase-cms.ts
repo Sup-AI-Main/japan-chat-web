@@ -169,10 +169,26 @@ export async function getAreaEntitySummaryMap(areaCode: string): Promise<{
   return { hotels, golfCourses };
 }
 
-async function resolveEntityIdBySlug(slug: string): Promise<string | null> {
-  const { data, error } = await db().from('entities').select('id').eq('slug', slug).single();
-  if (error) return null;
-  return data?.id ?? null;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function resolveEntityIdBySlug(slugOrUuid: string): Promise<string | null> {
+  // If it looks like a UUID, verify it exists directly
+  if (UUID_RE.test(slugOrUuid)) {
+    const { data, error } = await db()
+      .from('entities')
+      .select('id')
+      .eq('id', slugOrUuid)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.id;
+  }
+  const { data, error } = await db()
+    .from('entities')
+    .select('id')
+    .eq('slug', slugOrUuid)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.id;
 }
 
 // Get entity + area info for building GolfCourse/Hotel/Restaurant shapes
@@ -652,6 +668,164 @@ export async function updateGolfCourse(
   return true;
 }
 
+// ── Targeted query helpers (DB-level filtering, no JS over-fetch) ──
+
+/** Get travel times for a specific hotel (by slug) */
+export async function getTravelTimesForHotel(hotelSlug: string): Promise<TravelTime[]> {
+  const entityId = await resolveEntityIdBySlug(hotelSlug);
+  if (!entityId) return [];
+
+  const { data, error } = await db()
+    .from('travel_times')
+    .select(
+      `
+      id, product_reference_minutes, display_time, min_minutes, max_minutes, note, source, status, directions_url, time_basis, active, sort, updated_at,
+      from_entity:entities!from_entity_id(id, slug, display_name, entity_type, area_id, areas!inner(code)),
+      to_entity:entities!to_entity_id(id, slug, display_name, entity_type)
+    `
+    )
+    .eq('active', true)
+    .eq('from_entity_id', entityId)
+    .order('sort');
+
+  if (error) {
+    logError('READ', 'travel_times', undefined, error);
+    throw error;
+  }
+
+  return (data || []).map((row) => {
+    const from = row.from_entity as unknown as EntityRow & { areas: { code: string } };
+    const to = row.to_entity as unknown as EntityRow;
+    return {
+      id: row.id as string,
+      area: from?.areas?.code || '',
+      hotel_id: from?.slug || '',
+      hotel_name: from?.display_name || '',
+      golf_id: to?.slug || '',
+      golf_name: to?.display_name || '',
+      estimated_time: row.product_reference_minutes ? `${row.product_reference_minutes}분` : '',
+      google_maps_direction_url: (row.directions_url as string) || '',
+      active: row.active ? 'TRUE' : 'FALSE',
+      sort: row.sort as number,
+    };
+  });
+}
+
+/** Get restaurants near a specific entity (by slug + type) */
+export async function getRestaurantsNearEntity(
+  area: string,
+  nearEntityType: string,
+  nearEntitySlug: string
+): Promise<Restaurant[]> {
+  const nearEntityId = await resolveEntityIdBySlug(nearEntitySlug);
+  if (!nearEntityId) return [];
+
+  const { data, error } = await db()
+    .from('restaurant_locations')
+    .select(
+      `
+      id, distance_text,
+      restaurant:entities!restaurant_entity_id(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)),
+      near:entities!near_entity_id(id, slug, display_name, entity_type)
+    `
+    )
+    .eq('near_entity_id', nearEntityId);
+
+  if (error) {
+    logError('READ', 'restaurant_locations', undefined, error);
+    throw error;
+  }
+
+  return (data || [])
+    .filter((row) => {
+      const rest = row.restaurant as unknown as EntityRow & {
+        areas: { code: string };
+        restaurants: Record<string, unknown>[];
+      };
+      return rest && rest.active !== false;
+    })
+    .map((row) => {
+      const rest = row.restaurant as unknown as EntityRow & {
+        areas: { code: string };
+        restaurants: Record<string, unknown>[];
+      };
+      const near = row.near as unknown as EntityRow;
+      const areaCode = rest.areas?.code || '';
+      const restData = rest.restaurants?.[0] || {};
+      const nearType =
+        near?.entity_type === 'GOLF' ? 'GOLF' : near?.entity_type === 'HOTEL' ? 'HOTEL' : '';
+      return mapRestaurant(
+        rest,
+        restData,
+        areaCode,
+        nearType,
+        near?.slug || '',
+        row.distance_text as string
+      );
+    });
+}
+
+/** Get FAQ for a specific entity (by slug) + area scope */
+export async function getFaqForEntity(
+  area: string,
+  category: string,
+  entitySlug: string
+): Promise<FaqItem[]> {
+  const [areaId, catId, entityId] = await Promise.all([
+    area.toUpperCase() !== 'ALL' ? resolveAreaId(area) : Promise.resolve(null),
+    resolveCategoryId(category),
+    resolveEntityIdBySlug(entitySlug),
+  ]);
+
+  let query = db()
+    .from('faq')
+    .select(
+      'id, scope, question, answer, source_url, status, active, sort, updated_at, area:areas(code), category:categories(code), related_entity:entities!related_entity_id(slug, display_name)'
+    )
+    .eq('active', true);
+
+  if (areaId) {
+    query = query.or(`area_id.eq.${areaId},area_id.is.null`);
+  }
+  if (catId) {
+    query = query.eq('category_id', catId);
+  }
+  if (entityId) {
+    query = query.or(`scope.eq.area,related_entity_id.eq.${entityId}`);
+  }
+
+  const { data, error } = await query.order('sort');
+  if (error) {
+    logError('READ', 'faq', undefined, error);
+    throw error;
+  }
+
+  return (data || []).map((row) => {
+    const areaRow = row.area as unknown as { code: string } | null;
+    const catRow = row.category as unknown as { code: string } | null;
+    const relEntity = row.related_entity as unknown as {
+      slug: string;
+      display_name: string;
+    } | null;
+    return {
+      id: row.id as string,
+      area: areaRow?.code || 'ALL',
+      category: catRow?.code || '',
+      question: (row.question as string) || '',
+      answer: (row.answer as string) || '',
+      source_url: (row.source_url as string) || '',
+      status: (row.status as string) || '',
+      active: String(row.active ?? 'TRUE'),
+      question_scope: (row.scope as string) || 'AREA',
+      related_type: relEntity ? category : '',
+      related_id: relEntity?.slug || '',
+      related_name: relEntity?.display_name || '',
+      sort: row.sort as number,
+      updated_at: (row.updated_at as string) || '',
+    };
+  });
+}
+
 export async function deleteGolfCourse(id: string): Promise<boolean> {
   const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
   if (!entity) return false;
@@ -1122,32 +1296,13 @@ export async function appendRestaurant(
 
   // Add near relationship if provided
   if (data.near_id && data.near_type) {
-    const { data: nearEntity, error: nearErr } = await db()
-      .from('entities')
-      .select('id, entity_type, area_id')
-      .eq('slug', data.near_id)
-      .single();
-    if (nearErr || !nearEntity) {
-      logError(
-        'VALIDATE',
-        'entities',
-        data.near_id,
-        nearErr || { message: 'Near entity not found' }
-      );
-    } else if (nearEntity.entity_type !== data.near_type) {
-      logError('VALIDATE', 'entities', data.near_id, {
-        message: `Entity type mismatch: expected ${data.near_type}, got ${nearEntity.entity_type}`,
-      });
-    } else if (nearEntity.area_id !== areaId) {
-      logError('VALIDATE', 'entities', data.near_id, {
-        message: 'Near entity is in a different area',
-      });
-    } else {
+    const nearEntityId = await resolveEntityIdBySlug(data.near_id);
+    if (nearEntityId) {
       const { error: locError } = await adminDb()
         .from('restaurant_locations')
         .insert({
           restaurant_entity_id: entity.id,
-          near_entity_id: nearEntity.id,
+          near_entity_id: nearEntityId,
           distance_text: data.near_name || '',
           sort: 1,
         });

@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getGolfCourseById, getGolfCourses, getFaqForEntity, getRestaurantsNearEntity, getContentSections } from "@/lib/supabase-cms";
+import { getDynamicLabels } from "@/lib/dynamic-labels";
 import type { FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { GolfDetailClient } from "./GolfDetailClient";
 
 export const revalidate = 60;
@@ -40,11 +42,13 @@ export default async function GolfDetailPage({
     getFaqForEntity(area.toUpperCase(), "GOLF", id),
     getRestaurantsNearEntity(area.toUpperCase(), "GOLF", id),
     getContentSections("GOLF", id),
+    getDynamicLabels("GOLF"),
   ]);
 
   const faqs: FaqItem[] = results[0].status === "fulfilled" ? results[0].value : [];
   const restaurants: Restaurant[] = results[1].status === "fulfilled" ? results[1].value : [];
   const contentSections: ContentSection[] = results[2].status === "fulfilled" ? results[2].value : [];
+  const dynamicLabels: DynamicLabelsResult = results[3].status === "fulfilled" ? results[3].value : { sections: [], fieldMap: {} };
 
   return (
     <GolfDetailClient
@@ -53,6 +57,7 @@ export default async function GolfDetailPage({
       faqs={faqs}
       restaurants={restaurants}
       contentSections={contentSections}
+      dynamicLabels={dynamicLabels}
     />
   );
 }

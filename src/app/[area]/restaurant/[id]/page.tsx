@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRestaurantById, getRestaurants, getContentSections } from "@/lib/supabase-cms";
+import { getDynamicLabels } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import type { ContentSection } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import RestaurantDetailClient from "./RestaurantDetailClient";
 
 export const revalidate = 60;
@@ -38,13 +40,14 @@ export default async function RestaurantDetailPage({
   if (!restaurant || restaurant.area.toUpperCase() !== area.toUpperCase())
     notFound();
 
-  // Get content sections
-  let contentSections: ContentSection[] = [];
-  try {
-    contentSections = await getContentSections("RESTAURANT", id);
-  } catch {
-    contentSections = [];
-  }
+  // Get content sections and dynamic labels
+  const results = await Promise.allSettled([
+    getContentSections("RESTAURANT", id),
+    getDynamicLabels("RESTAURANT"),
+  ]);
+
+  const contentSections: ContentSection[] = results[0].status === "fulfilled" ? results[0].value : [];
+  const dynamicLabels: DynamicLabelsResult = results[1].status === "fulfilled" ? results[1].value : { sections: [], fieldMap: {} };
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -67,6 +70,7 @@ export default async function RestaurantDetailPage({
           restaurant={restaurant}
           area={area}
           contentSections={contentSections}
+          dynamicLabels={dynamicLabels}
         />
       </div>
     </main>

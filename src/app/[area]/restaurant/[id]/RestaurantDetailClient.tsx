@@ -7,6 +7,8 @@ import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
 import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer } from "@/components/inline-cms";
 import type { Restaurant, ContentSection } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
+import { getFieldLabel } from "@/lib/dynamic-labels";
 
 interface NearOption {
   id: string;
@@ -17,12 +19,14 @@ interface RestaurantDetailClientProps {
   restaurant: Restaurant;
   area: string;
   contentSections: ContentSection[];
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 export default function RestaurantDetailClient({
   restaurant: initialRestaurant,
   area,
   contentSections,
+  dynamicLabels,
 }: RestaurantDetailClientProps) {
   const [restaurant, setRestaurant] = useState<Restaurant>(initialRestaurant);
   const [editModal, setEditModal] = useState(false);
@@ -33,13 +37,17 @@ export default function RestaurantDetailClient({
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
 
+  // Dynamic label helpers with fallback
+  const L = dynamicLabels || { sections: [], fieldMap: {} };
+  const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
+
   const closeEditModal = useCallback(() => {
     setEditModal(false);
   }, []);
 
-  const fetchNearOptions = async (overrideNearType?: string) => {
+  const fetchNearOptions = async () => {
     try {
-      const nearType = overrideNearType || restaurant.near_type || "HOTEL";
+      const nearType = restaurant.near_type || "HOTEL";
       if (nearType === "HOTEL") {
         const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
         if (res.ok) {
@@ -141,7 +149,7 @@ export default function RestaurantDetailClient({
           {/* 대표 메뉴 */}
           {(restaurant.menu_kr || restaurant.menu_jp) && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">대표 메뉴</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("menu_kr", "대표 메뉴")}</h3>
               <p className="text-[15px] text-text">
                 {restaurant.menu_kr}
                 {restaurant.menu_jp && (
@@ -157,7 +165,7 @@ export default function RestaurantDetailClient({
           {/* 주소 + Google Maps */}
           {restaurant.address && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">주소</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("address", "주소")}</h3>
               <p className="text-[15px] text-text">{restaurant.address}</p>
               {restaurant.google_maps_url && (
                 <a
@@ -175,7 +183,7 @@ export default function RestaurantDetailClient({
           {/* 영업시간 */}
           {restaurant.hours && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">영업시간</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("hours", "영업시간")}</h3>
               <p className="text-[15px] text-text">{restaurant.hours}</p>
             </div>
           )}
@@ -183,7 +191,7 @@ export default function RestaurantDetailClient({
           {/* 휴무일 */}
           {restaurant.closed_days && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">휴무일</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("closed_days", "휴무일")}</h3>
               <p className="text-[15px] text-text">{restaurant.closed_days}</p>
             </div>
           )}
@@ -199,7 +207,7 @@ export default function RestaurantDetailClient({
           {/* 가격대 */}
           {restaurant.price_range && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">가격대</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("price_range", "가격대")}</h3>
               <p className="text-[15px] text-text">{restaurant.price_range}</p>
             </div>
           )}
@@ -207,7 +215,7 @@ export default function RestaurantDetailClient({
           {/* 전화 */}
           {restaurant.phone && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">전화</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("phone", "전화")}</h3>
               <a
                 href={`tel:${restaurant.phone}`}
                 className="text-[15px] text-primary px-2 py-1 min-h-[44px] inline-flex items-center"
@@ -220,7 +228,7 @@ export default function RestaurantDetailClient({
           {/* 설명 */}
           {restaurant.description && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">설명</h3>
+              <h3 className="text-[15px] font-bold text-text">{fieldLabel("description", "설명")}</h3>
               <p className="text-[15px] text-text leading-relaxed">
                 {restaurant.description}
               </p>
@@ -267,7 +275,6 @@ export default function RestaurantDetailClient({
           onClose={closeEditModal}
           onSaved={(saved) => handleSaved(saved as unknown as Restaurant)}
           nearOptions={nearOptions}
-          onNearTypeChange={(nearType) => fetchNearOptions(nearType)}
         />
       )}
 

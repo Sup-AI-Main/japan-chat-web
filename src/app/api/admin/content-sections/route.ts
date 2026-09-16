@@ -21,50 +21,64 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const body = await safeJson<Record<string, string>>(req);
-  if (!body) return badRequest("Empty request body");
-  const { parent_type, parent_id, parent_entity_id, title, content, emoji, sort } = body;
-  if (!title) {
-    return badRequest("Missing required field: title");
+  try {
+    const body = await safeJson<Record<string, string>>(req);
+    if (!body) return badRequest("Empty request body");
+    const { parent_type, parent_id, parent_entity_id, title, content, emoji, sort } = body;
+    if (!title) {
+      return badRequest("Missing required field: title");
+    }
+    if (!parent_entity_id && (!parent_type || !parent_id)) {
+      return badRequest("Missing required fields: either parent_entity_id or (parent_type + parent_id)");
+    }
+    const id = await appendContentSection({
+      parent_type: parent_type || "",
+      parent_id: parent_id || "",
+      parent_entity_id: parent_entity_id || "",
+      title,
+      content: content || "",
+      emoji: emoji || "",
+      sort: sort || "",
+    });
+    return created({ id });
+  } catch (err) {
+    console.error("CONTENT_SECTION_CREATE_FAIL", err);
+    const msg = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
-  if (!parent_entity_id && (!parent_type || !parent_id)) {
-    return badRequest("Missing required fields: either parent_entity_id or (parent_type + parent_id)");
-  }
-  const id = await appendContentSection({
-    parent_type: parent_type || "",
-    parent_id: parent_id || "",
-    parent_entity_id: parent_entity_id || "",
-    title,
-    content: content || "",
-    emoji: emoji || "",
-    sort: sort || "",
-  });
-  return created({ id });
 }
 
 export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const body = await safeJson<Record<string, string>>(req);
-  if (!body) return badRequest("Empty request body");
-  const { id, updated_at, ...data } = body;
-  if (!id) return badRequest("Missing id");
   try {
+    const body = await safeJson<Record<string, string>>(req);
+    if (!body) return badRequest("Empty request body");
+    const { id, updated_at, ...data } = body;
+    if (!id) return badRequest("Missing id");
     const success = await updateContentSection(id, data, updated_at);
     return ok({ success });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
     }
-    throw err;
+    console.error("CONTENT_SECTION_UPDATE_FAIL", err);
+    const msg = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const id = req.nextUrl.searchParams.get("id");
-  if (!id) return badRequest("Missing id");
-  const success = await deleteContentSection(id);
-  return ok({ success });
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) return badRequest("Missing id");
+    const success = await deleteContentSection(id);
+    return ok({ success });
+  } catch (err) {
+    console.error("CONTENT_SECTION_DELETE_FAIL", err);
+    const msg = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 }

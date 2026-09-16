@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { Hotel, TravelTime, FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { Hotel, FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
+import { getSectionLabel, getFieldLabel, isSectionVisible } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
@@ -22,10 +24,10 @@ import {
 interface HotelDetailClientProps {
   hotel: Hotel;
   area: string;
-  travelTimes: TravelTime[];
   faqs: FaqItem[];
   restaurants: Restaurant[];
   contentSections: ContentSection[];
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 interface HotelData {
@@ -128,21 +130,26 @@ function editDataToHotel(id: string, slug: string, area: string, data: HotelData
 export function HotelDetailClient({
   hotel: initialHotel,
   area,
-  travelTimes,
   faqs,
   restaurants: initialRestaurants,
   contentSections,
+  dynamicLabels,
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
   const [restaurants, setRestaurants] = useState(initialRestaurants);
   const isAdmin = useAdmin();
+
+  // Dynamic label helpers with fallback
+  const L = dynamicLabels || { sections: [], fieldMap: {} };
+  const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
+  const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
+  const sectionVisible = (key: string) => isSectionVisible(L, key);
 
   const [editHotelOpen, setEditHotelOpen] = useState(false);
   const [editRestOpen, setEditRestOpen] = useState(false);
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [restNearOptions, setRestNearOptions] = useState<Array<{ id: string; name: string }>>([]);
   const { message, visible, showToast } = useToast();
 
   const closeHotelModal = useCallback(() => {
@@ -153,29 +160,6 @@ export function HotelDetailClient({
     setEditRestOpen(false);
     setEditRestTarget(null);
   }, []);
-
-  const fetchRestNearOptions = useCallback(async (nearType: string) => {
-    try {
-      if (nearType === "HOTEL") {
-        setRestNearOptions([{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]);
-      } else if (nearType === "GOLF") {
-        const res = await fetch(`/api/admin/golf?area=${area.toUpperCase()}`);
-        if (res.ok) {
-          const data = await res.json();
-          setRestNearOptions(
-            (data.courses || []).map((c: { id: string; slug: string; display_name: string }) => ({
-              id: c.slug,
-              name: c.display_name,
-            }))
-          );
-        }
-      } else {
-        setRestNearOptions([]);
-      }
-    } catch {
-      setRestNearOptions([]);
-    }
-  }, [hotel, area]);
 
   const titleMain = hotel.name_kr || hotel.official_name;
   const titleSub = hotel.name_jp || (hotel.name_kr ? hotel.official_name : "");
@@ -250,25 +234,25 @@ export function HotelDetailClient({
         </EditableContainer>
 
         {/* 기본 정보 */}
-        {hasBasicInfo && (
+        {hasBasicInfo && sectionVisible("basic_info") && (
           <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
-            <h2 className="text-[16px] font-bold text-text mb-3">기본 정보</h2>
+            <h2 className="text-[16px] font-bold text-text mb-3">{sectionLabel("basic_info", "기본 정보")}</h2>
             <div className="space-y-2">
               {hotel.checkin_time && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">체크인</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("checkin_time", "체크인")}</span>
                   <span className="text-[15px] text-text">{hotel.checkin_time}</span>
                 </div>
               )}
               {hotel.checkout_time && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">체크아웃</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("checkout_time", "체크아웃")}</span>
                   <span className="text-[15px] text-text">{hotel.checkout_time}</span>
                 </div>
               )}
               {addressMain && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">주소</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("address", "주소")}</span>
                   <div>
                     <span className="text-[15px] text-text">{addressMain}</span>
                     {addressSub && (
@@ -279,7 +263,7 @@ export function HotelDetailClient({
               )}
               {hotel.phone && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">전화</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("phone", "전화")}</span>
                   <span className="text-[15px] text-text">{hotel.phone}</span>
                 </div>
               )}
@@ -298,25 +282,25 @@ export function HotelDetailClient({
         )}
 
         {/* 조식 */}
-        {hasBreakfast && (
+        {hasBreakfast && sectionVisible("breakfast") && (
           <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
-            <h2 className="text-[16px] font-bold text-text mb-3">조식</h2>
+            <h2 className="text-[16px] font-bold text-text mb-3">{sectionLabel("breakfast", "조식")}</h2>
             <div className="space-y-2">
               {hotel.breakfast_place && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">장소</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("breakfast_place", "장소")}</span>
                   <span className="text-[15px] text-text">{hotel.breakfast_place}</span>
                 </div>
               )}
               {hotel.breakfast_time && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">시간</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("breakfast_time", "시간")}</span>
                   <span className="text-[15px] text-text">{hotel.breakfast_time}</span>
                 </div>
               )}
               {hotel.breakfast_last_entry && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[100px] shrink-0">마지막 입장</span>
+                  <span className="text-[14px] text-muted w-[100px] shrink-0">{fieldLabel("breakfast_last_entry", "마지막 입장")}</span>
                   <span className="text-[15px] text-text">{hotel.breakfast_last_entry}</span>
                 </div>
               )}
@@ -325,25 +309,25 @@ export function HotelDetailClient({
         )}
 
         {/* 석식 */}
-        {hasDinner && (
+        {hasDinner && sectionVisible("dinner") && (
           <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
-            <h2 className="text-[16px] font-bold text-text mb-3">석식</h2>
+            <h2 className="text-[16px] font-bold text-text mb-3">{sectionLabel("dinner", "석식")}</h2>
             <div className="space-y-2">
               {hotel.dinner_place && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">장소</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("dinner_place", "장소")}</span>
                   <span className="text-[15px] text-text">{hotel.dinner_place}</span>
                 </div>
               )}
               {hotel.dinner_time && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">시간</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("dinner_time", "시간")}</span>
                   <span className="text-[15px] text-text">{hotel.dinner_time}</span>
                 </div>
               )}
               {hotel.dinner_last_entry && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[100px] shrink-0">마지막 입장</span>
+                  <span className="text-[14px] text-muted w-[100px] shrink-0">{fieldLabel("dinner_last_entry", "마지막 입장")}</span>
                   <span className="text-[15px] text-text">{hotel.dinner_last_entry}</span>
                 </div>
               )}
@@ -352,33 +336,33 @@ export function HotelDetailClient({
         )}
 
         {/* 온천/스파 */}
-        {hasOnsen && (
+        {hasOnsen && sectionVisible("onsen_spa") && (
           <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
-            <h2 className="text-[16px] font-bold text-text mb-3">온천/스파</h2>
+            <h2 className="text-[16px] font-bold text-text mb-3">{sectionLabel("onsen_spa", "온천/스파")}</h2>
             <div className="space-y-2">
               <div className="flex items-center gap-4">
-                <span className="text-[14px] text-muted">대욕장</span>
+                <span className="text-[14px] text-muted">{fieldLabel("has_public_bath", "대욕장")}</span>
                 <span className="text-[15px] text-text">
                   {toBool(hotel.has_public_bath) ? "✓" : "✗"}
                 </span>
-                <span className="text-[14px] text-muted ml-4">노천온천</span>
+                <span className="text-[14px] text-muted ml-4">{fieldLabel("has_outdoor_onsen", "노천온천")}</span>
                 <span className="text-[15px] text-text">
                   {toBool(hotel.has_outdoor_onsen) ? "✓" : "✗"}
                 </span>
-                <span className="text-[14px] text-muted ml-4">사우나</span>
+                <span className="text-[14px] text-muted ml-4">{fieldLabel("has_sauna", "사우나")}</span>
                 <span className="text-[15px] text-text">
                   {toBool(hotel.has_sauna) ? "✓" : "✗"}
                 </span>
               </div>
               {hotel.bath_spa_hours && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">운영시간</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("bath_spa_hours", "운영시간")}</span>
                   <span className="text-[15px] text-text">{hotel.bath_spa_hours}</span>
                 </div>
               )}
               {hotel.tattoo_policy && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">타투 안내</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("tattoo_policy", "타투 안내")}</span>
                   <span className="text-[15px] text-text">{hotel.tattoo_policy}</span>
                 </div>
               )}
@@ -387,9 +371,9 @@ export function HotelDetailClient({
         )}
 
         {/* 기타 안내 */}
-        {hasOther && (
+        {hasOther && sectionVisible("other_info") && (
           <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
-            <h2 className="text-[16px] font-bold text-text mb-3">기타 안내</h2>
+            <h2 className="text-[16px] font-bold text-text mb-3">{sectionLabel("other_info", "기타 안내")}</h2>
             <div className="space-y-2">
               {hotel.other_info && (
                 <div>
@@ -398,13 +382,13 @@ export function HotelDetailClient({
               )}
               {hotel.atm_payment && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">ATM/결제</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("atm_payment", "ATM/결제")}</span>
                   <span className="text-[15px] text-text">{hotel.atm_payment}</span>
                 </div>
               )}
               {hotel.transport && (
                 <div className="flex">
-                  <span className="text-[14px] text-muted w-[80px] shrink-0">교통</span>
+                  <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("transport_note", "교통")}</span>
                   <span className="text-[15px] text-text">{hotel.transport}</span>
                 </div>
               )}
@@ -414,36 +398,6 @@ export function HotelDetailClient({
 
         {/* 포함/불포함 사항 */}
         <IncludeExcludeSection parentType="HOTEL" parentId={hotel.id} />
-
-        {/* 골프장 이동시간 */}
-        {travelTimes.length > 0 && (
-          <div className="border-t border-border pt-6 mb-6">
-            <h2 className="text-[18px] font-bold text-text mb-4">골프장 이동시간</h2>
-            <div className="space-y-3">
-              {travelTimes.map((tt) => (
-                <div
-                  key={tt.id}
-                  className="bg-surface border border-border rounded-[8px] p-3"
-                >
-                  <h3 className="text-[16px] font-bold text-text">{tt.golf_name}</h3>
-                  <p className="text-[15px] text-muted">
-                    예상 차량시간: {tt.estimated_time}
-                  </p>
-                  {tt.google_maps_direction_url && (
-                    <a
-                      href={tt.google_maps_direction_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[14px] text-primary mt-2 inline-block px-2 py-1 min-h-[44px] flex items-center"
-                    >
-                      실시간 길찾기 →
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* 호텔 관련 질문 */}
         {faqs.length > 0 && (
@@ -481,11 +435,10 @@ export function HotelDetailClient({
         {/* 주변 맛집 */}
         <div className="border-t border-border pt-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[18px] font-bold text-text">주변 맛집</h2>
+            <h2 className="text-[18px] font-bold text-text">{sectionLabel("nearby_restaurants", "주변 맛집")}</h2>
             <AddButton
               onClick={() => {
                 setEditRestTarget(null);
-                setRestNearOptions([{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]);
                 setEditRestOpen(true);
               }}
               label="맛집 추가"
@@ -510,12 +463,6 @@ export function HotelDetailClient({
                     <EditToolbar
                       onEdit={() => {
                         setEditRestTarget(rest);
-                        const rNearType = rest.near_type || "HOTEL";
-                        if (rNearType === "HOTEL") {
-                          setRestNearOptions([{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]);
-                        } else {
-                          fetchRestNearOptions(rNearType);
-                        }
                         setEditRestOpen(true);
                       }}
                       onDelete={() => setDeleteRestTarget(rest)}
@@ -571,8 +518,7 @@ export function HotelDetailClient({
         open={editRestOpen}
         onClose={closeRestModal}
         onSaved={handleRestSaved}
-        nearOptions={restNearOptions}
-        onNearTypeChange={(nearType) => fetchRestNearOptions(nearType)}
+        nearOptions={[{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]}
       />
 
       {/* Delete Confirm Modal */}

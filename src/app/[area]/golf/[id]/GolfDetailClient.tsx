@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { GolfCourse, FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
+import { getSectionLabel, getFieldLabel } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
@@ -25,6 +27,7 @@ interface GolfDetailClientProps {
   faqs: FaqItem[];
   restaurants: Restaurant[];
   contentSections: ContentSection[];
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 export function GolfDetailClient({
@@ -33,6 +36,7 @@ export function GolfDetailClient({
   faqs,
   restaurants: initialRestaurants,
   contentSections,
+  dynamicLabels,
 }: GolfDetailClientProps) {
   const [course, setCourse] = useState(initialCourse);
   const [restaurants, setRestaurants] = useState(initialRestaurants);
@@ -42,8 +46,12 @@ export function GolfDetailClient({
   const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
   const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [restNearOptions, setRestNearOptions] = useState<Array<{ id: string; name: string }>>([]);
   const { message, visible, showToast } = useToast();
+
+  // Dynamic label helpers with fallback
+  const L = dynamicLabels || { sections: [], fieldMap: {} };
+  const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
+  const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
 
   const closeGolfModal = useCallback(() => {
     setEditGolfOpen(false);
@@ -53,29 +61,6 @@ export function GolfDetailClient({
     setEditRestOpen(false);
     setEditRestTarget(null);
   }, []);
-
-  const fetchRestNearOptions = useCallback(async (nearType: string) => {
-    try {
-      if (nearType === "GOLF") {
-        setRestNearOptions([{ id: course.slug, name: course.display_name || course.official_name }]);
-      } else if (nearType === "HOTEL") {
-        const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
-        if (res.ok) {
-          const data = await res.json();
-          setRestNearOptions(
-            (data.hotels || []).map((h: { id: string; slug: string; name_kr?: string; official_name: string }) => ({
-              id: h.slug,
-              name: h.name_kr || h.official_name,
-            }))
-          );
-        }
-      } else {
-        setRestNearOptions([]);
-      }
-    } catch {
-      setRestNearOptions([]);
-    }
-  }, [course, area]);
 
   // Detailed content (코스 안내, 플레이/카트, etc.) is served via content_sections table.
 
@@ -153,13 +138,13 @@ export function GolfDetailClient({
           <div className="space-y-2 mb-6">
             {course.address && (
               <p className="text-[15px] text-text">
-                <span className="text-muted mr-2">주소:</span>
+                <span className="text-muted mr-2">{fieldLabel("address", "주소")}:</span>
                 {course.address}
               </p>
             )}
             {course.phone && (
               <div className="flex items-center gap-2">
-                <span className="text-[15px] text-muted">전화:</span>
+                <span className="text-[15px] text-muted">{fieldLabel("phone", "전화")}:</span>
                 <a
                   href={`tel:${course.phone}`}
                   className="text-[15px] text-primary px-2 py-1 min-h-[44px] flex items-center"
@@ -215,11 +200,10 @@ export function GolfDetailClient({
         {/* Nearby restaurants */}
         <div className="border-t border-border pt-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[18px] font-bold text-text">주변 맛집</h2>
+            <h2 className="text-[18px] font-bold text-text">{sectionLabel("nearby_restaurants", "주변 맛집")}</h2>
             <AddButton
               onClick={() => {
                 setEditRestTarget(null);
-                setRestNearOptions([{ id: course.slug, name: course.display_name || course.official_name }]);
                 setEditRestOpen(true);
               }}
               label="맛집 추가"
@@ -244,12 +228,6 @@ export function GolfDetailClient({
                     <EditToolbar
                       onEdit={() => {
                         setEditRestTarget(rest);
-                        const rNearType = rest.near_type || "GOLF";
-                        if (rNearType === "GOLF") {
-                          setRestNearOptions([{ id: course.slug, name: course.display_name || course.official_name }]);
-                        } else {
-                          fetchRestNearOptions(rNearType);
-                        }
                         setEditRestOpen(true);
                       }}
                       onDelete={() => setDeleteRestTarget(rest)}
@@ -318,8 +296,7 @@ export function GolfDetailClient({
           open={editRestOpen}
           onClose={closeRestModal}
           onSaved={handleRestSaved}
-          nearOptions={restNearOptions}
-          onNearTypeChange={(nearType) => fetchRestNearOptions(nearType)}
+          nearOptions={[{ id: course.slug, name: course.display_name || course.official_name }]}
         />
 
       {/* Delete Confirm Modal */}

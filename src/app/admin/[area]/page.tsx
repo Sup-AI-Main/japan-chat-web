@@ -97,6 +97,14 @@ export default async function AdminAreaPage({
                   호텔 / 골프장 / 이동시간 관리
                 </span>
               </Link>
+              <Link
+                href={`/admin/${area}/labels`}
+                className="rounded-[12px] border-2 border-border bg-surface p-4 text-center hover:border-primary transition-colors min-h-[56px] flex items-center justify-center"
+              >
+                <span className="text-[15px] font-medium text-text">
+                  🏷 라벨 / 섹션 관리
+                </span>
+              </Link>
             </div>
           </div>
         )}

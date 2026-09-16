@@ -21,35 +21,49 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const body = await safeJson<Record<string, string>>(req);
-  if (!body) return badRequest("Empty request body");
-  const id = await appendIncludeExclude(body);
-  return created({ id });
+  try {
+    const body = await safeJson<Record<string, string>>(req);
+    if (!body) return badRequest("Empty request body");
+    const id = await appendIncludeExclude(body);
+    return created({ id });
+  } catch (err) {
+    console.error("INCLUDES_CREATE_FAIL", err);
+    const msg = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const body = await safeJson<Record<string, string>>(req);
-  if (!body) return badRequest("Empty request body");
-  const { id, updated_at, ...data } = body;
-  if (!id) return badRequest("Missing id");
   try {
+    const body = await safeJson<Record<string, string>>(req);
+    if (!body) return badRequest("Empty request body");
+    const { id, updated_at, ...data } = body;
+    if (!id) return badRequest("Missing id");
     const success = await updateIncludeExclude(id, data, updated_at);
     return ok({ success });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
     }
-    throw err;
+    console.error("INCLUDES_UPDATE_FAIL", err);
+    const msg = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const id = req.nextUrl.searchParams.get("id");
-  if (!id) return badRequest("Missing id");
-  const success = await deleteIncludeExclude(id);
-  return ok({ success });
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) return badRequest("Missing id");
+    const success = await deleteIncludeExclude(id);
+    return ok({ success });
+  } catch (err) {
+    console.error("INCLUDES_DELETE_FAIL", err);
+    const msg = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 }
