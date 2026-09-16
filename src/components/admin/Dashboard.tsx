@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { adminFetchJson } from "@/lib/admin-fetch";
 import { useToast, Toast } from "@/components/Toast";
 import FormModal from "@/components/admin/FormModal";
 import ImpactDeleteModal from "@/components/admin/ImpactDeleteModal";
+import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
+import { routes } from "@/lib/routes";
 import type { FieldDef } from "@/components/admin/FormModal";
 
 // ---------------------------------------------------------------------------
@@ -497,6 +500,78 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* ================================================================ */}
+      {/* AREA CONTENT MANAGEMENT CARDS                                     */}
+      {/* ================================================================ */}
+      {data.areas.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-[17px] font-bold text-text mb-4">지역별 콘텐츠 관리</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.areas.map((area) => {
+              const areaCategoryTypes = data.categories.filter((c) => c.group_type === "AREA" && c.active);
+              const categoryBreakdown = areaCategoryTypes.map((cat) => ({
+                code: cat.code,
+                label: cat.label,
+                icon: cat.icon,
+                count: data.entityCountsByAreaCategory[area.id]?.[cat.id] ?? 0,
+              }));
+              const faqCount = data.faqCountsByArea[area.id] ?? 0;
+
+              return (
+                <div
+                  key={area.id}
+                  className={`bg-surface border rounded-[12px] p-5 transition-colors ${area.active ? "border-border hover:border-primary/50" : "border-dashed border-muted opacity-60"}`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[17px] font-bold text-text">
+                      {getAreaEmoji(area.code)} {area.name_kr}
+                    </h3>
+                    <span className="text-[12px] font-mono text-muted">{area.code}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted mb-4">
+                    {categoryBreakdown.map((cb) => (
+                      <span key={cb.code}>
+                        {getCategoryEmoji(cb.code)} {cb.label} {cb.count}
+                      </span>
+                    ))}
+                    <span>❓ FAQ {faqCount}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {categoryBreakdown.map((cb) => (
+                      <Link
+                        key={cb.code}
+                        href={routes.adminAreaEntities(area.code.toLowerCase())}
+                        className="px-3 py-2 text-[12px] text-center text-text bg-gray-50 border border-border rounded-[8px] hover:border-primary hover:bg-primary-soft transition-colors min-h-[36px] flex items-center justify-center"
+                      >
+                        {getCategoryEmoji(cb.code)} {cb.label} 관리
+                      </Link>
+                    ))}
+                    <Link
+                      href={routes.adminAreaManage(area.code.toLowerCase())}
+                      className="px-3 py-2 text-[12px] text-center text-text bg-gray-50 border border-border rounded-[8px] hover:border-primary hover:bg-primary-soft transition-colors min-h-[36px] flex items-center justify-center"
+                    >
+                      🚗 이동시간 관리
+                    </Link>
+                    <Link
+                      href={routes.adminArea(area.code.toLowerCase())}
+                      className="px-3 py-2 text-[12px] text-center text-text bg-gray-50 border border-border rounded-[8px] hover:border-primary hover:bg-primary-soft transition-colors min-h-[36px] flex items-center justify-center"
+                    >
+                      ❓ FAQ 관리
+                    </Link>
+                  </div>
+
+                  {!area.active && (
+                    <p className="text-[11px] text-danger mt-3">비활성화됨</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ================================================================ */}
       {/* AREA CATEGORIES (when area selected)                             */}
