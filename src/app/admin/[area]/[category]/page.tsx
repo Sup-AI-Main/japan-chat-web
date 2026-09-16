@@ -3,8 +3,11 @@ import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
 import { resolveAreaFromAdmin, resolveCategoryFromAdmin, getAdminFaqs } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor } from "@/lib/display";
+import { routes } from "@/lib/routes";
 import type { FaqItem } from "@/lib/types";
 import AdminFaqList from "./AdminFaqList";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminCategoryPage({
   params,
@@ -14,7 +17,7 @@ export default async function AdminCategoryPage({
   const { area, category } = await params;
 
   const authed = await isAuthenticated();
-  if (!authed) redirect("/admin");
+  if (!authed) redirect(routes.admin());
 
   const currentArea = await resolveAreaFromAdmin(area);
   if (!currentArea) notFound();
@@ -42,13 +45,13 @@ export default async function AdminCategoryPage({
       <div className="max-w-[900px] mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <Link
-            href="/"
+            href={routes.home()}
             className="text-[14px] text-muted hover:text-primary min-h-[44px] flex items-center"
           >
             ← 홈
           </Link>
           <Link
-            href={`/admin/${area}`}
+            href={routes.adminArea(area)}
             className="text-[14px] text-muted hover:text-primary min-h-[44px] flex items-center"
           >
             {getAreaEmoji(areaCode)} {areaLabel}
@@ -60,7 +63,7 @@ export default async function AdminCategoryPage({
             {getAreaEmoji(areaCode)} {areaLabel} &gt; {getCategoryEmoji(categoryCode)} {categoryLabel}
           </h1>
           <Link
-            href={`/admin/${area}/${category}/new`}
+            href={routes.adminAreaCategoryNew(area, category)}
             className="bg-primary text-white px-4 py-3 rounded-[10px] text-[14px] font-medium hover:opacity-90 min-h-[44px] flex items-center justify-center sm:justify-start whitespace-nowrap"
           >
             + 질문 추가

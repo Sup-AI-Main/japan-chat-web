@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { useGuideStore } from "@/store/guide-store";
 import Link from "next/link";
+import { routes } from "@/lib/routes";
 
 export default function AdminLoginButton() {
   const isAdmin = useAdmin();
@@ -54,15 +55,27 @@ export default function AdminLoginButton() {
 
   // 관리자 로그인 상태
   if (isAdmin) {
+    const handleLogout = async () => {
+      await fetch("/api/admin/logout", { method: "POST" });
+      setAdmin(false);
+      window.location.replace("/");
+    };
+
     return (
       <div className="fixed top-4 right-4 z-[1000] flex items-center gap-2">
         <Link
-          href="/admin"
+          href={routes.adminHome()}
           className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-border shadow-sm hover:bg-white/95 transition-colors text-[14px] font-medium text-text cursor-pointer"
         >
           <span className="text-[16px]">⚙️</span>
           <span>관리자 메뉴</span>
         </Link>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-border shadow-sm hover:bg-white/95 transition-colors text-[14px] font-medium text-danger cursor-pointer"
+        >
+          로그아웃
+        </button>
       </div>
     );
   }

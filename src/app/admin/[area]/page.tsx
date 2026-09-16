@@ -3,6 +3,9 @@ import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
 import { resolveAreaFromAdmin, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder, GROUP_AREA, GROUP_COMMON } from "@/lib/display";
+import { routes } from "@/lib/routes";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminAreaPage({
   params,
@@ -12,7 +15,7 @@ export default async function AdminAreaPage({
   const { area } = await params;
 
   const authed = await isAuthenticated();
-  if (!authed) redirect("/admin");
+  if (!authed) redirect(routes.admin());
 
   const currentArea = await resolveAreaFromAdmin(area);
   if (!currentArea) notFound();
@@ -34,13 +37,13 @@ export default async function AdminAreaPage({
       <div className="max-w-[900px] mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <Link
-            href="/"
+            href={routes.home()}
             className="text-[14px] text-muted hover:text-primary min-h-[44px] flex items-center"
           >
             ← 홈
           </Link>
           <Link
-            href="/admin/home"
+            href={routes.adminHome()}
             className="text-[14px] text-muted hover:text-primary min-h-[44px] flex items-center"
           >
             지역 선택
@@ -58,7 +61,7 @@ export default async function AdminAreaPage({
           {categories.map((cat) => (
             <Link
               key={cat.code}
-              href={`/admin/${area}/${cat.code.toLowerCase()}`}
+              href={routes.adminAreaCategory(area, cat.code.toLowerCase())}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{
                 backgroundColor: getCategoryBg(cat.code),
@@ -79,7 +82,7 @@ export default async function AdminAreaPage({
             <h2 className="text-[17px] font-bold text-text mb-3">시설 관리</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Link
-                href={`/admin/${area}/entities`}
+                href={routes.adminAreaEntities(area)}
                 className="rounded-[12px] border-2 border-primary/40 bg-primary-soft p-4 text-center hover:border-primary transition-colors min-h-[56px] flex items-center justify-center"
               >
                 <span className="text-[15px] font-medium text-primary">
@@ -87,7 +90,7 @@ export default async function AdminAreaPage({
                 </span>
               </Link>
               <Link
-                href={`/admin/${area}/manage`}
+                href={routes.adminAreaManage(area)}
                 className="rounded-[12px] border-2 border-border bg-surface p-4 text-center hover:border-primary transition-colors min-h-[56px] flex items-center justify-center"
               >
                 <span className="text-[15px] font-medium text-text">

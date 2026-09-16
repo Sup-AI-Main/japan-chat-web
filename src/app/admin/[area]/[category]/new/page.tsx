@@ -9,6 +9,9 @@ import {
   getRestaurants,
 } from "@/lib/supabase-cms";
 import FaqForm from "../FaqForm";
+import { routes } from "@/lib/routes";
+
+export const dynamic = "force-dynamic";
 
 export default async function NewFaqPage({
   params,
@@ -18,7 +21,7 @@ export default async function NewFaqPage({
   const { area, category } = await params;
 
   const authed = await isAuthenticated();
-  if (!authed) redirect("/admin");
+  if (!authed) redirect(routes.admin());
 
   const currentArea = await resolveAreaFromAdmin(area);
   if (!currentArea) notFound();
@@ -73,7 +76,7 @@ export default async function NewFaqPage({
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[900px] mx-auto">
         <Link
-          href={`/admin/${area}/${category}`}
+          href={routes.adminAreaCategory(area, category)}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
           ← {areaLabel} &gt; {categoryLabel}

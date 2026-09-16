@@ -1,18 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useGuideStore } from "@/store/guide-store";
 
 export default function LogoutButton() {
-  const router = useRouter();
   const setAdmin = useGuideStore((s) => s.setAdmin);
 
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
-    await fetch("/api/admin/logout");
+    await fetch("/api/admin/logout", { method: "POST" });
     setAdmin(false);
-    router.push("/");
-    router.refresh();
+    window.location.replace("/");
   };
 
   return (
