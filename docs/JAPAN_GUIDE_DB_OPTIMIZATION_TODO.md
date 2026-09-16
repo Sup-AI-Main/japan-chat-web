@@ -386,7 +386,7 @@ on entities(area_id, entity_type, active, sort);
 ```text
 DOS 골프장 목록
 BEPPU 호텔 목록
-맛집 목록
+음식점 목록
 ```
 
 Double-check:
@@ -613,7 +613,7 @@ faq
 
 현재 데이터 적어도 구조는 준비.
 
-맛집/FAQ/콘텐츠가 늘어날 가능성 있음.
+음식점/FAQ/콘텐츠가 늘어날 가능성 있음.
 
 권장:
 

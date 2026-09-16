@@ -324,7 +324,7 @@ SYSTEM 카테고리는 일반 사용자 navigation에 노출하지 않습니다.
 
 가장 중요한 중심 테이블입니다.
 
-골프장 / 호텔 / 맛집 / 기타 장소의 공통 identity를 저장합니다.
+골프장 / 호텔 / 음식점 / 기타 장소의 공통 identity를 저장합니다.
 
 ## Schema
 
@@ -491,7 +491,7 @@ hotel_dining
 
 # 11. restaurants
 
-맛집 고유 상세정보입니다.
+음식점 고유 상세정보입니다.
 
 ## Schema
 
@@ -524,7 +524,7 @@ updated_at        timestamptz
 
 # 12. restaurant_locations
 
-맛집과 호텔/골프장/장소의 거리 관계입니다.
+음식점과 호텔/골프장/장소의 거리 관계입니다.
 
 기존:
 
@@ -922,7 +922,7 @@ area와 active/sort는 entities에서 필터링하세요.
 entities.entity_type = RESTAURANT
 ```
 
-맛집 주변 장소가 필요한 경우:
+음식점 주변 장소가 필요한 경우:
 
 ```text
 restaurant_locations
@@ -1143,7 +1143,7 @@ entities
 
 ---
 
-# 33. 맛집 CREATE
+# 33. 음식점 CREATE
 
 ```text
 entities
@@ -1604,7 +1604,7 @@ includes_excludes.legacy_id
 
 # 52. Existing URL Compatibility
 
-골프장/호텔/맛집 페이지 URL에서
+골프장/호텔/음식점 페이지 URL에서
 기존 문자열 id를 쓰고 있다면:
 
 ```text
@@ -2126,7 +2126,7 @@ entities.active=false
 카테고리 dropdown → categories
 골프장 dropdown → entities WHERE entity_type=GOLF
 호텔 dropdown → entities WHERE entity_type=HOTEL
-맛집 dropdown → entities WHERE entity_type=RESTAURANT
+음식점 dropdown → entities WHERE entity_type=RESTAURANT
 ```
 
 하드코딩 금지.
@@ -2195,8 +2195,8 @@ build PASS
 [ ] 골프장 상세
 [ ] 호텔 목록
 [ ] 호텔 상세
-[ ] 맛집 목록
-[ ] 맛집 상세
+[ ] 음식점 목록
+[ ] 음식점 상세
 [ ] 공통 안내
 [ ] FAQ
 [ ] 관리자 로그인
@@ -2589,7 +2589,7 @@ areas
 
 에서 관리합니다.
 
-골프/호텔/맛집 공통 identity는:
+골프/호텔/음식점 공통 identity는:
 
 ```text
 entities
@@ -2632,7 +2632,7 @@ travel_times
 
 에서 관리합니다.
 
-맛집과 장소 관계는:
+음식점과 장소 관계는:
 
 ```text
 restaurant_locations

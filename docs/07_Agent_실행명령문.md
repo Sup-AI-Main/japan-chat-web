@@ -83,14 +83,14 @@ Google Sheet:
 
 ```text
 /api/admin/hotel       - 호텔 CRUD (GET/POST/PUT/DELETE)
-/api/admin/restaurant  - 맛집 CRUD (GET/POST/PUT/DELETE)
+/api/admin/restaurant  - 음식점 CRUD (GET/POST/PUT/DELETE)
 /api/admin/golf        - 골프장 목록 조회 (GET)
 /api/admin/check       - 관리자 인증 확인 (GET)
 ```
 
 ## 인라인 CMS
 
-관리자가 고객 페이지에서 직접 호텔/맛집을 편집할 수 있다.
+관리자가 고객 페이지에서 직접 호텔/음식점을 편집할 수 있다.
 
 ```text
 src/components/inline-cms/
@@ -125,7 +125,7 @@ src/store/guide-store.ts
 - 호텔
 - 온천
 - 차량
-- 맛집
+- 음식점
 - 기타
 - 환불
 - 환전
@@ -157,7 +157,7 @@ src/store/guide-store.ts
 6. FAQ CRUD
 7. 정렬
 8. 캐시 무효화
-9. 호텔/맛집 구조화된 데이터
+9. 호텔/음식점 구조화된 데이터
 10. 인라인 CMS (HotelEditModal, RestaurantEditModal)
 11. Zustand 클라이언트 캐시
 12. 모바일 QA

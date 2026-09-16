@@ -142,7 +142,7 @@ npm run build
 
 추가 라이브러리는 최소화.
 
-Zustand은 지역별 데이터(호텔, 골프장, 맛집)의 클라이언트 캐싱에만 사용한다.
+Zustand은 지역별 데이터(호텔, 골프장, 음식점)의 클라이언트 캐싱에만 사용한다.
 
 ---
 
@@ -650,7 +650,7 @@ getCategoryConfig(code)   // 전체 설정
 
 CATEGORY 타입에는 `group` 필드로 지역별/공통을 구분한다.
 
-- `AREA`: 지역별 카테고리 (골프장, 호텔, 맛집) → 도스/벳푸 각각 다른 데이터
+- `AREA`: 지역별 카테고리 (골프장, 호텔, 음식점) → 도스/벳푸 각각 다른 데이터
 - `COMMON`: 공통 안내 카테고리 (온천, 차량, 환불 등) → area=ALL
 
 코드에 카테고리 목록을 하드코딩하지 않는다. group 필드로 필터링한다.
@@ -690,7 +690,7 @@ migrateGroupColumn()   // group 컬럼 마이그레이션
 
 ---
 
-# 32. 구조화된 호텔/맛집 CRUD API
+# 32. 구조화된 호텔/음식점 CRUD API
 
 ## 호텔 API
 
@@ -703,15 +703,15 @@ PUT    body: { id, ... }   → 호텔 수정
 DELETE ?id=xxx             → 호텔 삭제 (행 삭제)
 ```
 
-## 맛집 API
+## 음식점 API
 
 `/api/admin/restaurant` — 관리자 인증 필요
 
 ```text
-GET    ?area=DOS               → 맛집 목록
-POST   body: RestaurantData    → 맛집 추가 (id 반환)
-PUT    body: { id, ... }       → 맛집 수정
-DELETE ?id=xxx                 → 맛집 삭제 (행 삭제)
+GET    ?area=DOS               → 음식점 목록
+POST   body: RestaurantData    → 음식점 추가 (id 반환)
+PUT    body: { id, ... }       → 음식점 수정
+DELETE ?id=xxx                 → 음식점 삭제 (행 삭제)
 ```
 
 ## 골프장 API
@@ -761,7 +761,7 @@ TTL: 30분.
 
 # 34. 인라인 CMS 컴포넌트
 
-관리자가 고객 페이지에서 직접 호텔/맛집을 편집할 수 있다.
+관리자가 고객 페이지에서 직접 호텔/음식점을 편집할 수 있다.
 
 ## 파일 구조
 
@@ -771,7 +771,7 @@ src/components/inline-cms/
 ├─ EditToolbar.tsx        # ✏️/🗑️ 버튼 + ＋ 추가 버튼
 ├─ ConfirmModal.tsx       # 삭제 확인 모달
 ├─ HotelEditModal.tsx     # 호텔 수정/추가 모달
-└─ RestaurantEditModal.tsx # 맛집 수정/추가 모달
+└─ RestaurantEditModal.tsx # 음식점 수정/추가 모달
 
 src/hooks/use-admin.ts    # 관리자 인증 훅
 ```

@@ -38,7 +38,7 @@
 - [x] 호텔 목록
 - [x] 호텔 상세
 - [x] 호텔→골프장 이동시간 표시
-- [x] 맛집 목록
+- [x] 음식점 목록
 - [x] FAQ 카테고리 화면
 - [x] FAQ 검색 (관리자)
 - [x] FAQ accordion
@@ -85,7 +85,7 @@
 - [x] 호텔 (HOTEL)
 - [x] 온천 (ONSEN)
 - [x] 차량 (DRIVER)
-- [x] 맛집 (RESTAURANT)
+- [x] 음식점 (RESTAURANT)
 - [x] 기타 (GENERAL)
 - [x] 환불 (REFUND)
 - [x] 환전 (MONEY)
@@ -131,7 +131,7 @@
 - [x] sort 정상 적용
 - [x] 특정 호텔 FAQ 정상 연결
 - [x] 특정 골프장 FAQ 정상 연결
-- [x] 특정 맛집 FAQ 정상 연결
+- [x] 특정 음식점 FAQ 정상 연결
 
 ---
 
@@ -183,7 +183,7 @@
 # P1 — 구조화된 데이터 + 인라인 CMS
 
 - [x] 호텔 구조화된 필드 (name_kr/jp, 조식/석식 장소/시간/마감, 온천/스파 상세)
-- [x] 맛집 구조화된 필드 (name_kr/jp, 메뉴\_kr/jp/가격, 거리km/차량분/도보분, 추천)
+- [x] 음식점 구조화된 필드 (name_kr/jp, 메뉴\_kr/jp/가격, 거리km/차량분/도보분, 추천)
 - [x] `src/store/guide-store.ts` Zustand 캐시 (30분 TTL)
 - [x] `src/hooks/use-admin.ts` 관리자 인증 훅
 - [x] `/api/admin/hotel` CRUD (GET/POST/PUT/DELETE)
@@ -194,7 +194,7 @@
 - [x] `src/components/inline-cms/ConfirmModal.tsx`
 - [x] `src/components/inline-cms/HotelEditModal.tsx`
 - [x] `src/components/inline-cms/RestaurantEditModal.tsx`
-- [x] 인라인 CMS로 고객 페이지에서 호텔/맛집 편집 가능
+- [x] 인라인 CMS로 고객 페이지에서 호텔/음식점 편집 가능
 - [x] 수정/삭제 후 Zustand 캐시 즉시 갱신
 - [x] GolfEditModal + GolfListClient (골프장 CRUD UI)
 - [x] IncludeExcludeSection (포함/불포함 CRUD UI)
@@ -246,7 +246,7 @@
 - [ ] 출발시간대에 따른 차이 필요 여부 검토
 - [ ] 각 골프장 공식 이름 재확인
 - [ ] 호텔 공식 정보 재확인
-- [ ] 맛집 영업시간 최신 확인
+- [ ] 음식점 영업시간 최신 확인
 - [ ] source_url 없는 데이터 정리
 - [ ] 확인 필요 데이터 목록화
 
@@ -267,7 +267,7 @@
 # P0 — IA 재구조화 (공통 안내 분리)
 
 - [x] 카테고리를 지역별/공통으로 분류
-- [x] 지역별: 골프장, 호텔, 맛집 (AREA_CATEGORIES)
+- [x] 지역별: 골프장, 호텔, 음식점 (AREA_CATEGORIES)
 - [x] 공통: 온천, 차량, 환불, 환전, 추가결제, 기타 (COMMON_CATEGORIES)
 - [x] 메인 페이지에 공통 안내 섹션 추가
 - [x] 지역 홈에서 공통 카테고리 제거
@@ -281,11 +281,60 @@
 
 ---
 
+# P1 — Missing id / 응답 구조 수정
+
+- [x] appendIncludeExclude() 반환값: id만 → DB row 전체
+- [x] appendContentSection() 반환값: id만 → DB row 전체
+- [x] POST /api/admin/includes 응답: { id } → { ...row }
+- [x] POST /api/admin/content-sections 응답: { id } → { ...row }
+- [x] IncludeExcludeSection 프론트: data.id → data.data.id 추출
+- [x] ContentSectionsRenderer 프론트: data.id → data.data.id 추출
+- [x] CREATE → EDIT (refresh 없이) → DELETE 연속 테스트 통과
+
+---
+
+# P1 — 지역 기본 카테고리 통일
+
+- [ ] 모든 지역 기본 카테고리 4개: GOLF, HOTEL, RESTAURANT, ATTRACTION
+- [ ] "맛집" → "음식점" 전면 변경 (사용자-facing 표시명만)
+- [ ] DB/API entity type RESTAURANT 유지
+- [ ] 새 지역 생성 시 자동 4개 카테고리 표시
+- [ ] 관리자 대시보드 자동 4개 관리 영역 표시
+- [ ] 사용자 지역 페이지 자동 4개 버튼 표시
+
+---
+
+# P1 — 주변 볼거리 (ATTRACTION) 신규 카테고리
+
+- [ ] category code: ATTRACTION, label: 주변 볼거리, group_type: AREA
+- [ ] entity_type ATTRACTION 허용 (enum/check constraint migration)
+- [ ] 기본 필드: 이름(KR/JP), 주소, 전화, Maps URL, 운영시간, 휴무일, 입장료, 설명, 소요시간, 주차, 기타 안내
+- [ ] 기존 entities/entity_details/field_definitions/section_definitions 구조 재사용
+- [ ] 관리자 CRUD: CREATE, EDIT, DELETE, visibility, sort
+- [ ] /admin/[area]/attraction 페이지
+- [ ] /[area]/attraction 사용자 페이지
+- [ ] Dynamic label system 연동
+
+---
+
+# P1 — 음식점 CRUD 수정
+
+- [ ] Restaurant CREATE Server Error root cause 조사
+- [ ] near_type/near_entity_id slug→UUID 변환 확인
+- [ ] CREATE payload와 DB schema 1:1 비교
+- [ ] POST 응답: id만 → full row 반환
+- [ ] Frontend safe JSON parse 적용
+- [ ] Golf/Hotel 상세에서 음식점 CRUD UI 제거
+- [ ] 음식점 관리는 /[area]/restaurant에서만 수행
+- [ ] CREATE → EDIT → DELETE 연속 테스트
+
+---
+
 # P2 — 향후 선택
 
 - [x] 관리자 골프장 기본정보 편집 (골프장 목록 API)
 - [x] 관리자 호텔 기본정보 편집 (인라인 CMS + HotelEditModal)
-- [x] 관리자 맛집 CRUD (인라인 CMS + RestaurantEditModal)
+- [x] 관리자 음식점 CRUD (인라인 CMS + RestaurantEditModal)
 - [ ] 관리자 이동시간 편집
 - [ ] Sheet 데이터 미리보기
 - [ ] 캐시 수동 새로고침
@@ -313,7 +362,7 @@
 MVP 완료는 아래 조건을 모두 만족할 때:
 
 1. [x] 도스/벳푸 선택 가능
-2. [x] 고객이 골프장/호텔/맛집/FAQ 확인 가능
+2. [x] 고객이 골프장/호텔/음식점/FAQ 확인 가능
 3. [x] 호텔별 모든 골프장 이동시간 확인 가능
 4. [x] 관리자 페이지에서 Q&A 추가/수정/숨김 가능
 5. [x] 관리자에게 영어 코드/ID가 노출되지 않음
