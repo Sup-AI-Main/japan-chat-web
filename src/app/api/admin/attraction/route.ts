@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getRestaurants, appendRestaurant, updateRestaurant, deleteRestaurantRow } from "@/lib/supabase-cms";
-import { getSupabaseServer } from "@/lib/supabase/server";
+import { getAttractions, appendAttraction, updateAttraction, deleteAttraction } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -11,8 +10,8 @@ export async function GET(req: NextRequest) {
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   try {
     const area = req.nextUrl.searchParams.get("area") || undefined;
-    const restaurants = await getRestaurants(area || undefined);
-    return ok({ restaurants });
+    const attractions = await getAttractions(area || undefined);
+    return ok({ attractions });
   } catch (err) {
     return serverError(err);
   }
@@ -25,10 +24,10 @@ export async function POST(req: NextRequest) {
     const body = await safeJson<Record<string, unknown>>(req);
     if (!body) return badRequest("Empty request body");
     if (!body.active) body.active = "TRUE";
-    const { id, slug } = await appendRestaurant(body as Record<string, string>);
-    const restaurant = { ...body, id, slug };
-    revalidatePath(`/${(body.area as string || '').toLowerCase()}/restaurant`);
-    return created({ id, slug, restaurant });
+    const { id, slug } = await appendAttraction(body as Record<string, string>);
+    const attraction = { ...body, id, slug };
+    revalidatePath(`/${(body.area as string || '').toLowerCase()}/attraction`);
+    return created({ id, slug, attraction });
   } catch (err) {
     return serverError(err);
   }
@@ -42,16 +41,10 @@ export async function PUT(req: NextRequest) {
   const { id, updated_at, area, ...restData } = body;
   if (!id) return badRequest("Missing id");
   try {
-    const success = await updateRestaurant(id as string, restData as Record<string, string>, updated_at as string | undefined);
-    // Re-query slug from DB to ensure it's always present
-    const { data: entity } = await getSupabaseServer()
-      .from('entities')
-      .select('slug')
-      .eq('id', id as string)
-      .single();
-    const restaurant = { ...body, slug: entity?.slug || body.slug || '' };
-    if (area) revalidatePath(`/${(area as string).toLowerCase()}/restaurant`);
-    return ok({ success, restaurant });
+    const success = await updateAttraction(id as string, restData as Record<string, string>, updated_at as string | undefined);
+    const attraction = { ...body };
+    if (area) revalidatePath(`/${(area as string).toLowerCase()}/attraction`);
+    return ok({ success, attraction });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
@@ -67,9 +60,9 @@ export async function DELETE(req: NextRequest) {
   if (!id) return badRequest("Missing id");
   const area = req.nextUrl.searchParams.get("area") || "";
   try {
-    const success = await deleteRestaurantRow(id);
+    const success = await deleteAttraction(id);
     if (area) {
-      revalidatePath(`/${area.toLowerCase()}/restaurant`);
+      revalidatePath(`/${area.toLowerCase()}/attraction`);
     }
     return ok({ success });
   } catch (err) {

@@ -12,10 +12,13 @@ export async function GET(request: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   }
-
-  const area = request.nextUrl.searchParams.get("area") || undefined;
-  const times = await getTravelTimes(area);
-  return ok({ travelTimes: times });
+  try {
+    const area = request.nextUrl.searchParams.get("area") || undefined;
+    const times = await getTravelTimes(area);
+    return ok({ travelTimes: times });
+  } catch (err) {
+    return serverError(err);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -84,16 +87,17 @@ export async function DELETE(request: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   }
-
-  const id = request.nextUrl.searchParams.get("id");
-  if (!id) {
-    return badRequest("id 필수");
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) {
+      return badRequest("id 필수");
+    }
+    const success = await deleteTravelTime(id);
+    if (!success) {
+      return serverError(new Error("삭제 실패"));
+    }
+    return ok({ success: true });
+  } catch (err) {
+    return serverError(err);
   }
-
-  const success = await deleteTravelTime(id);
-  if (!success) {
-    return serverError(new Error("삭제 실패"));
-  }
-
-  return ok({ success: true });
 }

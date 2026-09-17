@@ -154,12 +154,18 @@ export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEdi
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "저장에 실패했습니다.");
+        const text = await res.text();
+        let msg = "저장에 실패했습니다.";
+        try { msg = JSON.parse(text).error || msg; } catch { /* ignore */ }
+        throw new Error(msg);
       }
 
-      const data = await res.json();
-      onSaved(data.hotel ?? { ...form, id: hotel?.id });
+      const resBody = await res.json();
+      const saved = resBody.data?.hotel;
+      if (!saved?.id) {
+        throw new Error("서버 응답이 올바르지 않습니다 (id 누락).");
+      }
+      onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
     } finally {

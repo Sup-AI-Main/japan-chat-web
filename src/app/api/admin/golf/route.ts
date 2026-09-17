@@ -7,9 +7,13 @@ import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const area = req.nextUrl.searchParams.get("area") || undefined;
-  const courses = await getGolfCourses(area || undefined);
-  return ok({ courses });
+  try {
+    const area = req.nextUrl.searchParams.get("area") || undefined;
+    const courses = await getGolfCourses(area || undefined);
+    return ok({ courses });
+  } catch (err) {
+    return serverError(err);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -40,15 +44,19 @@ export async function PUT(req: NextRequest) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
     }
-    throw err;
+    return serverError(err);
   }
 }
 
 export async function DELETE(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const id = req.nextUrl.searchParams.get("id");
-  if (!id) return badRequest("Missing id");
-  const success = await deleteGolfCourse(id);
-  return ok({ success });
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) return badRequest("Missing id");
+    const success = await deleteGolfCourse(id);
+    return ok({ success });
+  } catch (err) {
+    return serverError(err);
+  }
 }

@@ -7,15 +7,19 @@ import {
   deleteIncludeExclude,
 } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
-import { ok, created, badRequest, conflict, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const parentType = req.nextUrl.searchParams.get("parent_type") || undefined;
-  const parentId = req.nextUrl.searchParams.get("parent_id") || undefined;
-  const items = await getIncludesExcludes(parentType, parentId, true);
-  return ok({ items });
+  try {
+    const parentType = req.nextUrl.searchParams.get("parent_type") || undefined;
+    const parentId = req.nextUrl.searchParams.get("parent_id") || undefined;
+    const items = await getIncludesExcludes(parentType, parentId, true);
+    return ok({ items });
+  } catch (err) {
+    return serverError(err);
+  }
 }
 
 export async function POST(req: NextRequest) {

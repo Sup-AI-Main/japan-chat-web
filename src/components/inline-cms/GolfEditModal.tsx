@@ -106,12 +106,18 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved }: GolfEditMo
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "저장에 실패했습니다.");
+        const text = await res.text();
+        let msg = "저장에 실패했습니다.";
+        try { msg = JSON.parse(text).error || msg; } catch { /* ignore */ }
+        throw new Error(msg);
       }
 
-      const data = await res.json();
-      onSaved(data.course ?? { ...form, id: golf?.id });
+      const resBody = await res.json();
+      const saved = resBody.data?.course;
+      if (!saved?.id) {
+        throw new Error("서버 응답이 올바르지 않습니다 (id 누락).");
+      }
+      onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
     } finally {

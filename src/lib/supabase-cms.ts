@@ -9,6 +9,7 @@ import type {
   GolfCourse,
   Hotel,
   Restaurant,
+  Attraction,
   TravelTime,
   FaqItem,
   AdminOption,
@@ -724,7 +725,7 @@ export async function getRestaurantsNearEntity(
     .from('restaurant_locations')
     .select(
       `
-      id, distance_text,
+      id, distance_text, distance_km, drive_minutes, walk_minutes,
       restaurant:entities!restaurant_entity_id(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)),
       near:entities!near_entity_id(id, slug, display_name, entity_type)
     `
@@ -753,14 +754,23 @@ export async function getRestaurantsNearEntity(
       const areaCode = rest.areas?.code || '';
       const restData = rest.restaurants?.[0] || {};
       const nearType =
-        near?.entity_type === 'GOLF' ? 'GOLF' : near?.entity_type === 'HOTEL' ? 'HOTEL' : '';
+        near?.entity_type === 'GOLF'
+          ? 'GOLF'
+          : near?.entity_type === 'HOTEL'
+            ? 'HOTEL'
+            : near
+              ? near.entity_type
+              : 'AREA';
       return mapRestaurant(
         rest,
         restData,
         areaCode,
         nearType,
         near?.slug || '',
-        row.distance_text as string
+        row.distance_text as string,
+        row.distance_km != null ? String(row.distance_km) : '',
+        row.drive_minutes != null ? String(row.drive_minutes) : '',
+        row.walk_minutes != null ? String(row.walk_minutes) : ''
       );
     });
 }
@@ -1117,7 +1127,10 @@ function mapRestaurant(
   areaCode: string,
   nearType: string,
   nearId: string,
-  distanceText: string
+  distanceText: string,
+  distanceKm?: string,
+  driveMinutes?: string,
+  walkMinutes?: string
 ): Restaurant {
   return {
     id: entity.id as string,
@@ -1144,9 +1157,9 @@ function mapRestaurant(
     source_url: (rest.source_url as string) || '',
     status: (rest.status as string) || '',
     last_verified: (rest.last_verified as string) || '',
-    distance_km: '',
-    drive_minutes: '',
-    walk_minutes: '',
+    distance_km: distanceKm || '',
+    drive_minutes: driveMinutes || '',
+    walk_minutes: walkMinutes || '',
     active: entity.active ? 'TRUE' : 'FALSE',
     sort: entity.sort,
     updated_at: entity.updated_at,
@@ -1154,48 +1167,76 @@ function mapRestaurant(
 }
 
 export async function getRestaurants(area?: string): Promise<Restaurant[]> {
-  // Query restaurant_locations with joins to get near entity info
-  let query = db().from('restaurant_locations').select(`
-      id, distance_text,
-      restaurant:entities!restaurant_entity_id(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)),
-      near:entities!near_entity_id(id, slug, display_name, entity_type)
-    `);
+  // Query entities (RESTAURANT type) with LEFT JOIN to restaurant_locations for near info
+  let query = db()
+    .from('entities')
+    .select(
+      `
+      id, slug, display_name, entity_type, area_id, active, sort, updated_at,
+      areas!inner(code),
+      restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified),
+      restaurant_locations!restaurant_entity_id(
+        id, distance_text, distance_km, drive_minutes, walk_minutes,
+        near:entities!near_entity_id(id, slug, display_name, entity_type)
+      )
+    `
+    )
+    .eq('entity_type', 'RESTAURANT');
 
   if (area) {
-    query = query.eq('restaurant.areas.code', area.toUpperCase());
+    query = query.eq('areas.code', area.toUpperCase());
   }
 
   const { data, error } = await query;
   if (error) {
-    logError('READ', 'restaurant_locations', undefined, error);
+    logError('READ', 'entities', undefined, error);
     throw error;
   }
 
   return (data || [])
-    .filter((row) => {
-      const rest = row.restaurant as unknown as EntityRow & {
-        areas: { code: string };
-        restaurants: Record<string, unknown>[];
-      };
-      return rest && rest.active !== false;
-    })
+    .filter((row) => row.active !== false)
     .map((row) => {
-      const rest = row.restaurant as unknown as EntityRow & {
-        areas: { code: string };
-        restaurants: Record<string, unknown>[];
-      };
-      const near = row.near as unknown as EntityRow;
-      const areaCode = rest.areas?.code || '';
-      const restData = rest.restaurants?.[0] || {};
+      const areaCode = (row.areas as unknown as { code: string })?.code || '';
+      const restData = (row.restaurants as unknown as Record<string, unknown>[])?.[0] || {};
+      const locations =
+        (row.restaurant_locations as unknown as Array<{
+          id: string;
+          distance_text: string;
+          distance_km: string;
+          drive_minutes: number;
+          walk_minutes: number;
+          near: { id: string; slug: string; display_name: string; entity_type: string };
+        }>) || [];
+      const firstLoc = locations[0];
+      const near = firstLoc?.near;
       const nearType =
-        near?.entity_type === 'GOLF' ? 'GOLF' : near?.entity_type === 'HOTEL' ? 'HOTEL' : '';
+        near?.entity_type === 'GOLF'
+          ? 'GOLF'
+          : near?.entity_type === 'HOTEL'
+            ? 'HOTEL'
+            : near
+              ? near.entity_type
+              : 'AREA';
+      const entityRow: EntityRow = {
+        id: row.id,
+        slug: row.slug,
+        display_name: row.display_name,
+        entity_type: row.entity_type,
+        area_id: row.area_id,
+        active: row.active,
+        sort: row.sort,
+        updated_at: row.updated_at,
+      };
       return mapRestaurant(
-        rest,
+        entityRow,
         restData,
         areaCode,
         nearType,
         near?.slug || '',
-        ((row as Record<string, unknown>).distance_text as string) || ''
+        firstLoc?.distance_text || '',
+        firstLoc?.distance_km != null ? String(firstLoc.distance_km) : '',
+        firstLoc?.drive_minutes != null ? String(firstLoc.drive_minutes) : '',
+        firstLoc?.walk_minutes != null ? String(firstLoc.walk_minutes) : ''
       );
     });
 }
@@ -1247,9 +1288,19 @@ export async function appendRestaurant(
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
-  const slug =
+  let slug =
     data.id ||
     `${(data.area || '').toLowerCase()}_rest_${(data.name || data.name_kr || '').replace(/\s+/g, '_').toLowerCase()}`;
+
+  // Deduplicate slug if it already exists
+  const { data: existing } = await db()
+    .from('entities')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (existing) {
+    slug = `${slug}_${Date.now().toString(36)}`;
+  }
 
   const { data: entity, error: entityError } = await adminDb()
     .from('entities')
@@ -1298,14 +1349,16 @@ export async function appendRestaurant(
   if (data.near_id && data.near_type) {
     const nearEntityId = await resolveEntityIdBySlug(data.near_id);
     if (nearEntityId) {
-      const { error: locError } = await adminDb()
-        .from('restaurant_locations')
-        .insert({
-          restaurant_entity_id: entity.id,
-          near_entity_id: nearEntityId,
-          distance_text: data.near_name || '',
-          sort: 1,
-        });
+      const locInsert: Record<string, unknown> = {
+        restaurant_entity_id: entity.id,
+        near_entity_id: nearEntityId,
+        distance_text: data.near_name || '',
+        sort: 1,
+      };
+      if (data.distance_km) locInsert.distance_km = parseFloat(data.distance_km) || null;
+      if (data.drive_minutes) locInsert.drive_minutes = parseInt(data.drive_minutes) || null;
+      if (data.walk_minutes) locInsert.walk_minutes = parseInt(data.walk_minutes) || null;
+      const { error: locError } = await adminDb().from('restaurant_locations').insert(locInsert);
       if (locError) {
         logError('INSERT', 'restaurant_locations', slug, locError);
       }
@@ -1391,10 +1444,313 @@ export async function updateRestaurant(
     }
   }
 
+  // Update near relationship if provided
+  if (data.near_id !== undefined) {
+    // Delete existing near relationships
+    await adminDb().from('restaurant_locations').delete().eq('restaurant_entity_id', entity.id);
+
+    if (data.near_id) {
+      const nearEntityId = await resolveEntityIdBySlug(data.near_id);
+      if (nearEntityId) {
+        const locInsert: Record<string, unknown> = {
+          restaurant_entity_id: entity.id,
+          near_entity_id: nearEntityId,
+          distance_text: data.near_name || '',
+          sort: 1,
+        };
+        if (data.distance_km) locInsert.distance_km = parseFloat(data.distance_km) || null;
+        if (data.drive_minutes) locInsert.drive_minutes = parseInt(data.drive_minutes) || null;
+        if (data.walk_minutes) locInsert.walk_minutes = parseInt(data.walk_minutes) || null;
+        const { error: locError } = await adminDb().from('restaurant_locations').insert(locInsert);
+        if (locError) {
+          logError('UPDATE', 'restaurant_locations', id, locError);
+        }
+      }
+    }
+  }
+
   return true;
 }
 
 export async function deleteRestaurantRow(id: string): Promise<boolean> {
+  const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
+  if (!entity) return false;
+
+  const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
+  if (error) {
+    logError('DELETE', 'entities', id, error);
+    throw error;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Attraction (주변 볼거리) — EAV-based, no dedicated table
+// ---------------------------------------------------------------------------
+
+// Attraction field keys and their mapping to Attraction interface
+const ATTRACTION_FIELD_KEYS = [
+  'address_kr',
+  'address_jp',
+  'phone',
+  'google_maps_url',
+  'hours',
+  'closed_days',
+  'admission_fee',
+  'recommended_duration',
+  'parking_info',
+  'description',
+  'other_info',
+] as const;
+
+function mapAttractionFieldValues(
+  entity: {
+    id: string;
+    slug: string;
+    display_name: string;
+    area_id: string;
+    active: boolean;
+    sort: number;
+    updated_at: string;
+  },
+  areaCode: string,
+  fieldValues: Record<string, string>
+): Attraction {
+  return {
+    id: entity.id,
+    slug: entity.slug,
+    area: areaCode,
+    name_kr: entity.display_name,
+    name_jp: fieldValues.name_jp || '',
+    address_kr: fieldValues.address_kr || '',
+    address_jp: fieldValues.address_jp || '',
+    phone: fieldValues.phone || '',
+    google_maps_url: fieldValues.google_maps_url || '',
+    hours: fieldValues.hours || '',
+    closed_days: fieldValues.closed_days || '',
+    admission_fee: fieldValues.admission_fee || '',
+    recommended_duration: fieldValues.recommended_duration || '',
+    parking_info: fieldValues.parking_info || '',
+    description: fieldValues.description || '',
+    other_info: fieldValues.other_info || '',
+    active: entity.active ? 'TRUE' : 'FALSE',
+    sort: entity.sort,
+    updated_at: entity.updated_at,
+  };
+}
+
+/** Fetch field values for multiple entities in one query */
+async function fetchFieldValuesMap(
+  entityIds: string[]
+): Promise<Map<string, Record<string, string>>> {
+  const map = new Map<string, Record<string, string>>();
+  if (entityIds.length === 0) return map;
+
+  const { data } = await db()
+    .from('entity_field_values')
+    .select('entity_id, value_text, field_definition:field_definitions!inner(field_key)')
+    .in('entity_id', entityIds)
+    .in('field_definitions.field_key', [...ATTRACTION_FIELD_KEYS, 'name_jp']);
+
+  for (const row of data || []) {
+    const eid = row.entity_id as string;
+    const fdef = row.field_definition as unknown as { field_key: string } | null;
+    if (!fdef) continue;
+    if (!map.has(eid)) map.set(eid, {});
+    map.get(eid)![fdef.field_key] = (row.value_text as string) || '';
+  }
+  return map;
+}
+
+export async function getAttractions(area?: string): Promise<Attraction[]> {
+  let query = db()
+    .from('entities')
+    .select(
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code)'
+    )
+    .eq('entity_type', 'ATTRACTION');
+
+  if (area) {
+    query = query.eq('areas.code', area.toUpperCase());
+  }
+
+  const { data, error } = await query.order('sort');
+  if (error) {
+    logError('READ', 'entities', undefined, error);
+    throw error;
+  }
+
+  const entities = (data || []).filter((e) => e.active !== false);
+  const ids = entities.map((e) => e.id);
+  const fieldMap = await fetchFieldValuesMap(ids);
+
+  return entities.map((e) => {
+    const areaCode = (e.areas as unknown as { code: string })?.code || '';
+    return mapAttractionFieldValues(
+      {
+        id: e.id,
+        slug: e.slug,
+        display_name: e.display_name,
+        area_id: e.area_id,
+        active: e.active,
+        sort: e.sort,
+        updated_at: e.updated_at,
+      },
+      areaCode,
+      fieldMap.get(e.id) || {}
+    );
+  });
+}
+
+export async function getAttractionById(slug: string): Promise<Attraction | null> {
+  const { data: entity, error } = await db()
+    .from('entities')
+    .select(
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code)'
+    )
+    .eq('slug', slug)
+    .eq('entity_type', 'ATTRACTION')
+    .maybeSingle();
+
+  if (error) {
+    logError('READ', 'entities', slug, error);
+    throw error;
+  }
+  if (!entity) return null;
+
+  const areaCode = (entity.areas as unknown as { code: string })?.code || '';
+  const fieldMap = await fetchFieldValuesMap([entity.id]);
+
+  return mapAttractionFieldValues(
+    {
+      id: entity.id,
+      slug: entity.slug,
+      display_name: entity.display_name,
+      area_id: entity.area_id,
+      active: entity.active,
+      sort: entity.sort,
+      updated_at: entity.updated_at,
+    },
+    areaCode,
+    fieldMap.get(entity.id) || {}
+  );
+}
+
+export async function appendAttraction(
+  data: Record<string, string>
+): Promise<{ id: string; slug: string }> {
+  const areaId = await resolveAreaId(data.area || '');
+  if (!areaId) throw new Error(`Area not found: ${data.area}`);
+
+  let slug =
+    data.id ||
+    `${(data.area || '').toLowerCase()}_attr_${(data.name_kr || '').replace(/\s+/g, '_').toLowerCase()}`;
+
+  // Deduplicate slug
+  const { data: existing } = await db()
+    .from('entities')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (existing) {
+    slug = `${slug}_${Date.now().toString(36)}`;
+  }
+
+  const { data: entity, error: entityError } = await adminDb()
+    .from('entities')
+    .insert({
+      slug,
+      entity_type: 'ATTRACTION',
+      area_id: areaId,
+      display_name: data.name_kr || '',
+      active: isActive(data.active),
+      sort: parseInt(data.sort) || 1,
+    })
+    .select('id, slug')
+    .single();
+
+  if (entityError) {
+    logError('INSERT', 'entities', slug, entityError);
+    throw entityError;
+  }
+
+  // Store field values
+  await saveAttractionFieldValues(entity.id, data);
+
+  return { id: entity.id, slug: entity.slug };
+}
+
+export async function updateAttraction(
+  id: string,
+  data: Record<string, string>,
+  expectedUpdatedAt?: string
+): Promise<boolean> {
+  const { data: entity, error: findError } = await adminDb()
+    .from('entities')
+    .select('id, updated_at')
+    .eq('id', id)
+    .single();
+
+  if (findError || !entity) throw new Error(`Attraction not found: ${id}`);
+
+  if (expectedUpdatedAt && entity.updated_at !== expectedUpdatedAt) {
+    throw new ConflictError('다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도하세요.');
+  }
+
+  // Update entity common fields
+  const entityUpdates: Record<string, unknown> = {};
+  if (data.name_kr !== undefined) entityUpdates.display_name = data.name_kr;
+  if (data.active !== undefined) entityUpdates.active = isActive(data.active);
+  if (data.sort !== undefined) entityUpdates.sort = parseInt(data.sort) || 1;
+
+  if (Object.keys(entityUpdates).length > 0) {
+    const { error } = await adminDb().from('entities').update(entityUpdates).eq('id', id);
+    if (error) {
+      logError('UPDATE', 'entities', id, error);
+      throw error;
+    }
+  }
+
+  // Update field values
+  await saveAttractionFieldValues(id, data);
+
+  return true;
+}
+
+async function saveAttractionFieldValues(
+  entityId: string,
+  data: Record<string, string>
+): Promise<void> {
+  // Get field definition IDs for ATTRACTION fields
+  const allKeys = [...ATTRACTION_FIELD_KEYS, 'name_jp'];
+  const { data: fieldDefs } = await db()
+    .from('field_definitions')
+    .select('id, field_key')
+    .in('field_key', allKeys);
+
+  const keyToId = new Map<string, string>();
+  for (const fd of fieldDefs || []) {
+    keyToId.set(fd.field_key as string, fd.id as string);
+  }
+
+  // Upsert each field value
+  for (const key of allKeys) {
+    const fdId = keyToId.get(key);
+    if (!fdId || data[key] === undefined) continue;
+
+    const { error } = await adminDb()
+      .from('entity_field_values')
+      .upsert(
+        { entity_id: entityId, field_definition_id: fdId, value_text: data[key] || null },
+        { onConflict: 'entity_id,field_definition_id' }
+      );
+    if (error) {
+      logError('UPSERT', 'entity_field_values', entityId, error);
+    }
+  }
+}
+
+export async function deleteAttraction(id: string): Promise<boolean> {
   const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
   if (!entity) return false;
 
@@ -1734,7 +2090,9 @@ export async function updateFaqSort(ids: string[]): Promise<boolean> {
 // Admin Options CRUD
 // ---------------------------------------------------------------------------
 
-export async function appendAdminOption(data: Record<string, string>): Promise<string> {
+export async function appendAdminOption(
+  data: Record<string, string>
+): Promise<Record<string, unknown>> {
   let tableName: string;
   let insertData: Record<string, unknown>;
 
@@ -1768,13 +2126,13 @@ export async function appendAdminOption(data: Record<string, string>): Promise<s
   const { data: row, error } = await adminDb()
     .from(tableName)
     .insert(insertData)
-    .select('id')
+    .select('*')
     .single();
   if (error) {
     logError('INSERT', tableName, data.code, error);
     throw error;
   }
-  return row?.id || '';
+  return row || {};
 }
 
 export async function updateAdminOption(data: Record<string, string>): Promise<boolean> {

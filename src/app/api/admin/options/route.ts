@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       ? label.replace(/\s+/g, "").toUpperCase().slice(0, 20)
       : label.replace(/\s+/g, "_").toUpperCase().slice(0, 20);
 
-    const id = await appendAdminOption({
+    const option = await appendAdminOption({
       option_type,
       code,
       label,
@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
       sort: String(maxSort + 1),
     });
 
-    if (id) {
-      return created({ id });
+    if (option?.id) {
+      return created({ id: option.id, option });
     }
     return serverError(new Error("저장에 실패했습니다."));
   } catch (err: unknown) {
