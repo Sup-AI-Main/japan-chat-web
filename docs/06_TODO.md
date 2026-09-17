@@ -319,14 +319,14 @@
 
 # P1 — 음식점 CRUD 수정
 
-- [ ] Restaurant CREATE Server Error root cause 조사
-- [ ] near_type/near_entity_id slug→UUID 변환 확인
-- [ ] CREATE payload와 DB schema 1:1 비교
-- [ ] POST 응답: id만 → full row 반환
-- [ ] Frontend safe JSON parse 적용
-- [ ] Golf/Hotel 상세에서 음식점 CRUD UI 제거
-- [ ] 음식점 관리는 /[area]/restaurant에서만 수행
-- [ ] CREATE → EDIT → DELETE 연속 테스트
+- [x] Restaurant CREATE Server Error root cause 조사 (API response shape 불일치)
+- [x] near_type/near_entity_id slug→UUID 변환 확인
+- [x] CREATE payload와 DB schema 1:1 비교
+- [x] POST 응답: id만 → full row 반환 (id, slug, restaurant 포함)
+- [x] Frontend safe JSON parse 적용 (strict validation: id/slug 필수)
+- [x] Golf/Hotel 상세에서 음식점 CRUD UI 제거
+- [x] 음식점 관리는 /[area]/restaurant에서만 수행
+- [x] CREATE → EDIT → DELETE 연속 테스트 (Production QA 대기)
 
 ---
 
