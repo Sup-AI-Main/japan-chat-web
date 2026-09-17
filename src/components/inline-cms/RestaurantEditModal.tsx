@@ -137,12 +137,24 @@ export function RestaurantEditModal({
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "저장에 실패했습니다.");
+        const text = await res.text();
+        let msg = "저장에 실패했습니다.";
+        try { msg = JSON.parse(text).error || msg; } catch { /* ignore */ }
+        throw new Error(msg);
       }
 
-      const data = await res.json();
-      onSaved(data.restaurant ?? { ...form, id: restaurant?.id });
+      const resBody = await res.json();
+      const saved = resBody.data?.restaurant;
+      if (!saved?.id || !saved?.slug) {
+        throw new Error("서버 응답이 올바르지 않습니다 (id/slug 누락).");
+      }
+      // Normalize boolean to string for consistency with DB
+      if (typeof saved.recommended === 'boolean') {
+        saved.recommended = saved.recommended ? 'TRUE' : 'FALSE';
+      }
+      // Ensure name field for display
+      if (!saved.name && saved.name_kr) saved.name = saved.name_kr;
+      onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
     } finally {
