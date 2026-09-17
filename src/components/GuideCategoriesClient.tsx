@@ -144,7 +144,7 @@ function CategoryCreateModal({
     updateStep("sheet_create", "running");
     let resultId: string;
     try {
-      const result = await adminFetchJson<{ id: string }>("/api/admin/options", {
+      const result = await adminFetchJson<{ id?: string; data?: { id?: string; option?: Record<string, unknown> } }>("/api/admin/options", {
         method: "POST",
         body: JSON.stringify({
           option_type: "CATEGORY",
@@ -153,7 +153,7 @@ function CategoryCreateModal({
           group: "COMMON",
         }),
       });
-      resultId = result.id;
+      resultId = result.data?.id || result.id || "";
       setCreatedId(resultId);
       updateStep("sheet_create", "success");
     } catch (err) {

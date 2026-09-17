@@ -61,7 +61,7 @@ function OptionEditModal({
 
     try {
       const isEdit = !!option;
-      const result = await adminFetchJson<{ id?: string }>("/api/admin/options", {
+      const result = await adminFetchJson<{ id?: string; data?: { id?: string; option?: Record<string, unknown> } }>("/api/admin/options", {
         method: isEdit ? "PUT" : "POST",
         body: JSON.stringify(
           isEdit
@@ -70,7 +70,7 @@ function OptionEditModal({
         ),
       });
       onSaved({
-        id: result.id || option?.id || "",
+        id: result.data?.id || result.id || option?.id || "",
         option_type: optionType,
         code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
         label: label.trim(),

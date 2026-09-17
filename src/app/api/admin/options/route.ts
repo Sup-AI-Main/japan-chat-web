@@ -5,7 +5,7 @@ import {
   appendAdminOption,
   updateAdminOption,
 } from "@/lib/supabase-cms";
-import { ok, created, badRequest, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
 
 export async function GET() {
   const authed = await isAuthenticated();
@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[POST /api/admin/options] error:", msg);
+    const code = (err as Record<string, unknown>)?.code;
+    if (code === "23505" || String(msg).includes("duplicate")) {
+      return conflict("같은 이름/코드의 항목이 이미 존재합니다.");
+    }
     return serverError(err);
   }
 }
