@@ -112,6 +112,29 @@ export interface Restaurant {
   updated_at: string;
 }
 
+// Attraction (주변 볼거리) — EAV-based, no dedicated table
+export interface Attraction {
+  id: string;
+  slug: string;
+  area: string;
+  name_kr: string;
+  name_jp: string;
+  address_kr: string;
+  address_jp: string;
+  phone: string;
+  google_maps_url: string;
+  hours: string;
+  closed_days: string;
+  admission_fee: string;
+  recommended_duration: string;
+  parking_info: string;
+  description: string;
+  other_info: string;
+  active: string;
+  sort: number;
+  updated_at: string;
+}
+
 // FAQ
 export interface FaqItem {
   id: string;
