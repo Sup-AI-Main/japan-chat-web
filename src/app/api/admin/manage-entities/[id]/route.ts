@@ -32,6 +32,35 @@ export async function GET(
       db.from("travel_times").select("id, from_entity_id, to_entity_id, product_reference_minutes, display_time, min_minutes, max_minutes, note, from_entity:entities!from_entity_id(id, display_name)").eq("to_entity_id", id),
     ]);
 
+    // A12: 필수 데이터 에러 확인
+    if (hotelRes.error) {
+      console.error("[ENTITY_DETAIL_HOTEL_ERROR]", hotelRes.error);
+    }
+    if (golfRes.error) {
+      console.error("[ENTITY_DETAIL_GOLF_ERROR]", golfRes.error);
+    }
+    if (restaurantRes.error) {
+      console.error("[ENTITY_DETAIL_RESTAURANT_ERROR]", restaurantRes.error);
+    }
+    if (restaurantLocsRes.error) {
+      console.error("[ENTITY_DETAIL_REST_LOCS_ERROR]", restaurantLocsRes.error);
+    }
+    if (fieldValuesRes.error) {
+      console.error("[ENTITY_DETAIL_FIELDS_ERROR]", fieldValuesRes.error);
+    }
+    if (includesRes.error) {
+      console.error("[ENTITY_DETAIL_INCLUDES_ERROR]", includesRes.error);
+    }
+    if (contentSectionsRes.error) {
+      console.error("[ENTITY_DETAIL_CONTENT_ERROR]", contentSectionsRes.error);
+    }
+    if (travelFromRes.error) {
+      console.error("[ENTITY_DETAIL_TRAVEL_FROM_ERROR]", travelFromRes.error);
+    }
+    if (travelToRes.error) {
+      console.error("[ENTITY_DETAIL_TRAVEL_TO_ERROR]", travelToRes.error);
+    }
+
     return ok({
       entity,
       hotel: hotelRes.data ?? null,

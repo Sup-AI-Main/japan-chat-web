@@ -90,7 +90,7 @@ export default function RestaurantDetailClient({
   const confirmDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/restaurant?id=${restaurant.id}`, {
+      const res = await fetch(`/api/admin/restaurant?id=${restaurant.id}&area=${area}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -280,7 +280,7 @@ export default function RestaurantDetailClient({
 
       <ConfirmModal
         open={deleteModal}
-        title="맛집 삭제"
+        title="음식점 삭제"
         message={`"${displayName}"을(를) 삭제하시겠습니까?`}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteModal(false)}

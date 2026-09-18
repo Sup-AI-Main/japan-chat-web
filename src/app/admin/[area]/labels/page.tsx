@@ -8,7 +8,7 @@ import LabelManager from "@/components/admin/LabelManager";
 export default function LabelsPage() {
   const params = useParams();
   const area = params.area as string;
-  const [selectedType, setSelectedType] = useState<"GOLF" | "HOTEL" | "RESTAURANT" | null>(null);
+  const [selectedType, setSelectedType] = useState<"GOLF" | "HOTEL" | "RESTAURANT" | "ATTRACTION" | null>(null);
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -25,10 +25,10 @@ export default function LabelsPage() {
           각 엔티티 유형의 섹션/필드 라벨과 표시 여부를 관리합니다.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {(["GOLF", "HOTEL", "RESTAURANT"] as const).map((type) => {
-            const labels = { GOLF: "골프장", HOTEL: "호텔", RESTAURANT: "맛집" };
-            const emojis = { GOLF: "⛳", HOTEL: "🏨", RESTAURANT: "🍽" };
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(["GOLF", "HOTEL", "RESTAURANT", "ATTRACTION"] as const).map((type) => {
+            const labels = { GOLF: "골프장", HOTEL: "호텔", RESTAURANT: "음식점", ATTRACTION: "주변 볼거리" };
+            const emojis = { GOLF: "⛳", HOTEL: "🏨", RESTAURANT: "🍽", ATTRACTION: "🗺️" };
             return (
               <button
                 key={type}

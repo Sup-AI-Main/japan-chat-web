@@ -515,6 +515,7 @@ export async function getGolfCourseById(id: string): Promise<GolfCourse | null> 
       'entity_id, official_name, address, phone, course_summary, play_cart, clubhouse_dining, bath_shower, rental, dress_code, google_maps_url, source_url, status, last_verified, product_reference_minutes, travel_time_note, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
     )
     .eq('entities.slug', id)
+    .eq('entities.active', true) // A09: 비활성 entity 제외
     .single();
   if (error) {
     if (error.code === 'PGRST116') return null;
@@ -937,6 +938,7 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
       'entity_id, official_name, address, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
     )
     .eq('entities.slug', id)
+    .eq('entities.active', true) // A09: 비활성 entity 제외
     .single();
   if (error) {
     if (error.code === 'PGRST116') return null;
@@ -1250,6 +1252,7 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
     )
     .eq('slug', id)
     .eq('entity_type', 'RESTAURANT')
+    .eq('active', true) // A09: 비활성 entity 제외
     .single();
   if (findError) {
     if (findError.code === 'PGRST116') return null;
@@ -1444,30 +1447,8 @@ export async function updateRestaurant(
     }
   }
 
-  // Update near relationship if provided
-  if (data.near_id !== undefined) {
-    // Delete existing near relationships
-    await adminDb().from('restaurant_locations').delete().eq('restaurant_entity_id', entity.id);
-
-    if (data.near_id) {
-      const nearEntityId = await resolveEntityIdBySlug(data.near_id);
-      if (nearEntityId) {
-        const locInsert: Record<string, unknown> = {
-          restaurant_entity_id: entity.id,
-          near_entity_id: nearEntityId,
-          distance_text: data.near_name || '',
-          sort: 1,
-        };
-        if (data.distance_km) locInsert.distance_km = parseFloat(data.distance_km) || null;
-        if (data.drive_minutes) locInsert.drive_minutes = parseInt(data.drive_minutes) || null;
-        if (data.walk_minutes) locInsert.walk_minutes = parseInt(data.walk_minutes) || null;
-        const { error: locError } = await adminDb().from('restaurant_locations').insert(locInsert);
-        if (locError) {
-          logError('UPDATE', 'restaurant_locations', id, locError);
-        }
-      }
-    }
-  }
+  // A06: 관계 수정은 별도 restaurant-locations API에서 처리
+  // 기본 정보 수정 시 관계를 삭제하지 않음
 
   return true;
 }
@@ -1772,12 +1753,13 @@ export async function getTravelTimes(area?: string): Promise<TravelTime[]> {
     .select(
       `
       id, product_reference_minutes, display_time, min_minutes, max_minutes, note, source, status, directions_url, time_basis, active, sort, updated_at,
-      from_entity:entities!from_entity_id(id, slug, display_name, entity_type, area_id, areas!inner(code)),
+      from_entity:entities!from_entity_id!inner(id, slug, display_name, entity_type, area_id, areas!inner(code)),
       to_entity:entities!to_entity_id(id, slug, display_name, entity_type)
     `
     )
     .eq('active', true);
 
+  // A10: 지역 필터 — from_entity의 areas.code로 제한
   if (area) {
     query = query.eq('from_entity.areas.code', area.toUpperCase());
   }
@@ -1865,22 +1847,35 @@ export async function updateTravelTime(data: Record<string, string>): Promise<bo
   if (data.active !== undefined) updates.active = isActive(data.active);
   if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
 
-  const { error } = await adminDb().from('travel_times').update(updates).eq('id', data.id);
+  // A11: 낙관적 동시성 — updated_at 조건을 UPDATE에 직접 포함
+  let query = adminDb().from('travel_times').update(updates).eq('id', data.id);
+  if (data.updated_at) {
+    query = query.eq('updated_at', data.updated_at);
+  }
+  const { data: rows, error } = await query.select('id').maybeSingle();
   if (error) {
     logError('UPDATE', 'travel_times', data.id, error);
     throw error;
+  }
+  if (!rows && data.updated_at) {
+    throw new ConflictError();
   }
   return true;
 }
 
 export async function deleteTravelTime(id: string): Promise<boolean> {
-  // Soft delete
-  const { error } = await adminDb().from('travel_times').update({ active: false }).eq('id', id);
+  // A18: 실제 DELETE (soft delete에서 변경)
+  const { data, error } = await adminDb()
+    .from('travel_times')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('DELETE', 'travel_times', id, error);
     throw error;
   }
-  return true;
+  return !!data;
 }
 
 // ---------------------------------------------------------------------------
@@ -2063,13 +2058,18 @@ export async function updateFaq(_rowIndex: number, data: Record<string, string>)
 }
 
 export async function deleteFaq(id: string): Promise<boolean> {
-  // Soft delete
-  const { error } = await adminDb().from('faq').update({ active: false }).eq('id', id);
+  // A18: 실제 DELETE (soft delete에서 변경)
+  const { data, error } = await adminDb()
+    .from('faq')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('DELETE', 'faq', id, error);
     throw error;
   }
-  return true;
+  return !!data;
 }
 
 export async function updateFaqSort(ids: string[]): Promise<boolean> {
@@ -2332,16 +2332,18 @@ export async function updateContentSection(
 }
 
 export async function deleteContentSection(id: string): Promise<boolean> {
-  // Soft delete
-  const { error } = await adminDb()
+  // A18: 실제 DELETE (soft delete에서 변경)
+  const { data, error } = await adminDb()
     .from('content_sections')
-    .update({ is_visible: false })
-    .eq('id', id);
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('DELETE', 'content_sections', id, error);
     throw error;
   }
-  return true;
+  return !!data;
 }
 
 // ---------------------------------------------------------------------------
@@ -2476,14 +2478,16 @@ export async function updateIncludeExclude(
 }
 
 export async function deleteIncludeExclude(id: string): Promise<boolean> {
-  // Soft delete
-  const { error } = await adminDb()
+  // A18: 실제 DELETE (soft delete에서 변경)
+  const { data, error } = await adminDb()
     .from('includes_excludes')
-    .update({ is_visible: false })
-    .eq('id', id);
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('DELETE', 'includes_excludes', id, error);
     throw error;
   }
-  return true;
+  return !!data;
 }

@@ -60,11 +60,14 @@ async function fetchAreas(): Promise<Area[]> {
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Resolve area by URL slug (e.g. "dos" → Area). Returns null if not found. */
+/** Resolve area by URL slug — only active areas. Returns null if not found or inactive. */
 export async function resolveAreaBySlug(slug: string): Promise<Area | null> {
   const code = slug.toUpperCase();
   const areas = await fetchAreas();
-  return areas.find((a) => a.code === code) ?? null;
+  const area = areas.find((a) => a.code === code);
+  // A09: 비활성 지역은 null 반환 (공개 페이지에서 404 처리)
+  if (!area || !area.active) return null;
+  return area;
 }
 
 /** Resolve area by code (e.g. "DOS" → Area). Returns null if not found. */
@@ -75,7 +78,8 @@ export async function resolveAreaByCode(code: string): Promise<Area | null> {
 
 /** Get all active areas. Throws on DB error. */
 export async function getActiveAreas(): Promise<Area[]> {
-  return fetchAreas();
+  const areas = await fetchAreas();
+  return areas.filter((a) => a.active);
 }
 
 /** Invalidate the area cache (call after admin CRUD). */

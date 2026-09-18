@@ -106,3 +106,44 @@ export type ScopeType = (typeof SCOPE_TYPES)[number];
 export function isValidScopeType(v: unknown): v is ScopeType {
   return typeof v === "string" && (SCOPE_TYPES as readonly string[]).includes(v);
 }
+
+/**
+ * A03: 이동시간 입력 파싱
+ * "35" → { minutes: 35, display: "35분" }
+ * "35분" → { minutes: 35, display: "35분" }
+ * "30~40분" → { minutes: null, min: 30, max: 40, display: "30~40분" }
+ * "" → { minutes: null, display: "" }
+ * "-1", "3abc", "40~30" → throws Error (400)
+ */
+export function parseTravelTimeInput(value: string): {
+  minutes: number | null;
+  min: number | null;
+  max: number | null;
+  display: string;
+} {
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return { minutes: null, min: null, max: null, display: '' };
+  }
+
+  // Range pattern: "30~40분" or "30~40"
+  const rangeMatch = trimmed.match(/^(\d+)\s*[~～]\s*(\d+)\s*분?$/);
+  if (rangeMatch) {
+    const min = parseInt(rangeMatch[1], 10);
+    const max = parseInt(rangeMatch[2], 10);
+    if (min > max) {
+      throw new Error(`잘못된 범위: ${trimmed} (최소값이 최대값보다 큽니다)`);
+    }
+    return { minutes: null, min, max, display: trimmed };
+  }
+
+  // Single number: "35" or "35분"
+  const singleMatch = trimmed.match(/^(\d+)\s*분?$/);
+  if (singleMatch) {
+    const minutes = parseInt(singleMatch[1], 10);
+    return { minutes, min: null, max: null, display: `${minutes}분` };
+  }
+
+  // Invalid format
+  throw new Error(`잘못된 시간 형식: ${trimmed}`);
+}

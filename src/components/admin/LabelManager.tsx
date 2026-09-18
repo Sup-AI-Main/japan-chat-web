@@ -28,7 +28,7 @@ interface FieldDef {
 }
 
 interface LabelManagerProps {
-  entityType: "GOLF" | "HOTEL" | "RESTAURANT";
+  entityType: "GOLF" | "HOTEL" | "RESTAURANT" | "ATTRACTION";
   onClose: () => void;
 }
 
@@ -108,7 +108,7 @@ export default function LabelManager({ entityType, onClose }: LabelManagerProps)
     fieldsBySection.set(key, list);
   }
 
-  const typeLabel = entityType === "GOLF" ? "골프장" : entityType === "HOTEL" ? "호텔" : "맛집";
+  const typeLabel = entityType === "GOLF" ? "골프장" : entityType === "HOTEL" ? "호텔" : entityType === "ATTRACTION" ? "주변 볼거리" : "음식점";
 
   if (loading) {
     return (

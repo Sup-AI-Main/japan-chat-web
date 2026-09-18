@@ -66,7 +66,7 @@ export default function FaqForm({
       : categoryCode === "HOTEL"
       ? "특정 호텔"
       : categoryCode === "RESTAURANT"
-      ? "특정 맛집"
+      ? "특정 음식점"
       : "특정 장소";
 
   const handleSubmit = async (e: React.FormEvent) => {

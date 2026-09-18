@@ -5,7 +5,9 @@ import {
   appendAdminOption,
   updateAdminOption,
 } from "@/lib/supabase-cms";
-import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, notFound, duplicateCode, serverError, safeJson } from "@/lib/crud/response";
+import { deleteCategoryFull, deleteAreaFull } from "@/lib/crud/compound-delete";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET() {
   const authed = await isAuthenticated();
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
     console.error("[POST /api/admin/options] error:", msg);
     const code = (err as Record<string, unknown>)?.code;
     if (code === "23505" || String(msg).includes("duplicate")) {
-      return conflict("같은 이름/코드의 항목이 이미 존재합니다.");
+      return duplicateCode("같은 이름/코드의 항목이 이미 존재합니다.");
     }
     return serverError(err);
   }
@@ -109,11 +111,24 @@ export async function DELETE(request: NextRequest) {
       return badRequest("id 필수");
     }
 
-    const success = await updateAdminOption({ id, active: "FALSE" });
-    if (success) {
-      return ok({ success: true });
+    // A18: ID로 종류를 확인한 후 실제 DELETE 수행
+    const db = getSupabaseAdmin();
+
+    // 카테고리인지 확인
+    const { data: cat } = await db.from("categories").select("id").eq("id", id).maybeSingle();
+    if (cat) {
+      await deleteCategoryFull(id, true);
+      return ok({ deleted: true, id });
     }
-    return serverError(new Error("삭제에 실패했습니다."));
+
+    // 지역인지 확인
+    const { data: area } = await db.from("areas").select("id").eq("id", id).maybeSingle();
+    if (area) {
+      await deleteAreaFull(id, true);
+      return ok({ deleted: true, id });
+    }
+
+    return notFound("해당 항목을 찾을 수 없습니다.");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[DELETE /api/admin/options] error:", msg);

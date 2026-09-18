@@ -7,7 +7,7 @@ import { ConfirmModal } from "./ConfirmModal";
 const ENTITY_LABELS: Record<string, string> = {
   hotel: "호텔",
   golf: "골프장",
-  restaurant: "맛집",
+  restaurant: "음식점",
   included: "포함사항",
   excluded: "불포함사항",
 };

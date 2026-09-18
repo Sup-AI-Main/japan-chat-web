@@ -526,7 +526,7 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
                     >
                       <option value="HOTEL">호텔</option>
                       <option value="GOLF">골프장</option>
-                      <option value="RESTAURANT">맛집</option>
+                      <option value="RESTAURANT">음식점</option>
                       <option value="PLACE">장소</option>
                     </select>
                   </div>
@@ -571,7 +571,7 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
 
             {/* ======== Subtype Info ======== */}
             {hasSubtype && (
-              <Section title={`${detail.entity.entity_type === "HOTEL" ? "호텔" : detail.entity.entity_type === "GOLF" ? "골프장" : "맛집"} 전용 정보`} icon="🏨" defaultOpen={true}>
+              <Section title={`${detail.entity.entity_type === "HOTEL" ? "호텔" : detail.entity.entity_type === "GOLF" ? "골프장" : detail.entity.entity_type === "ATTRACTION" ? "주변 볼거리" : "음식점"} 전용 정보`} icon="🏨" defaultOpen={true}>
                 {subtypeGroups.map((group) => (
                   <div key={group} className="mb-4 last:mb-0">
                     <h4 className="text-[12px] font-bold text-muted uppercase tracking-wide mb-2">{group}</h4>

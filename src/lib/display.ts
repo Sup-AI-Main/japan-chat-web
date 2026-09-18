@@ -8,6 +8,7 @@ const CATEGORY_CONFIG: Record<string, { emoji: string; color: string; bg: string
   GOLF: { emoji: "⛳", color: "#2d7a3a", bg: "#e8f5e9", border: "#81c784" },
   HOTEL: { emoji: "🏨", color: "#1565c0", bg: "#e3f2fd", border: "#64b5f6" },
   RESTAURANT: { emoji: "🍜", color: "#c62828", bg: "#fbe9e7", border: "#ef9a9a" },
+  ATTRACTION: { emoji: "🗺️", color: "#00695c", bg: "#e0f2f1", border: "#80cbc4" },
   ONSEN: { emoji: "♨️", color: "#7b1fa2", bg: "#f3e5f5", border: "#ce93d8" },
   DRIVER: { emoji: "🚗", color: "#0277bd", bg: "#e1f5fe", border: "#4fc3f7" },
   GENERAL: { emoji: "📌", color: "#546e7a", bg: "#eceff1", border: "#90a4ae" },

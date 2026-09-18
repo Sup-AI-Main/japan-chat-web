@@ -56,6 +56,16 @@ export function conflict(message = "Conflict: data was modified by another user"
   return NextResponse.json({ success: false, error: message, code: "CONFLICT" }, { status: 409 });
 }
 
+/** 409 conflict — duplicate code */
+export function duplicateCode(message = "같은 코드의 항목이 이미 존재합니다."): NextResponse<ApiFailure> {
+  return NextResponse.json({ success: false, error: message, code: "DUPLICATE_CODE" }, { status: 409 });
+}
+
+/** 409 conflict — stale version (optimistic concurrency) */
+export function staleVersion(message = "데이터가 다른 사용자에 의해 변경되었습니다. 새로고침 후 다시 시도하세요."): NextResponse<ApiFailure> {
+  return NextResponse.json({ success: false, error: message, code: "STALE_VERSION" }, { status: 409 });
+}
+
 /** 500 internal error with safe message */
 export function serverError(err: unknown): NextResponse<ApiFailure> {
   const msg = err instanceof Error ? err.message : "Server error";

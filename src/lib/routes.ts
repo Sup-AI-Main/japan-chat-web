@@ -15,6 +15,8 @@ export const routes = {
   areaGolfDetail: (slug: string, id: string) => `/${slug}/golf/${id}`,
   areaRestaurant: (slug: string) => `/${slug}/restaurant`,
   areaRestaurantDetail: (slug: string, id: string) => `/${slug}/restaurant/${id}`,
+  areaAttraction: (slug: string) => `/${slug}/attraction`,
+  areaAttractionDetail: (slug: string, slugOrId: string) => `/${slug}/attraction/${slugOrId}`,
   areaFaq: (slug: string, category: string) => `/${slug}/faq/${category}`,
 
   // Guide routes

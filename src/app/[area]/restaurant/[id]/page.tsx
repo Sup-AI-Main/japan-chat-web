@@ -56,7 +56,7 @@ export default async function RestaurantDetailPage({
           href={`/${area}/restaurant`}
           className="text-[14px] text-muted hover:text-primary mb-2 inline-flex items-center min-h-[44px]"
         >
-          ← {getCategoryEmoji("RESTAURANT")} 맛집 목록
+          ← {getCategoryEmoji("RESTAURANT")} 음식점 목록
         </Link>
 
         <h1 className="text-[24px] font-bold text-text mb-4">

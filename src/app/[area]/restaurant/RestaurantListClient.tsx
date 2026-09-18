@@ -21,7 +21,7 @@ interface RestaurantListClientProps {
 const NEAR_SECTIONS: { key: string; label: string }[] = [
   { key: "HOTEL", label: "호텔 근처" },
   { key: "GOLF", label: "골프장 근처" },
-  { key: "AREA", label: "지역 맛집" },
+  { key: "AREA", label: "지역 음식점" },
 ];
 
 function getDistanceText(r: Restaurant): string {
@@ -99,7 +99,39 @@ export default function RestaurantListClient({
 
   const handleAdd = async (nearType: string) => {
     await fetchNearOptions(nearType);
-    setEditModal({ open: true, restaurant: null });
+    setEditModal({
+      open: true,
+      restaurant: {
+        id: "",
+        slug: "",
+        name_kr: "",
+        name_jp: "",
+        name: "",
+        category: "",
+        menu_kr: "",
+        menu_jp: "",
+        menu_price: "",
+        address: "",
+        hours: "",
+        closed_days: "",
+        distance_km: "",
+        drive_minutes: "",
+        walk_minutes: "",
+        phone: "",
+        price_range: "",
+        google_maps_url: "",
+        description: "",
+        recommended: "",
+        near_type: nearType,
+        near_id: "",
+        distance: "",
+        source_url: "",
+        status: "",
+        active: "",
+        sort: 0,
+        updated_at: "",
+      } as unknown as Restaurant,
+    });
   };
 
   const handleEdit = async (restaurant: Restaurant) => {
@@ -115,7 +147,7 @@ export default function RestaurantListClient({
     if (!deleteModal.restaurant) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/restaurant?id=${deleteModal.restaurant.id}`, {
+      const res = await fetch(`/api/admin/restaurant?id=${deleteModal.restaurant.id}&area=${area}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -141,10 +173,10 @@ export default function RestaurantListClient({
     <>
       {restaurants.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted">등록된 맛집이 없습니다.</p>
+          <p className="text-muted">등록된 음식점이 없습니다.</p>
           {isAdmin && (
             <div className="mt-4">
-              <AddButton onClick={() => handleAdd("HOTEL")} label="맛집 추가" />
+              <AddButton onClick={() => handleAdd("HOTEL")} label="음식점 추가" />
             </div>
           )}
         </div>
@@ -225,7 +257,7 @@ export default function RestaurantListClient({
 
       {isAdmin && restaurants.length > 0 && grouped.every((s) => s.items.length === 0) && (
         <div className="mt-4 text-center">
-          <AddButton onClick={() => handleAdd("HOTEL")} label="맛집 추가" />
+          <AddButton onClick={() => handleAdd("HOTEL")} label="음식점 추가" />
         </div>
       )}
 
@@ -270,7 +302,7 @@ export default function RestaurantListClient({
 
       <ConfirmModal
         open={deleteModal.open}
-        title="맛집 삭제"
+        title="음식점 삭제"
         message={`"${deleteModal.restaurant?.name_kr || deleteModal.restaurant?.name}"을(를) 삭제하시겠습니까?`}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteModal({ open: false, restaurant: null })}

@@ -48,7 +48,7 @@ const GOLF_SECTIONS: DynamicSection[] = [
   { section_key: "includes", label_ko: "포함사항", label_ja: "含むもの", sort: 8, is_visible: true, fields: [] },
   { section_key: "excludes", label_ko: "불포함사항", label_ja: "含まないもの", sort: 9, is_visible: true, fields: [] },
   { section_key: "additional_guide", label_ko: "추가 안내", label_ja: "追加案内", sort: 10, is_visible: true, fields: [] },
-  { section_key: "nearby_restaurants", label_ko: "주변 맛집", label_ja: "周辺グルメ", sort: 11, is_visible: true, fields: [] },
+  { section_key: "nearby_restaurants", label_ko: "주변 음식점", label_ja: "周辺グルメ", sort: 11, is_visible: true, fields: [] },
 ];
 
 const HOTEL_SECTIONS: DynamicSection[] = [
@@ -64,7 +64,7 @@ const HOTEL_SECTIONS: DynamicSection[] = [
   { section_key: "atm_payment", label_ko: "ATM/결제", label_ja: "ATM/決済", sort: 12, is_visible: true, fields: [] },
   { section_key: "transport", label_ko: "교통", label_ja: "交通", sort: 13, is_visible: true, fields: [] },
   { section_key: "additional_guide", label_ko: "추가 안내", label_ja: "追加案内", sort: 14, is_visible: true, fields: [] },
-  { section_key: "nearby_restaurants", label_ko: "주변 맛집", label_ja: "周辺グルメ", sort: 15, is_visible: true, fields: [] },
+  { section_key: "nearby_restaurants", label_ko: "주변 음식점", label_ja: "周辺グルメ", sort: 15, is_visible: true, fields: [] },
 ];
 
 const RESTAURANT_SECTIONS: DynamicSection[] = [

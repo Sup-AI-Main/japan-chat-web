@@ -197,6 +197,23 @@ export async function createEntity(
     }
   }
 
+  // Create subtype row for HOTEL / GOLF / RESTAURANT so the drawer can UPDATE later
+  const entityType = insertData.entity_type;
+  if (entityType === "HOTEL" || entityType === "GOLF" || entityType === "RESTAURANT") {
+    const subtypeTable = entityType === "HOTEL" ? "hotels" : entityType === "GOLF" ? "golf_courses" : "restaurants";
+    const { error: subError } = await db
+      .from(subtypeTable)
+      .insert({ entity_id: row.id });
+
+    if (subError) {
+      // Compensate: remove entity + category link
+      await db.from("entity_categories").delete().eq("entity_id", row.id);
+      await db.from("entities").delete().eq("id", row.id);
+      console.error(`[SUBTYPE_CREATE_FAIL] ${subtypeTable}`, subError);
+      throw subError;
+    }
+  }
+
   await logChange({
     action: "CREATE",
     entityType: "entities",

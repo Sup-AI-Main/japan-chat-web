@@ -2,30 +2,24 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { GolfCourse, FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { GolfCourse, FaqItem, ContentSection } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
-import { getSectionLabel, getFieldLabel } from "@/lib/dynamic-labels";
+import { getFieldLabel } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
-import { restToEditData, editDataToRestaurant, type RestaurantEditData } from "@/lib/restaurant-utils";
 import {
-  EditToolbar,
-  AddButton,
-  ConfirmModal,
-  RestaurantEditModal,
-  GolfEditModal,
   EditableContainer,
   IncludeExcludeSection,
   IncludeExcludeSummary,
   ContentSectionsRenderer,
+  GolfEditModal,
 } from "@/components/inline-cms";
 
 interface GolfDetailClientProps {
   course: GolfCourse;
   area: string;
   faqs: FaqItem[];
-  restaurants: Restaurant[];
   contentSections: ContentSection[];
   dynamicLabels?: DynamicLabelsResult;
 }
@@ -34,69 +28,26 @@ export function GolfDetailClient({
   course: initialCourse,
   area,
   faqs,
-  restaurants: initialRestaurants,
   contentSections,
   dynamicLabels,
 }: GolfDetailClientProps) {
   const [course, setCourse] = useState(initialCourse);
-  const [restaurants, setRestaurants] = useState(initialRestaurants);
   const [editGolfOpen, setEditGolfOpen] = useState(false);
-  const [editRestOpen, setEditRestOpen] = useState(false);
   const isAdmin = useAdmin();
-  const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
-  const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const { message, visible, showToast } = useToast();
 
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
-  const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
   const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
 
   const closeGolfModal = useCallback(() => {
     setEditGolfOpen(false);
   }, []);
 
-  const closeRestModal = useCallback(() => {
-    setEditRestOpen(false);
-    setEditRestTarget(null);
-  }, []);
-
-  // Detailed content (코스 안내, 플레이/카트, etc.) is served via content_sections table.
-
-  const handleRestSaved = (data: RestaurantEditData) => {
-    const updated = editDataToRestaurant(data, "GOLF");
-    if (editRestTarget) {
-      setRestaurants((prev) =>
-        prev.map((r) => (r.id === updated.id ? { ...updated, slug: updated.slug || r.slug } : r))
-      );
-    } else {
-      setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
-    }
-    showToast("수정 완료");
-    setTimeout(closeRestModal, 500);
-  };
-
   const handleGolfSaved = (data: { display_name: string; official_name: string; address: string; phone: string; course_summary: string; play_cart: string; clubhouse_dining: string; bath_shower: string; rental: string; dress_code: string; google_maps_url: string }) => {
     setCourse((prev) => ({ ...prev, ...data }));
     showToast("수정 완료");
     setTimeout(closeGolfModal, 500);
-  };
-
-  const handleRestDelete = async () => {
-    if (!deleteRestTarget) return;
-    setDeleteLoading(true);
-    try {
-      const res = await fetch(`/api/admin/restaurant?id=${deleteRestTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setRestaurants((prev) => prev.filter((r) => r.id !== deleteRestTarget.id));
-        setDeleteRestTarget(null);
-      }
-    } finally {
-      setDeleteLoading(false);
-    }
   };
 
   return (
@@ -196,74 +147,6 @@ export function GolfDetailClient({
           parentId={course.id}
           initialSections={contentSections}
         />
-
-        {/* Nearby restaurants */}
-        <div className="border-t border-border pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[18px] font-bold text-text">{sectionLabel("nearby_restaurants", "주변 맛집")}</h2>
-            <AddButton
-              onClick={() => {
-                setEditRestTarget(null);
-                setEditRestOpen(true);
-              }}
-              label="맛집 추가"
-            />
-          </div>
-          {restaurants.length > 0 ? (
-            <div className="space-y-3">
-              {restaurants.map((rest) => (
-                <div
-                  key={rest.id}
-                  className="bg-surface border border-border rounded-[12px] p-4"
-                >
-                  <div className="flex items-start justify-between mb-1">
-                    <div>
-                      <h3 className="text-[16px] font-bold text-text">
-                        {rest.name_kr || rest.name}
-                      </h3>
-                      {rest.name_jp && (
-                        <p className="text-[13px] text-muted">{rest.name_jp}</p>
-                      )}
-                    </div>
-                    <EditToolbar
-                      onEdit={() => {
-                        setEditRestTarget(rest);
-                        setEditRestOpen(true);
-                      }}
-                      onDelete={() => setDeleteRestTarget(rest)}
-                    />
-                  </div>
-                  {rest.category && (
-                    <p className="text-[14px] text-muted mb-1">{rest.category}</p>
-                  )}
-                  {rest.menu_kr && (
-                    <p className="text-[14px] text-text">
-                      메뉴: {rest.menu_kr}
-                      {rest.menu_price && ` (${rest.menu_price})`}
-                    </p>
-                  )}
-                  {rest.distance && (
-                    <p className="text-[14px] text-muted mt-1">
-                      {rest.distance.startsWith("차량") ? rest.distance : `차량 약 ${rest.distance}`}
-                    </p>
-                  )}
-                  {rest.google_maps_url && (
-                    <a
-                      href={rest.google_maps_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[13px] text-primary mt-2 inline-block"
-                    >
-                      지도 보기 →
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[14px] text-muted">등록된 맛집이 없습니다.</p>
-          )}
-        </div>
       </div>
 
       {/* Golf Edit Modal */}
@@ -288,26 +171,6 @@ export function GolfDetailClient({
         onSaved={handleGolfSaved}
       />
 
-      {/* Restaurant Edit Modal */}
-      <RestaurantEditModal
-          key={editRestTarget?.id || "new-rest-golf"}
-          restaurant={editRestTarget ? restToEditData(editRestTarget, "GOLF") : null}
-          area={area}
-          open={editRestOpen}
-          onClose={closeRestModal}
-          onSaved={handleRestSaved}
-          nearOptions={[{ id: course.slug, name: course.display_name || course.official_name }]}
-        />
-
-      {/* Delete Confirm Modal */}
-      <ConfirmModal
-        open={!!deleteRestTarget}
-        title="맛집 삭제"
-        message={`"${deleteRestTarget?.name_kr || deleteRestTarget?.name}" 맛집을 삭제하시겠습니까?`}
-        onConfirm={handleRestDelete}
-        onCancel={() => setDeleteRestTarget(null)}
-        loading={deleteLoading}
-      />
       <Toast message={message} visible={visible} />
     </main>
   );

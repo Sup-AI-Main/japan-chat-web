@@ -2,30 +2,25 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { Hotel, FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { Hotel, FaqItem, ContentSection } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getSectionLabel, getFieldLabel, isSectionVisible } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
-import { toBool, restToEditData, editDataToRestaurant, type RestaurantEditData } from "@/lib/restaurant-utils";
+import { toBool } from "@/lib/restaurant-utils";
 import {
-  EditToolbar,
-  AddButton,
-  ConfirmModal,
-  HotelEditModal,
-  RestaurantEditModal,
   EditableContainer,
   IncludeExcludeSection,
   IncludeExcludeSummary,
   ContentSectionsRenderer,
+  HotelEditModal,
 } from "@/components/inline-cms";
 
 interface HotelDetailClientProps {
   hotel: Hotel;
   area: string;
   faqs: FaqItem[];
-  restaurants: Restaurant[];
   contentSections: ContentSection[];
   dynamicLabels?: DynamicLabelsResult;
 }
@@ -131,12 +126,10 @@ export function HotelDetailClient({
   hotel: initialHotel,
   area,
   faqs,
-  restaurants: initialRestaurants,
   contentSections,
   dynamicLabels,
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
-  const [restaurants, setRestaurants] = useState(initialRestaurants);
   const isAdmin = useAdmin();
 
   // Dynamic label helpers with fallback
@@ -146,19 +139,10 @@ export function HotelDetailClient({
   const sectionVisible = (key: string) => isSectionVisible(L, key);
 
   const [editHotelOpen, setEditHotelOpen] = useState(false);
-  const [editRestOpen, setEditRestOpen] = useState(false);
-  const [editRestTarget, setEditRestTarget] = useState<Restaurant | null>(null);
-  const [deleteRestTarget, setDeleteRestTarget] = useState<Restaurant | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const { message, visible, showToast } = useToast();
 
   const closeHotelModal = useCallback(() => {
     setEditHotelOpen(false);
-  }, []);
-
-  const closeRestModal = useCallback(() => {
-    setEditRestOpen(false);
-    setEditRestTarget(null);
   }, []);
 
   const titleMain = hotel.name_kr || hotel.official_name;
@@ -179,35 +163,6 @@ export function HotelDetailClient({
     setHotel(editDataToHotel(hotel.id, hotel.slug, hotel.area, data));
     showToast("수정 완료");
     setTimeout(closeHotelModal, 500);
-  };
-
-  const handleRestSaved = (data: RestaurantEditData) => {
-    const updated = editDataToRestaurant(data, "HOTEL");
-    if (editRestTarget) {
-      setRestaurants((prev) =>
-        prev.map((r) => (r.id === updated.id ? { ...updated, slug: updated.slug || r.slug } : r))
-      );
-    } else {
-      setRestaurants((prev) => [...prev, { ...updated, id: data.id || Date.now().toString() }]);
-    }
-    showToast("수정 완료");
-    setTimeout(closeRestModal, 500);
-  };
-
-  const handleRestDelete = async () => {
-    if (!deleteRestTarget) return;
-    setDeleteLoading(true);
-    try {
-      const res = await fetch(`/api/admin/restaurant?id=${deleteRestTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setRestaurants((prev) => prev.filter((r) => r.id !== deleteRestTarget.id));
-        setDeleteRestTarget(null);
-      }
-    } finally {
-      setDeleteLoading(false);
-    }
   };
 
   return (
@@ -431,74 +386,6 @@ export function HotelDetailClient({
           parentId={hotel.id}
           initialSections={contentSections}
         />
-
-        {/* 주변 맛집 */}
-        <div className="border-t border-border pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[18px] font-bold text-text">{sectionLabel("nearby_restaurants", "주변 맛집")}</h2>
-            <AddButton
-              onClick={() => {
-                setEditRestTarget(null);
-                setEditRestOpen(true);
-              }}
-              label="맛집 추가"
-            />
-          </div>
-          {restaurants.length > 0 ? (
-            <div className="space-y-3">
-              {restaurants.map((rest) => (
-                <div
-                  key={rest.id}
-                  className="bg-surface border border-border rounded-[12px] p-4"
-                >
-                  <div className="flex items-start justify-between mb-1">
-                    <div>
-                      <h3 className="text-[16px] font-bold text-text">
-                        {rest.name_kr || rest.name}
-                      </h3>
-                      {rest.name_jp && (
-                        <p className="text-[13px] text-muted">{rest.name_jp}</p>
-                      )}
-                    </div>
-                    <EditToolbar
-                      onEdit={() => {
-                        setEditRestTarget(rest);
-                        setEditRestOpen(true);
-                      }}
-                      onDelete={() => setDeleteRestTarget(rest)}
-                    />
-                  </div>
-                  {rest.category && (
-                    <p className="text-[14px] text-muted mb-1">{rest.category}</p>
-                  )}
-                  {rest.menu_kr && (
-                    <p className="text-[14px] text-text">
-                      메뉴: {rest.menu_kr}
-                      {rest.menu_price && ` (${rest.menu_price})`}
-                    </p>
-                  )}
-                  {rest.distance && (
-                    <p className="text-[14px] text-muted mt-1">
-                      {rest.distance.startsWith("차량") ? rest.distance : `차량 약 ${rest.distance}`}
-                    </p>
-                  )}
-                  {rest.google_maps_url && (
-                    <a
-                      href={rest.google_maps_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[13px] text-primary mt-2 inline-block"
-                    >
-                      지도 보기 →
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[14px] text-muted">등록된 맛집이 없습니다.</p>
-          )}
-        </div>
       </div>
 
       {/* Hotel Edit Modal */}
@@ -510,26 +397,6 @@ export function HotelDetailClient({
         onSaved={handleHotelSaved}
       />
 
-      {/* Restaurant Edit Modal */}
-      <RestaurantEditModal
-        key={editRestTarget?.id || "new-rest-hotel"}
-        restaurant={editRestTarget ? restToEditData(editRestTarget, "HOTEL") : null}
-        area={area}
-        open={editRestOpen}
-        onClose={closeRestModal}
-        onSaved={handleRestSaved}
-        nearOptions={[{ id: hotel.slug, name: hotel.name_kr || hotel.official_name }]}
-      />
-
-      {/* Delete Confirm Modal */}
-      <ConfirmModal
-        open={!!deleteRestTarget}
-        title="맛집 삭제"
-        message={`"${deleteRestTarget?.name_kr || deleteRestTarget?.name}" 맛집을 삭제하시겠습니까?`}
-        onConfirm={handleRestDelete}
-        onCancel={() => setDeleteRestTarget(null)}
-        loading={deleteLoading}
-      />
       <Toast message={message} visible={visible} />
     </main>
   );

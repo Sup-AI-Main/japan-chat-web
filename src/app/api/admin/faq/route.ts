@@ -172,7 +172,7 @@ export async function DELETE(request: NextRequest) {
 
     const success = await deleteFaq(id);
     if (success) {
-      return ok({ success: true });
+      return ok({ deleted: true, id });
     }
     return notFound("삭제 대상을 찾을 수 없습니다");
   } catch (err) {

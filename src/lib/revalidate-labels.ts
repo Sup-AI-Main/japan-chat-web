@@ -11,6 +11,7 @@ const ENTITY_PATH_MAP: Record<string, string> = {
   GOLF: "golf",
   HOTEL: "hotel",
   RESTAURANT: "restaurant",
+  ATTRACTION: "attraction",
 };
 
 /**
@@ -24,11 +25,16 @@ export async function revalidateEntityPaths(entityType: string): Promise<number>
 
   const db = getSupabaseAdmin();
 
-  // Get all entities of this type with their areas
-  const { data: entities } = await db
+  // A07: 실제 스키마 컬럼 사용 (entity_type, areas 관계)
+  const { data: entities, error } = await db
     .from("entities")
-    .select("slug, area")
-    .eq("type", type);
+    .select("slug, areas(code)")
+    .eq("entity_type", type);
+
+  if (error) {
+    console.error("[REVALIDATE_ENTITY_PATHS_FAIL]", error);
+    return 0;
+  }
 
   if (!entities || entities.length === 0) return 0;
 
@@ -36,7 +42,9 @@ export async function revalidateEntityPaths(entityType: string): Promise<number>
   const revalidatedAreas = new Set<string>();
 
   for (const entity of entities) {
-    const area = entity.area?.toLowerCase();
+    const areaRelation = entity.areas as { code: string }[] | { code: string } | null;
+    const areaCode = Array.isArray(areaRelation) ? areaRelation[0]?.code : areaRelation?.code;
+    const area = areaCode?.toLowerCase();
     if (!area) continue;
 
     // Revalidate detail page

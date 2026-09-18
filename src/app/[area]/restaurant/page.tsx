@@ -52,7 +52,7 @@ export default async function RestaurantListPage({
           ← {getAreaEmoji(areaCode)} {areaLabel}
         </Link>
         <h1 className="text-[24px] font-bold text-text mb-6">
-          {getAreaEmoji(areaCode)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 맛집
+          {getAreaEmoji(areaCode)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 음식점
         </h1>
 
         <RestaurantListClient

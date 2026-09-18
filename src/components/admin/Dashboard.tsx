@@ -881,7 +881,7 @@ export default function Dashboard() {
             { label: "엔티티", count: modal.impact.entities ?? 0 },
             { label: "호텔", count: modal.impact.hotels ?? 0 },
             { label: "골프장", count: modal.impact.golf_courses ?? 0 },
-            { label: "맛집", count: modal.impact.restaurants ?? 0 },
+            { label: "음식점", count: modal.impact.restaurants ?? 0 },
             { label: "FAQ", count: modal.impact.faq ?? 0 },
             { label: "이동시간", count: modal.impact.travel_times ?? 0 },
             { label: "콘텐츠 섹션", count: modal.impact.content_sections ?? 0 },
@@ -947,9 +947,9 @@ export default function Dashboard() {
             { label: "포함/제외", count: modal.impact.includes_excludes ?? 0 },
             { label: "호텔", count: modal.impact.hotels ?? 0 },
             { label: "골프장", count: modal.impact.golf_courses ?? 0 },
-            { label: "맛집", count: modal.impact.restaurants ?? 0 },
+            { label: "음식점", count: modal.impact.restaurants ?? 0 },
             { label: "이동시간", count: modal.impact.travel_times ?? 0 },
-            { label: "맛집 위치 정보", count: modal.impact.restaurant_locations ?? 0 },
+            { label: "음식점 위치 정보", count: modal.impact.restaurant_locations ?? 0 },
           ]}
           warning="이 카테고리에 연결된 모든 데이터가 함께 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
           onConfirm={handleConfirmDeleteCategory}

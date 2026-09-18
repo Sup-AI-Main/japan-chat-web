@@ -59,7 +59,8 @@ interface ApiRes<T> {
 const ENTITY_TYPES = [
   { value: "HOTEL", label: "호텔" },
   { value: "GOLF", label: "골프장" },
-  { value: "RESTAURANT", label: "맛집" },
+  { value: "RESTAURANT", label: "음식점" },
+  { value: "ATTRACTION", label: "주변 볼거리" },
   { value: "PLACE", label: "장소" },
 ];
 
@@ -270,7 +271,7 @@ export default function EntityList({ areaCode }: { areaCode: string }) {
     ? [
         { label: "호텔 상세", count: deleteImpact.hotels ?? 0 },
         { label: "골프장 상세", count: deleteImpact.golf_courses ?? 0 },
-        { label: "맛집 상세", count: deleteImpact.restaurants ?? 0 },
+        { label: "음식점 상세", count: deleteImpact.restaurants ?? 0 },
         { label: "FAQ", count: deleteImpact.faq ?? 0 },
         { label: "이동시간", count: deleteImpact.travel_times ?? 0 },
         { label: "콘텐츠 섹션", count: deleteImpact.content_sections ?? 0 },

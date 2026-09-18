@@ -3,11 +3,10 @@ import {
   getHotelById,
   getHotels,
   getFaqForEntity,
-  getRestaurantsNearEntity,
   getContentSections,
 } from "@/lib/supabase-cms";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
-import type { FaqItem, Restaurant, ContentSection } from "@/lib/types";
+import type { FaqItem, ContentSection } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { HotelDetailClient } from "./HotelDetailClient";
 
@@ -46,22 +45,19 @@ export default async function HotelDetailPage({
   // Parallel fetch: all independent queries run concurrently
   const results = await Promise.allSettled([
     getFaqForEntity(area.toUpperCase(), "HOTEL", id),
-    getRestaurantsNearEntity(area.toUpperCase(), "HOTEL", id),
     getContentSections("HOTEL", id),
     getDynamicLabels("HOTEL"),
   ]);
 
   const faqs: FaqItem[] = results[0].status === "fulfilled" ? results[0].value : [];
-  const restaurants: Restaurant[] = results[1].status === "fulfilled" ? results[1].value : [];
-  const contentSections: ContentSection[] = results[2].status === "fulfilled" ? results[2].value : [];
-  const dynamicLabels: DynamicLabelsResult = results[3].status === "fulfilled" ? results[3].value : { sections: [], fieldMap: {} };
+  const contentSections: ContentSection[] = results[1].status === "fulfilled" ? results[1].value : [];
+  const dynamicLabels: DynamicLabelsResult = results[2].status === "fulfilled" ? results[2].value : { sections: [], fieldMap: {} };
 
   return (
     <HotelDetailClient
       hotel={hotel}
       area={area}
       faqs={faqs}
-      restaurants={restaurants}
       contentSections={contentSections}
       dynamicLabels={dynamicLabels}
     />

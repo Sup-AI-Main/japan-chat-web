@@ -79,7 +79,7 @@ export async function DELETE(req: NextRequest) {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return badRequest("Missing id");
     const success = await deleteContentSection(id);
-    return ok({ success });
+    return ok({ deleted: success, id });
   } catch (err) {
     console.error("CONTENT_SECTION_DELETE_FAIL", err);
     const msg = err instanceof Error ? err.message : "Internal Server Error";
