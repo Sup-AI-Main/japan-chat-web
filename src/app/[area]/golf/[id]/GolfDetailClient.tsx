@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { GolfCourse, FaqItem, ContentSection } from "@/lib/types";
+import type { GolfCourse, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getFieldLabel } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
@@ -22,6 +22,7 @@ interface GolfDetailClientProps {
   faqs: FaqItem[];
   contentSections: ContentSection[];
   dynamicLabels?: DynamicLabelsResult;
+  initialIncludes?: IncludeExclude[];
 }
 
 export function GolfDetailClient({
@@ -30,6 +31,7 @@ export function GolfDetailClient({
   faqs,
   contentSections,
   dynamicLabels,
+  initialIncludes,
 }: GolfDetailClientProps) {
   const [course, setCourse] = useState(initialCourse);
   const [editGolfOpen, setEditGolfOpen] = useState(false);
@@ -106,10 +108,50 @@ export function GolfDetailClient({
             )}
           </div>
 
+          {/* Golf Detail Fields */}
+          <div className="space-y-3 mb-6">
+            {course.course_summary && (
+              <div>
+                <h3 className="text-[15px] font-bold text-text">{fieldLabel("course_summary", "코스 요약")}</h3>
+                <p className="text-[15px] text-text leading-relaxed">{course.course_summary}</p>
+              </div>
+            )}
+            {course.play_cart && (
+              <div>
+                <h3 className="text-[15px] font-bold text-text">{fieldLabel("play_cart", "플레이/카트")}</h3>
+                <p className="text-[15px] text-text leading-relaxed">{course.play_cart}</p>
+              </div>
+            )}
+            {course.clubhouse_dining && (
+              <div>
+                <h3 className="text-[15px] font-bold text-text">{fieldLabel("clubhouse_dining", "클럽하우스 식사")}</h3>
+                <p className="text-[15px] text-text leading-relaxed">{course.clubhouse_dining}</p>
+              </div>
+            )}
+            {course.bath_shower && (
+              <div>
+                <h3 className="text-[15px] font-bold text-text">{fieldLabel("bath_shower", "욕실/샤워")}</h3>
+                <p className="text-[15px] text-text leading-relaxed">{course.bath_shower}</p>
+              </div>
+            )}
+            {course.rental && (
+              <div>
+                <h3 className="text-[15px] font-bold text-text">{fieldLabel("rental", "대여")}</h3>
+                <p className="text-[15px] text-text leading-relaxed">{course.rental}</p>
+              </div>
+            )}
+            {course.dress_code && (
+              <div>
+                <h3 className="text-[15px] font-bold text-text">{fieldLabel("dress_code", "드레스코드")}</h3>
+                <p className="text-[15px] text-text leading-relaxed">{course.dress_code}</p>
+              </div>
+            )}
+          </div>
+
         </EditableContainer>
 
         {/* 포함/불포함 사항 */}
-        <IncludeExcludeSection parentType="GOLF" parentId={course.id} />
+        <IncludeExcludeSection parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
 
         {/* FAQs */}
         {faqs.length > 0 && (
@@ -139,7 +181,7 @@ export function GolfDetailClient({
         )}
 
         {/* 예약 전 확인 요약 */}
-        <IncludeExcludeSummary parentType="GOLF" parentId={course.id} />
+        <IncludeExcludeSummary parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
 
         {/* Content Sections (dynamic) */}
         <ContentSectionsRenderer

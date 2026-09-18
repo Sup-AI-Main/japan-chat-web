@@ -66,11 +66,13 @@ export function staleVersion(message = "데이터가 다른 사용자에 의해 
   return NextResponse.json({ success: false, error: message, code: "STALE_VERSION" }, { status: 409 });
 }
 
-/** 500 internal error with safe message */
+const SAFE_SERVER_ERROR_MSG = "서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+
+/** 500 internal error — never exposes internal details to the client */
 export function serverError(err: unknown): NextResponse<ApiFailure> {
-  const msg = err instanceof Error ? err.message : "Server error";
-  console.error("[API_ERROR]", msg);
-  return NextResponse.json({ success: false, error: msg, code: "SERVER_ERROR" }, { status: 500 });
+  const detail = err instanceof Error ? err.message : String(err);
+  console.error("[API_ERROR]", detail);
+  return NextResponse.json({ success: false, error: SAFE_SERVER_ERROR_MSG, code: "SERVER_ERROR" }, { status: 500 });
 }
 
 /** Safe JSON parse that never throws on empty/invalid body */

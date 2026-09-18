@@ -76,9 +76,28 @@ export interface TravelTime {
   google_maps_direction_url: string;
   active: string;
   sort: number;
+  display_time?: string;
+  min_minutes?: number | null;
+  max_minutes?: number | null;
+  updated_at?: string;
+  from_entity_id?: string;
+  to_entity_id?: string;
 }
 
 // Restaurant
+export interface RestaurantLocation {
+  id: string;
+  scope: 'AREA' | 'HOTEL' | 'GOLF';
+  near_entity_id: string | null;
+  near_entity_slug: string | null;
+  near_entity_name: string | null;
+  distance_text: string | null;
+  distance_km: number | null;
+  drive_minutes: number | null;
+  walk_minutes: number | null;
+  sort: number;
+}
+
 export interface Restaurant {
   id: string;
   slug: string;
@@ -110,6 +129,7 @@ export interface Restaurant {
   description: string;
   recommended: string;
   updated_at: string;
+  locations: RestaurantLocation[];
 }
 
 // Attraction (주변 볼거리) — EAV-based, no dedicated table

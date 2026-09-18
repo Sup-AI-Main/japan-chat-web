@@ -4,8 +4,22 @@
  */
 
 export class ConflictError extends Error {
-  constructor() {
-    super("409_CONFLICT");
+  code: string;
+  constructor(code: string, message?: string) {
+    super(message ?? "409_CONFLICT");
+    this.code = code;
+  }
+}
+
+export class DuplicateCodeError extends ConflictError {
+  constructor(message?: string) {
+    super("DUPLICATE_CODE", message ?? "같은 코드의 항목이 이미 존재합니다.");
+  }
+}
+
+export class StaleVersionError extends ConflictError {
+  constructor(message?: string) {
+    super("STALE_VERSION", message ?? "데이터가 다른 사용자에 의해 변경되었습니다.");
   }
 }
 
@@ -19,7 +33,16 @@ export async function adminFetchJson<T = Record<string, unknown>>(
   });
 
   if (res.status === 409) {
-    throw new ConflictError();
+    const text = await res.text();
+    let body: Record<string, unknown> = {};
+    if (text && text.trim().length > 0) {
+      try { body = JSON.parse(text); } catch { /* ignore */ }
+    }
+    const code = (body.code as string) || "CONFLICT";
+    const msg = (body.error as string) || undefined;
+    if (code === "DUPLICATE_CODE") throw new DuplicateCodeError(msg);
+    if (code === "STALE_VERSION") throw new StaleVersionError(msg);
+    throw new ConflictError(code, msg);
   }
 
   // Safe body reading: never crash on empty/invalid response

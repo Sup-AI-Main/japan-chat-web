@@ -98,5 +98,6 @@ export function editDataToRestaurant(
     sort: 0,
     last_verified: "",
     updated_at: "",
+    locations: [],
   };
 }

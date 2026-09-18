@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
-import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer } from "@/components/inline-cms";
-import type { Restaurant, ContentSection } from "@/lib/types";
+import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection, IncludeExcludeSummary } from "@/components/inline-cms";
+import type { Restaurant, ContentSection, IncludeExclude, FaqItem } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getFieldLabel } from "@/lib/dynamic-labels";
 
@@ -20,6 +20,8 @@ interface RestaurantDetailClientProps {
   area: string;
   contentSections: ContentSection[];
   dynamicLabels?: DynamicLabelsResult;
+  initialIncludes?: IncludeExclude[];
+  faqs?: FaqItem[];
 }
 
 export default function RestaurantDetailClient({
@@ -27,6 +29,8 @@ export default function RestaurantDetailClient({
   area,
   contentSections,
   dynamicLabels,
+  initialIncludes,
+  faqs,
 }: RestaurantDetailClientProps) {
   const [restaurant, setRestaurant] = useState<Restaurant>(initialRestaurant);
   const [editModal, setEditModal] = useState(false);
@@ -237,6 +241,39 @@ export default function RestaurantDetailClient({
         </div>
         </div>
       </EditableContainer>
+
+      {/* 포함/불포함 사항 */}
+      <IncludeExcludeSection parentType="RESTAURANT" parentId={restaurant.id} initialItems={initialIncludes} />
+
+      {/* FAQs */}
+      {faqs && faqs.length > 0 && (
+        <div className="border-t border-border pt-6 mb-6">
+          <h2 className="text-[18px] font-bold text-text mb-4">
+            자주 묻는 질문
+          </h2>
+          <div className="space-y-2">
+            {faqs.map((faq) => (
+              <details
+                key={faq.id}
+                className="bg-surface border border-border rounded-[8px] group"
+              >
+                <summary className="p-3 flex justify-between items-center font-medium text-[15px] text-text">
+                  <span>Q. {faq.question}</span>
+                  <span className="chevron-icon text-muted transition-transform">
+                    ▼
+                  </span>
+                </summary>
+                <div className="px-3 pb-3 text-[15px] text-text leading-[1.6] border-t border-border pt-3">
+                  {faq.answer}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 예약 전 확인 요약 */}
+      <IncludeExcludeSummary parentType="RESTAURANT" parentId={restaurant.id} initialItems={initialIncludes} />
 
       {/* Content Sections (dynamic) */}
       <ContentSectionsRenderer

@@ -7,8 +7,9 @@ import { useToast, Toast } from "@/components/Toast";
 import { AddButton } from "./EditToolbar";
 
 interface IncludeExcludeSectionProps {
-  parentType: "HOTEL" | "GOLF";
+  parentType: "HOTEL" | "GOLF" | "RESTAURANT";
   parentId: string;
+  initialItems?: IncludeExclude[];
 }
 
 interface ItemFormData {
@@ -27,10 +28,10 @@ const emptyForm: ItemFormData = {
   is_visible: "TRUE",
 };
 
-export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSectionProps) {
+export function IncludeExcludeSection({ parentType, parentId, initialItems }: IncludeExcludeSectionProps) {
   const isAdmin = useAdmin();
-  const [items, setItems] = useState<IncludeExclude[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [items, setItems] = useState<IncludeExclude[]>(initialItems || []);
+  const [loaded, setLoaded] = useState(!!initialItems);
   const [editItem, setEditItem] = useState<IncludeExclude | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<ItemFormData>(emptyForm);
@@ -59,8 +60,13 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
   }, [parentType, parentId]);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    if (isAdmin) {
+      fetchItems();
+    } else if (initialItems) {
+      setItems(initialItems);
+      setLoaded(true);
+    }
+  }, [isAdmin, fetchItems, initialItems]);
 
   const included = items.filter((i) => i.type === "INCLUDED" && i.is_visible === "TRUE");
   const excluded = items.filter((i) => i.type === "EXCLUDED" && i.is_visible === "TRUE");
@@ -413,11 +419,16 @@ export function IncludeExcludeSection({ parentType, parentId }: IncludeExcludeSe
 }
 
 /** CTA 위에 표시하는 요약 컴포넌트 */
-export function IncludeExcludeSummary({ parentType, parentId }: IncludeExcludeSectionProps) {
-  const [items, setItems] = useState<IncludeExclude[]>([]);
-  const [loaded, setLoaded] = useState(false);
+export function IncludeExcludeSummary({ parentType, parentId, initialItems }: IncludeExcludeSectionProps) {
+  const [items, setItems] = useState<IncludeExclude[]>(initialItems || []);
+  const [loaded, setLoaded] = useState(!!initialItems);
 
   useEffect(() => {
+    if (initialItems) {
+      setItems(initialItems);
+      setLoaded(true);
+      return;
+    }
     fetch(`/api/admin/includes?parent_type=${parentType}&parent_id=${parentId}`, { cache: "no-store" })
       .then(async (r) => {
         const text = await r.text();
@@ -427,7 +438,7 @@ export function IncludeExcludeSummary({ parentType, parentId }: IncludeExcludeSe
       .then((d) => setItems(d.items || []))
       .catch(() => {})
       .finally(() => setLoaded(true));
-  }, [parentType, parentId]);
+  }, [parentType, parentId, initialItems]);
 
   if (!loaded) return null;
 

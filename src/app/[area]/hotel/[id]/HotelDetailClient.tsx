@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { Hotel, FaqItem, ContentSection } from "@/lib/types";
+import type { Hotel, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getSectionLabel, getFieldLabel, isSectionVisible } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
@@ -23,6 +23,7 @@ interface HotelDetailClientProps {
   faqs: FaqItem[];
   contentSections: ContentSection[];
   dynamicLabels?: DynamicLabelsResult;
+  initialIncludes?: IncludeExclude[];
 }
 
 interface HotelData {
@@ -128,6 +129,7 @@ export function HotelDetailClient({
   faqs,
   contentSections,
   dynamicLabels,
+  initialIncludes,
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
   const isAdmin = useAdmin();
@@ -352,7 +354,7 @@ export function HotelDetailClient({
         )}
 
         {/* 포함/불포함 사항 */}
-        <IncludeExcludeSection parentType="HOTEL" parentId={hotel.id} />
+        <IncludeExcludeSection parentType="HOTEL" parentId={hotel.id} initialItems={initialIncludes} />
 
         {/* 호텔 관련 질문 */}
         {faqs.length > 0 && (
@@ -378,7 +380,7 @@ export function HotelDetailClient({
         )}
 
         {/* 예약 전 확인 요약 */}
-        <IncludeExcludeSummary parentType="HOTEL" parentId={hotel.id} />
+        <IncludeExcludeSummary parentType="HOTEL" parentId={hotel.id} initialItems={initialIncludes} />
 
         {/* Content Sections (dynamic) */}
         <ContentSectionsRenderer

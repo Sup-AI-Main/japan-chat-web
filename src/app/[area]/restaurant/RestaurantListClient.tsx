@@ -24,10 +24,25 @@ const NEAR_SECTIONS: { key: string; label: string }[] = [
   { key: "AREA", label: "지역 음식점" },
 ];
 
-function getDistanceText(r: Restaurant): string {
+function getDistanceText(r: Restaurant, sectionKey?: string): string {
+  // locations 배열에서 해당 섹션에 맞는 location 찾기
+  if (r.locations && r.locations.length > 0 && sectionKey) {
+    const loc = sectionKey === "AREA"
+      ? r.locations.find((l) => l.scope === "AREA" || !l.near_entity_id)
+      : r.locations.find((l) => l.scope === sectionKey);
+    if (loc) {
+      const parts: string[] = [];
+      if (loc.distance_km) parts.push(`${loc.distance_km}km`);
+      if (loc.drive_minutes) parts.push(`차량 약 ${loc.drive_minutes}분`);
+      if (loc.walk_minutes) parts.push(`도보 약 ${loc.walk_minutes}분`);
+      if (parts.length > 0) return parts.join(" · ");
+      if (loc.distance_text) return loc.distance_text;
+    }
+  }
+  // fallback: 기존 단일 필드
   if (r.distance_km || r.drive_minutes) {
     const parts: string[] = [];
-    if (r.distance_km) parts.push(`호텔에서 ${r.distance_km}km`);
+    if (r.distance_km) parts.push(`${r.distance_km}km`);
     if (r.drive_minutes) parts.push(`차량 약 ${r.drive_minutes}분`);
     return parts.join(" · ");
   }
@@ -59,7 +74,15 @@ export default function RestaurantListClient({
     ...section,
     items: restaurants.filter((r) => {
       if (section.key === "AREA") {
+        // AREA: locations가 비어있거나, scope이 AREA인 location이 있거나, near_type이 AREA
+        if (r.locations && r.locations.length > 0) {
+          return r.locations.some((loc) => loc.scope === "AREA" || (!loc.near_entity_id));
+        }
         return r.near_type === "AREA" || (!r.near_type && !r.near_id);
+      }
+      // HOTEL/GOLF: locations에서 해당 scope이거나, near_type이 일치
+      if (r.locations && r.locations.length > 0) {
+        return r.locations.some((loc) => loc.scope === section.key);
       }
       return r.near_type === section.key;
     }),
@@ -224,6 +247,14 @@ export default function RestaurantListClient({
                             {rest.category}
                           </p>
                         )}
+                        {section.key !== "AREA" && rest.locations && rest.locations.length > 0 && (() => {
+                          const nearLoc = rest.locations.find((l) => l.scope === section.key && l.near_entity_name);
+                          return nearLoc ? (
+                            <p className="text-[13px] text-primary mb-1">
+                              {nearLoc.near_entity_name} 근처
+                            </p>
+                          ) : null;
+                        })()}
                         {(rest.menu_kr || rest.menu_jp) && (
                           <p className="text-[14px] text-text">
                             대표 메뉴: {rest.menu_kr}
@@ -235,9 +266,9 @@ export default function RestaurantListClient({
                             )}
                           </p>
                         )}
-                        {getDistanceText(rest) && (
+                        {getDistanceText(rest, section.key) && (
                           <p className="text-[13px] text-muted mt-1">
-                            {getDistanceText(rest)}
+                            {getDistanceText(rest, section.key)}
                           </p>
                         )}
                         {rest.google_maps_url && (

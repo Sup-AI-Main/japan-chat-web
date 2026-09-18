@@ -140,7 +140,7 @@ export async function getEntity(id: string): Promise<EntityWithCategory | null> 
 }
 
 // ---------------------------------------------------------------------------
-// Create (service role) — syncs entities.category_id + entity_categories
+// Create (service role) — atomic RPC: entity + entity_categories + subtype
 // ---------------------------------------------------------------------------
 
 export async function createEntity(
@@ -164,55 +164,23 @@ export async function createEntity(
     toStr(data.display_name)
   );
 
-  const insertData = {
-    slug,
-    display_name: toStr(data.display_name),
-    entity_type: toStr(data.entity_type).toUpperCase(),
-    area_id: toStr(data.area_id),
-    category_id: data.category_id ? toStr(data.category_id) : null,
-    active: data.active !== undefined ? Boolean(data.active) : true,
-    sort: toInt(data.sort, 999),
+  const rpcParams = {
+    p_slug: slug,
+    p_display_name: toStr(data.display_name),
+    p_entity_type: toStr(data.entity_type).toUpperCase(),
+    p_area_id: toStr(data.area_id),
+    p_category_id: data.category_id ? toStr(data.category_id) : null,
+    p_active: data.active !== undefined ? Boolean(data.active) : true,
+    p_sort: toInt(data.sort, 999),
   };
 
-  const { data: row, error } = await db
-    .from("entities")
-    .insert(insertData)
-    .select("id, slug, display_name, entity_type, area_id, category_id, active, sort, created_at, updated_at")
+  const { data: rpcResult, error: rpcError } = await db
+    .rpc("create_entity_with_subtype", rpcParams)
     .single();
 
-  if (error) throw error;
+  if (rpcError) throw rpcError;
 
-  // Sync entity_categories junction table
-  if (insertData.category_id) {
-    const { error: ecError } = await db
-      .from("entity_categories")
-      .insert({
-        entity_id: row.id,
-        category_id: insertData.category_id,
-        sort: 0,
-      });
-
-    if (ecError) {
-      console.error("[ENTITY_CAT_SYNC_FAIL]", ecError);
-    }
-  }
-
-  // Create subtype row for HOTEL / GOLF / RESTAURANT so the drawer can UPDATE later
-  const entityType = insertData.entity_type;
-  if (entityType === "HOTEL" || entityType === "GOLF" || entityType === "RESTAURANT") {
-    const subtypeTable = entityType === "HOTEL" ? "hotels" : entityType === "GOLF" ? "golf_courses" : "restaurants";
-    const { error: subError } = await db
-      .from(subtypeTable)
-      .insert({ entity_id: row.id });
-
-    if (subError) {
-      // Compensate: remove entity + category link
-      await db.from("entity_categories").delete().eq("entity_id", row.id);
-      await db.from("entities").delete().eq("id", row.id);
-      console.error(`[SUBTYPE_CREATE_FAIL] ${subtypeTable}`, subError);
-      throw subError;
-    }
-  }
+  const row = rpcResult as unknown as EntityRow;
 
   await logChange({
     action: "CREATE",
@@ -221,7 +189,7 @@ export async function createEntity(
     afterJson: row,
   });
 
-  return row as EntityRow;
+  return row;
 }
 
 // ---------------------------------------------------------------------------

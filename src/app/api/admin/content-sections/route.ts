@@ -46,9 +46,7 @@ export async function POST(req: NextRequest) {
     });
     return created(row);
   } catch (err) {
-    console.error("CONTENT_SECTION_CREATE_FAIL", err);
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -66,9 +64,7 @@ export async function PUT(req: NextRequest) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
     }
-    console.error("CONTENT_SECTION_UPDATE_FAIL", err);
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -81,8 +77,6 @@ export async function DELETE(req: NextRequest) {
     const success = await deleteContentSection(id);
     return ok({ deleted: success, id });
   } catch (err) {
-    console.error("CONTENT_SECTION_DELETE_FAIL", err);
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

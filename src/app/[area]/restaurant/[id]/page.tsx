@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurantById, getRestaurants, getContentSections } from "@/lib/supabase-cms";
+import { getRestaurantById, getRestaurants, getContentSections, getIncludesExcludes, getFaqForEntity } from "@/lib/supabase-cms";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
-import type { ContentSection } from "@/lib/types";
+import type { ContentSection, IncludeExclude, FaqItem } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import RestaurantDetailClient from "./RestaurantDetailClient";
 
@@ -40,14 +40,18 @@ export default async function RestaurantDetailPage({
   if (!restaurant || restaurant.area.toUpperCase() !== area.toUpperCase())
     notFound();
 
-  // Get content sections and dynamic labels
+  // Get content sections, dynamic labels, includes/excludes, and FAQ
   const results = await Promise.allSettled([
     getContentSections("RESTAURANT", id),
     getDynamicLabels("RESTAURANT"),
+    getIncludesExcludes("RESTAURANT", id),
+    getFaqForEntity(area.toUpperCase(), "RESTAURANT", id),
   ]);
 
   const contentSections: ContentSection[] = results[0].status === "fulfilled" ? results[0].value : [];
   const dynamicLabels: DynamicLabelsResult = results[1].status === "fulfilled" ? results[1].value : { sections: [], fieldMap: {} };
+  const initialIncludes: IncludeExclude[] = results[2].status === "fulfilled" ? results[2].value : [];
+  const faqs: FaqItem[] = results[3].status === "fulfilled" ? results[3].value : [];
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -71,6 +75,8 @@ export default async function RestaurantDetailPage({
           area={area}
           contentSections={contentSections}
           dynamicLabels={dynamicLabels}
+          initialIncludes={initialIncludes}
+          faqs={faqs}
         />
       </div>
     </main>

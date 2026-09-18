@@ -3,13 +3,25 @@
  * CMS Schema Verification Script (A13)
  *
  * Read-only check that all required DB objects exist.
- * Uses DIRECT_URL (session-mode connection).
+ * Uses DATABASE_URL from .env.local.
  * Exit 0 = all checks pass, Exit 1 = missing objects.
  *
  * Never prints credentials or connection strings.
  */
 
+import { readFileSync } from "fs";
 import pg from "pg";
+
+// Load DATABASE_URL from .env.local if not in env
+function getConnStr() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  try {
+    const env = readFileSync(".env.local", "utf8");
+    const line = env.split("\n").find((l) => l.startsWith("DATABASE_URL="));
+    if (line) return line.split("=").slice(1).join("=").trim();
+  } catch { /* ignore */ }
+  return null;
+}
 
 const REQUIRED_TABLES = [
   "entities",
@@ -26,17 +38,18 @@ const REQUIRED_TABLES = [
   "entity_categories",
   "entity_field_values",
   "field_definitions",
+  "field_definition_scopes",
   "section_definitions",
-  "change_log",
+  "admin_change_logs",
 ];
 
 const REQUIRED_COLUMNS = {
-  entities: ["id", "slug", "display_name", "entity_type", "area_id", "active", "sort", "updated_at"],
+  entities: ["id", "slug", "display_name", "entity_type", "area_id", "category_id", "active", "sort", "updated_at"],
   hotels: ["entity_id", "official_name", "address", "phone"],
   golf_courses: ["entity_id", "official_name", "address", "phone"],
   restaurants: ["entity_id", "category", "address", "phone"],
-  faq: ["id", "question", "answer", "entity_type"],
-  travel_times: ["id", "from_entity", "to_entity", "product_reference_minutes"],
+  faq: ["id", "question", "answer", "scope", "category_id", "area_id", "active", "sort"],
+  travel_times: ["id", "from_entity_id", "to_entity_id", "product_reference_minutes", "display_time", "min_minutes", "max_minutes", "updated_at"],
   areas: ["id", "code", "name_kr", "active"],
   categories: ["id", "code", "label", "active"],
 };
@@ -49,13 +62,12 @@ const REQUIRED_FUNCTIONS = [
 ];
 
 async function main() {
-  const connStr = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  const connStr = getConnStr();
   if (!connStr) {
-    console.error("FAIL: DIRECT_URL or DATABASE_URL environment variable is required.");
+    console.error("FAIL: DATABASE_URL environment variable is required.");
     process.exit(1);
   }
 
-  // Never log the connection string
   const client = new pg.Client({ connectionString: connStr });
   try {
     await client.connect();
@@ -78,7 +90,7 @@ async function main() {
 
     // 2. Check columns
     for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
-      if (!existingTables.has(table)) continue; // already reported
+      if (!existingTables.has(table)) continue;
       const { rows: colRows } = await client.query(
         `SELECT column_name FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = $1`,
@@ -93,7 +105,7 @@ async function main() {
       }
     }
 
-    // 3. Check SECURITY DEFINER functions
+    // 3. Check functions exist
     const { rows: funcRows } = await client.query(
       `SELECT p.proname
        FROM pg_proc p
@@ -108,7 +120,46 @@ async function main() {
       }
     }
 
-    // 4. Check RLS is enabled on core tables
+    // 4. Check search_path on SECURITY DEFINER functions
+    const { rows: secFuncRows } = await client.query(
+      `SELECT p.proname, p.prosecdef, p.proconfig
+       FROM pg_proc p
+       JOIN pg_namespace n ON p.pronamespace = n.oid
+       WHERE n.nspname = 'public' AND p.proname = ANY($1)`,
+      [REQUIRED_FUNCTIONS]
+    );
+    for (const fn of secFuncRows) {
+      if (fn.prosecdef) {
+        // SECURITY DEFINER functions must have search_path set
+        const configs = fn.proconfig || [];
+        const hasSearchPath = configs.some((c) => c.startsWith("search_path="));
+        if (!hasSearchPath) {
+          console.error(`SECURITY DEFINER without search_path: public.${fn.proname}`);
+          failures++;
+        }
+      }
+    }
+
+    // 5. Check EXECUTE privileges on required functions
+    // anon and authenticated should NOT have EXECUTE on these SECURITY DEFINER functions
+    const { rows: privRows } = await client.query(
+      `SELECT p.proname, r.rolname,
+        has_function_privilege(r.oid, p.oid, 'EXECUTE') as can_execute
+       FROM pg_proc p
+       CROSS JOIN pg_roles r
+       WHERE p.proname = ANY($1)
+         AND r.rolname IN ('anon', 'authenticated')
+       ORDER BY p.proname, r.rolname`,
+      [REQUIRED_FUNCTIONS]
+    );
+    for (const priv of privRows) {
+      if (priv.can_execute) {
+        console.error(`UNSAFE EXECUTE: public.${priv.proname} grants EXECUTE to ${priv.rolname}`);
+        failures++;
+      }
+    }
+
+    // 6. Check RLS is enabled on core tables
     const { rows: rlsRows } = await client.query(
       `SELECT tablename, rowsecurity FROM pg_tables
        WHERE schemaname = 'public'`

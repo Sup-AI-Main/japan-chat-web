@@ -4,9 +4,10 @@ import {
   getHotels,
   getFaqForEntity,
   getContentSections,
+  getIncludesExcludes,
 } from "@/lib/supabase-cms";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
-import type { FaqItem, ContentSection } from "@/lib/types";
+import type { FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { HotelDetailClient } from "./HotelDetailClient";
 
@@ -47,11 +48,13 @@ export default async function HotelDetailPage({
     getFaqForEntity(area.toUpperCase(), "HOTEL", id),
     getContentSections("HOTEL", id),
     getDynamicLabels("HOTEL"),
+    getIncludesExcludes("HOTEL", id),
   ]);
 
   const faqs: FaqItem[] = results[0].status === "fulfilled" ? results[0].value : [];
   const contentSections: ContentSection[] = results[1].status === "fulfilled" ? results[1].value : [];
   const dynamicLabels: DynamicLabelsResult = results[2].status === "fulfilled" ? results[2].value : { sections: [], fieldMap: {} };
+  const initialIncludes: IncludeExclude[] = results[3].status === "fulfilled" ? results[3].value : [];
 
   return (
     <HotelDetailClient
@@ -60,6 +63,7 @@ export default async function HotelDetailPage({
       faqs={faqs}
       contentSections={contentSections}
       dynamicLabels={dynamicLabels}
+      initialIncludes={initialIncludes}
     />
   );
 }

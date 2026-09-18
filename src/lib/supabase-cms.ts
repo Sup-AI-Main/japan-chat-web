@@ -709,6 +709,12 @@ export async function getTravelTimesForHotel(hotelSlug: string): Promise<TravelT
       google_maps_direction_url: (row.directions_url as string) || '',
       active: row.active ? 'TRUE' : 'FALSE',
       sort: row.sort as number,
+      display_time: (row.display_time as string) || '',
+      min_minutes: row.min_minutes as number | null,
+      max_minutes: row.max_minutes as number | null,
+      updated_at: row.updated_at as string,
+      from_entity_id: from?.id || '',
+      to_entity_id: to?.id || '',
     };
   });
 }
@@ -802,7 +808,7 @@ export async function getFaqForEntity(
     query = query.eq('category_id', catId);
   }
   if (entityId) {
-    query = query.or(`scope.eq.area,related_entity_id.eq.${entityId}`);
+    query = query.or(`scope.eq.AREA,related_entity_id.eq.${entityId}`);
   }
 
   const { data, error } = await query.order('sort');
@@ -1132,7 +1138,9 @@ function mapRestaurant(
   distanceText: string,
   distanceKm?: string,
   driveMinutes?: string,
-  walkMinutes?: string
+  walkMinutes?: string,
+  locations?: import('@/lib/types').RestaurantLocation[],
+  nameJp?: string
 ): Restaurant {
   return {
     id: entity.id as string,
@@ -1142,7 +1150,7 @@ function mapRestaurant(
     near_id: nearId,
     name: entity.display_name,
     name_kr: entity.display_name,
-    name_jp: '',
+    name_jp: nameJp || '',
     category: (rest.category as string) || '',
     distance: distanceText,
     address: (rest.address as string) || '',
@@ -1165,6 +1173,7 @@ function mapRestaurant(
     active: entity.active ? 'TRUE' : 'FALSE',
     sort: entity.sort,
     updated_at: entity.updated_at,
+    locations: locations || [],
   };
 }
 
@@ -1195,12 +1204,29 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
     throw error;
   }
 
+  // Batch-fetch name_jp from entity_field_values
+  const entityIds = (data || []).map((row) => row.id).filter(Boolean) as string[];
+  const nameJpMap = new Map<string, string>();
+  if (entityIds.length > 0) {
+    const { data: fvRows } = await db()
+      .from('entity_field_values')
+      .select('entity_id, value_text, field_definition:field_definitions!inner(field_key)')
+      .in('entity_id', entityIds)
+      .eq('field_definitions.field_key', 'rest_name_jp');
+    for (const fv of fvRows || []) {
+      const fdef = fv.field_definition as unknown as { field_key: string } | null;
+      if (fdef?.field_key === 'rest_name_jp') {
+        nameJpMap.set(fv.entity_id as string, (fv.value_text as string) || '');
+      }
+    }
+  }
+
   return (data || [])
     .filter((row) => row.active !== false)
     .map((row) => {
       const areaCode = (row.areas as unknown as { code: string })?.code || '';
       const restData = (row.restaurants as unknown as Record<string, unknown>[])?.[0] || {};
-      const locations =
+      const rawLocations =
         (row.restaurant_locations as unknown as Array<{
           id: string;
           distance_text: string;
@@ -1209,7 +1235,7 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
           walk_minutes: number;
           near: { id: string; slug: string; display_name: string; entity_type: string };
         }>) || [];
-      const firstLoc = locations[0];
+      const firstLoc = rawLocations[0];
       const near = firstLoc?.near;
       const nearType =
         near?.entity_type === 'GOLF'
@@ -1219,6 +1245,30 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
             : near
               ? near.entity_type
               : 'AREA';
+
+      // Map all locations to RestaurantLocation DTO
+      const locations: import('@/lib/types').RestaurantLocation[] = rawLocations.map((loc) => {
+        const locNear = loc.near;
+        const scope =
+          locNear?.entity_type === 'GOLF'
+            ? ('GOLF' as const)
+            : locNear?.entity_type === 'HOTEL'
+              ? ('HOTEL' as const)
+              : ('AREA' as const);
+        return {
+          id: loc.id,
+          scope,
+          near_entity_id: locNear?.id || null,
+          near_entity_slug: locNear?.slug || null,
+          near_entity_name: locNear?.display_name || null,
+          distance_text: loc.distance_text || null,
+          distance_km: loc.distance_km != null ? Number(loc.distance_km) : null,
+          drive_minutes: loc.drive_minutes ?? null,
+          walk_minutes: loc.walk_minutes ?? null,
+          sort: 0,
+        };
+      });
+
       const entityRow: EntityRow = {
         id: row.id,
         slug: row.slug,
@@ -1238,7 +1288,9 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
         firstLoc?.distance_text || '',
         firstLoc?.distance_km != null ? String(firstLoc.distance_km) : '',
         firstLoc?.drive_minutes != null ? String(firstLoc.drive_minutes) : '',
-        firstLoc?.walk_minutes != null ? String(firstLoc.walk_minutes) : ''
+        firstLoc?.walk_minutes != null ? String(firstLoc.walk_minutes) : '',
+        locations,
+        nameJpMap.get(row.id) || ''
       );
     });
 }
@@ -1263,17 +1315,63 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
   const areaCode = (entity.areas as unknown as { code: string })?.code || '';
   const restData = (entity.restaurants as unknown as Record<string, unknown>[])?.[0] || {};
 
-  // Get first near relationship
-  const { data: locations } = await db()
+  // Get ALL near relationships with distance fields
+  const { data: rawLocations } = await db()
     .from('restaurant_locations')
-    .select('near:entities!near_entity_id(id, slug, display_name, entity_type)')
+    .select(
+      'id, distance_text, distance_km, drive_minutes, walk_minutes, sort, near:entities!near_entity_id(id, slug, display_name, entity_type)'
+    )
     .eq('restaurant_entity_id', entity.id)
-    .order('sort')
-    .limit(1);
+    .order('sort');
 
-  const near = locations?.[0]?.near as unknown as EntityRow | undefined;
+  const locRows = rawLocations || [];
+  const firstLoc = locRows[0];
+  const near = firstLoc?.near as unknown as EntityRow | undefined;
   const nearType =
-    near?.entity_type === 'GOLF' ? 'GOLF' : near?.entity_type === 'HOTEL' ? 'HOTEL' : '';
+    near?.entity_type === 'GOLF'
+      ? 'GOLF'
+      : near?.entity_type === 'HOTEL'
+        ? 'HOTEL'
+        : near
+          ? near.entity_type
+          : 'AREA';
+
+  // Map all locations
+  const locations: import('@/lib/types').RestaurantLocation[] = locRows.map((loc) => {
+    const locNear = loc.near as unknown as
+      | { id: string; slug: string; display_name: string; entity_type: string }
+      | undefined;
+    const scope =
+      locNear?.entity_type === 'GOLF'
+        ? ('GOLF' as const)
+        : locNear?.entity_type === 'HOTEL'
+          ? ('HOTEL' as const)
+          : ('AREA' as const);
+    return {
+      id: loc.id as string,
+      scope,
+      near_entity_id: locNear?.id || null,
+      near_entity_slug: locNear?.slug || null,
+      near_entity_name: locNear?.display_name || null,
+      distance_text: (loc.distance_text as string) || null,
+      distance_km: loc.distance_km != null ? Number(loc.distance_km) : null,
+      drive_minutes: (loc.drive_minutes as number) ?? null,
+      walk_minutes: (loc.walk_minutes as number) ?? null,
+      sort: (loc.sort as number) || 0,
+    };
+  });
+
+  // Fetch name_jp from entity_field_values
+  let nameJp = '';
+  const { data: fvRows } = await db()
+    .from('entity_field_values')
+    .select('value_text, field_definition:field_definitions!inner(field_key)')
+    .eq('entity_id', entity.id)
+    .eq('field_definitions.field_key', 'rest_name_jp')
+    .maybeSingle();
+  if (fvRows) {
+    nameJp = (fvRows.value_text as string) || '';
+  }
 
   return mapRestaurant(
     entity as unknown as EntityRow,
@@ -1281,7 +1379,12 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
     areaCode,
     nearType,
     near?.slug || '',
-    ((locations?.[0] as Record<string, unknown>)?.distance_text as string) || ''
+    (firstLoc?.distance_text as string) || '',
+    firstLoc?.distance_km != null ? String(firstLoc.distance_km) : '',
+    firstLoc?.drive_minutes != null ? String(firstLoc.drive_minutes) : '',
+    firstLoc?.walk_minutes != null ? String(firstLoc.walk_minutes) : '',
+    locations,
+    nameJp
   );
 }
 
@@ -1368,6 +1471,11 @@ export async function appendRestaurant(
     }
   }
 
+  // Save name_jp to EAV if provided
+  if (data.name_jp !== undefined) {
+    await saveFieldValue(entity.id, 'rest_name_jp', data.name_jp);
+  }
+
   return { id: entity.id, slug };
 }
 
@@ -1449,6 +1557,11 @@ export async function updateRestaurant(
 
   // A06: 관계 수정은 별도 restaurant-locations API에서 처리
   // 기본 정보 수정 시 관계를 삭제하지 않음
+
+  // Save name_jp to EAV if provided
+  if (data.name_jp !== undefined) {
+    await saveFieldValue(entity.id, 'rest_name_jp', data.name_jp);
+  }
 
   return true;
 }
@@ -1698,6 +1811,26 @@ export async function updateAttraction(
   return true;
 }
 
+/** Save a single EAV field value by field_key */
+async function saveFieldValue(entityId: string, fieldKey: string, value: string): Promise<void> {
+  const { data: fd } = await db()
+    .from('field_definitions')
+    .select('id')
+    .eq('field_key', fieldKey)
+    .limit(1)
+    .maybeSingle();
+  if (!fd) return;
+  const { error } = await adminDb()
+    .from('entity_field_values')
+    .upsert(
+      { entity_id: entityId, field_definition_id: fd.id, value_text: value || null },
+      { onConflict: 'entity_id,field_definition_id' }
+    );
+  if (error) {
+    logError('UPSERT', 'entity_field_values', entityId, error);
+  }
+}
+
 async function saveAttractionFieldValues(
   entityId: string,
   data: Record<string, string>
@@ -1826,8 +1959,10 @@ export async function appendTravelTime(data: Record<string, string>): Promise<st
   return row?.id ?? null;
 }
 
-export async function updateTravelTime(data: Record<string, string>): Promise<boolean> {
-  if (!data.id) return false;
+export async function updateTravelTime(
+  data: Record<string, string>
+): Promise<{ id: string; updated_at: string } | null> {
+  if (!data.id) return null;
 
   const updates: Record<string, unknown> = {};
   if (data.product_reference_minutes !== undefined)
@@ -1847,12 +1982,24 @@ export async function updateTravelTime(data: Record<string, string>): Promise<bo
   if (data.active !== undefined) updates.active = isActive(data.active);
   if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
 
+  // A03: Resolve from/to entity IDs from slugs if provided
+  if (data.from_id) {
+    const fromEntityId = await resolveEntityIdBySlug(data.from_id);
+    if (!fromEntityId) throw new Error(`Entity not found: from_id=${data.from_id}`);
+    updates.from_entity_id = fromEntityId;
+  }
+  if (data.to_id) {
+    const toEntityId = await resolveEntityIdBySlug(data.to_id);
+    if (!toEntityId) throw new Error(`Entity not found: to_id=${data.to_id}`);
+    updates.to_entity_id = toEntityId;
+  }
+
   // A11: 낙관적 동시성 — updated_at 조건을 UPDATE에 직접 포함
   let query = adminDb().from('travel_times').update(updates).eq('id', data.id);
   if (data.updated_at) {
     query = query.eq('updated_at', data.updated_at);
   }
-  const { data: rows, error } = await query.select('id').maybeSingle();
+  const { data: rows, error } = await query.select('id, updated_at').maybeSingle();
   if (error) {
     logError('UPDATE', 'travel_times', data.id, error);
     throw error;
@@ -1860,7 +2007,7 @@ export async function updateTravelTime(data: Record<string, string>): Promise<bo
   if (!rows && data.updated_at) {
     throw new ConflictError();
   }
-  return true;
+  return rows ? { id: rows.id as string, updated_at: rows.updated_at as string } : null;
 }
 
 export async function deleteTravelTime(id: string): Promise<boolean> {
@@ -2357,7 +2504,7 @@ export async function getIncludesExcludes(
 ): Promise<IncludeExclude[]> {
   let query = db()
     .from('includes_excludes')
-    .select('id, parent_entity_id, type, text_kr, sort, is_visible, updated_at');
+    .select('id, parent_entity_id, type, text_kr, text_jp, sort, is_visible, updated_at');
 
   if (!includeHidden) {
     query = query.eq('is_visible', true);
@@ -2409,9 +2556,9 @@ export async function getIncludesExcludes(
       parent_id: entitySlug,
       type: (row.type as string) || '',
       text_kr: (row.text_kr as string) || '',
-      text_jp: '',
+      text_jp: (row.text_jp as string) || '',
       sort: (row.sort as number) || 0,
-      is_visible: 'TRUE',
+      is_visible: row.is_visible ? 'TRUE' : 'FALSE',
       updated_at: (row.updated_at as string) || '',
     });
   }
@@ -2437,6 +2584,8 @@ export async function appendIncludeExclude(
       parent_entity_id: entityId,
       type: data.type || 'INCLUDED',
       text_kr: data.text_kr || '',
+      text_jp: data.text_jp || '',
+      is_visible: data.is_visible !== undefined ? data.is_visible === 'TRUE' : true,
       sort: parseInt(data.sort || '999') || 999,
     })
     .select('*')
@@ -2467,6 +2616,8 @@ export async function updateIncludeExclude(
   const updates: Record<string, unknown> = {};
   if (data.type !== undefined) updates.type = data.type;
   if (data.text_kr !== undefined) updates.text_kr = data.text_kr;
+  if (data.text_jp !== undefined) updates.text_jp = data.text_jp;
+  if (data.is_visible !== undefined) updates.is_visible = data.is_visible === 'TRUE';
   if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
 
   const { error } = await adminDb().from('includes_excludes').update(updates).eq('id', id);

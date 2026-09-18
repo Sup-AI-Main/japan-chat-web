@@ -68,11 +68,14 @@ function TravelTimeEditModal({
 
     try {
       const isEdit = !!formData.id;
-      const result = await adminFetchJson<{ id?: string }>("/api/admin/travel-times", {
+      const result = await adminFetchJson<{ success: true; data: { id?: string; updated_at?: string } }>("/api/admin/travel-times", {
         method: isEdit ? "PUT" : "POST",
         body: JSON.stringify(formData),
       });
-      onSaved({ ...formData, id: result.id || formData.id });
+      // A04: Response is { success: true, data: { id: "...", updated_at: "..." } }
+      const returnedId = result.data?.id || formData.id;
+      const returnedUpdatedAt = result.data?.updated_at || formData.updated_at;
+      onSaved({ ...formData, id: returnedId, updated_at: returnedUpdatedAt });
       // Note: Do not call onClose() here. The parent component
       // will handle showing a toast and closing the modal after a delay.
     } catch (err) {
@@ -254,6 +257,7 @@ export default function AreaTravelTimesClient({
       google_maps_direction_url: saved.directions_url,
       active: "TRUE",
       sort: saved.sort,
+      updated_at: saved.updated_at,
     };
 
     if (editTarget) {
@@ -351,18 +355,19 @@ export default function AreaTravelTimesClient({
       <TravelTimeEditModal
         key={editTarget?.id || "new-tt"}
         data={
-          editTarget
-            ? {
-                id: editTarget.id,
-                area: editTarget.area,
-                from_id: editTarget.hotel_id,
-                to_id: editTarget.golf_id,
-                verified_drive_min: editTarget.estimated_time,
-                directions_url: editTarget.google_maps_direction_url,
-                sort: editTarget.sort,
-              }
-            : null
-        }
+        editTarget
+          ? {
+              id: editTarget.id,
+              area: editTarget.area,
+              from_id: editTarget.hotel_id,
+              to_id: editTarget.golf_id,
+              verified_drive_min: editTarget.estimated_time,
+              directions_url: editTarget.google_maps_direction_url,
+              sort: editTarget.sort,
+              updated_at: editTarget.updated_at,
+            }
+          : null
+      }
         hotels={hotels}
         golfCourses={golfCourses}
         area={area}

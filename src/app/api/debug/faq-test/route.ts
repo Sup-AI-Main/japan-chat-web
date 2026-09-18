@@ -29,8 +29,9 @@ export async function GET() {
   const elapsed = Math.round(performance.now() - t1);
 
   if (error) {
+    console.error("[FAQ_TEST_ERROR]", error);
     return NextResponse.json(
-      { error: error.message, details: error },
+      { error: "Query failed" },
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }

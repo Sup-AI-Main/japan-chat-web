@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { getGolfCourseById, getGolfCourses, getFaqForEntity, getContentSections } from "@/lib/supabase-cms";
+import { getGolfCourseById, getGolfCourses, getFaqForEntity, getContentSections, getIncludesExcludes } from "@/lib/supabase-cms";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
-import type { FaqItem, ContentSection } from "@/lib/types";
+import type { FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { GolfDetailClient } from "./GolfDetailClient";
 
@@ -42,11 +42,13 @@ export default async function GolfDetailPage({
     getFaqForEntity(area.toUpperCase(), "GOLF", id),
     getContentSections("GOLF", id),
     getDynamicLabels("GOLF"),
+    getIncludesExcludes("GOLF", id),
   ]);
 
   const faqs: FaqItem[] = results[0].status === "fulfilled" ? results[0].value : [];
   const contentSections: ContentSection[] = results[1].status === "fulfilled" ? results[1].value : [];
   const dynamicLabels: DynamicLabelsResult = results[2].status === "fulfilled" ? results[2].value : { sections: [], fieldMap: {} };
+  const initialIncludes: IncludeExclude[] = results[3].status === "fulfilled" ? results[3].value : [];
 
   return (
     <GolfDetailClient
@@ -55,6 +57,7 @@ export default async function GolfDetailPage({
       faqs={faqs}
       contentSections={contentSections}
       dynamicLabels={dynamicLabels}
+      initialIncludes={initialIncludes}
     />
   );
 }

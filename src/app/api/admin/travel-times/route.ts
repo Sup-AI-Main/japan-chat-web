@@ -110,12 +110,12 @@ export async function PUT(request: NextRequest) {
     }
     delete updateData.verified_drive_min;
 
-    const success = await updateTravelTime(updateData);
-    if (!success) {
+    const result = await updateTravelTime(updateData);
+    if (!result) {
       return serverError(new Error("수정 실패"));
     }
 
-    return ok({ success: true });
+    return ok({ id: result.id, updated_at: result.updated_at });
   } catch (error) {
     // A04: ConflictError는 staleVersion으로 변환
     if (error instanceof ConflictError) {

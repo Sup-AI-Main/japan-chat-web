@@ -31,9 +31,7 @@ export async function POST(req: NextRequest) {
     const row = await appendIncludeExclude(body);
     return created(row);
   } catch (err) {
-    console.error("INCLUDES_CREATE_FAIL", err);
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -51,9 +49,7 @@ export async function PUT(req: NextRequest) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
     }
-    console.error("INCLUDES_UPDATE_FAIL", err);
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -66,8 +62,6 @@ export async function DELETE(req: NextRequest) {
     const success = await deleteIncludeExclude(id);
     return ok({ deleted: success, id });
   } catch (err) {
-    console.error("INCLUDES_DELETE_FAIL", err);
-    const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
