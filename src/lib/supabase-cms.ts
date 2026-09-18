@@ -1225,7 +1225,9 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
     .filter((row) => row.active !== false)
     .map((row) => {
       const areaCode = (row.areas as unknown as { code: string })?.code || '';
-      const restData = (row.restaurants as unknown as Record<string, unknown>[])?.[0] || {};
+      const rawRest = row.restaurants;
+      const restData =
+        ((Array.isArray(rawRest) ? rawRest[0] : rawRest) as Record<string, unknown>) || {};
       const rawLocations =
         (row.restaurant_locations as unknown as Array<{
           id: string;
@@ -1313,7 +1315,9 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
   }
 
   const areaCode = (entity.areas as unknown as { code: string })?.code || '';
-  const restData = (entity.restaurants as unknown as Record<string, unknown>[])?.[0] || {};
+  const rawRest = entity.restaurants;
+  const restData =
+    ((Array.isArray(rawRest) ? rawRest[0] : rawRest) as Record<string, unknown>) || {};
 
   // Get ALL near relationships with distance fields
   const { data: rawLocations } = await db()
