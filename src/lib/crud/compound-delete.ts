@@ -118,6 +118,9 @@ export async function deleteEntityFull(id: string): Promise<void> {
 
   if (!existing) throw new Error('Entity not found');
 
+  // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
+  await db.from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', id);
+
   // Single DELETE — FK CASCADE handles all subtables atomically
   const { error } = await db.rpc('delete_entity_cascade', { p_entity_id: id });
   if (error) {

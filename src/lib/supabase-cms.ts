@@ -847,6 +847,9 @@ export async function deleteGolfCourse(id: string): Promise<boolean> {
   const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
   if (!entity) return false;
 
+  // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
+  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+
   // Hard delete (cascades to golf_courses)
   const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
   if (error) {
@@ -1116,6 +1119,9 @@ export async function updateHotel(
 export async function deleteHotel(id: string): Promise<boolean> {
   const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
   if (!entity) return false;
+
+  // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
+  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
 
   const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
   if (error) {
@@ -1574,6 +1580,9 @@ export async function deleteRestaurantRow(id: string): Promise<boolean> {
   const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
   if (!entity) return false;
 
+  // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
+  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+
   const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
   if (error) {
     logError('DELETE', 'entities', id, error);
@@ -1871,6 +1880,9 @@ async function saveAttractionFieldValues(
 export async function deleteAttraction(id: string): Promise<boolean> {
   const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
   if (!entity) return false;
+
+  // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
+  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
 
   const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
   if (error) {

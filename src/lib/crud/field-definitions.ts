@@ -359,12 +359,14 @@ export async function removeFieldScope(scopeId: string): Promise<void> {
   }
 
   const db = getSupabaseAdmin();
-  const { error } = await db
+  const { data, error } = await db
     .from("field_definition_scopes")
     .delete()
-    .eq("id", scopeId);
+    .eq("id", scopeId)
+    .select("id");
 
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error("Field scope not found");
 }
 
 export async function setFieldScopes(

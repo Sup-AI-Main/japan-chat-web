@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { ok, created, badRequest, unauthorized, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, unauthorized, notFound, serverError, safeJson } from "@/lib/crud/response";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
@@ -96,8 +96,9 @@ export async function DELETE(req: NextRequest) {
     if (!id) return badRequest("id가 필요합니다.");
 
     const db = getSupabaseAdmin();
-    const { error } = await db.from("restaurant_locations").delete().eq("id", id);
+    const { data, error } = await db.from("restaurant_locations").delete().eq("id", id).select("id");
     if (error) throw error;
+    if (!data || data.length === 0) return notFound("삭제 대상을 찾을 수 없습니다.");
     return ok({ deleted: true });
   } catch (err) {
     return serverError(err);
