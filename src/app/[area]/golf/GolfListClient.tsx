@@ -54,7 +54,7 @@ export default function GolfListClient({
   };
 
   const handleDelete = async (course: GolfCourse) => {
-    const res = await fetch(`/api/admin/golf?id=${course.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/golf?id=${course.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
     if (res.ok) {
       setCourses((prev) => prev.filter((c) => c.id !== course.id));
     }

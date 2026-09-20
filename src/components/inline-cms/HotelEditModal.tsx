@@ -133,24 +133,24 @@ export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEdi
   };
 
   const handleSave = async () => {
-    if (!form.name_kr.trim()) {
-      setError("호텔 이름(한국어)은 필수입니다.");
-      return;
-    }
-
     setSaving(true);
     setError("");
 
     try {
       const isEdit = !!hotel?.id;
+      // Map form fields → DB column names
+      const payload: Record<string, unknown> = {
+        ...form,
+        display_name: form.name_kr,
+        address: form.address_kr,
+        transport_note: form.transport,
+        id: hotel?.id,
+        area: area.toUpperCase(),
+      };
       const res = await fetch("/api/admin/hotel", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          id: hotel?.id,
-          area: area.toUpperCase(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

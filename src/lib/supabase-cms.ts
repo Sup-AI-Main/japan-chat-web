@@ -51,6 +51,16 @@ function isActive(v: unknown): boolean {
   return false;
 }
 
+/** Generate a unique slug: {area}_{entityType}_{random8hex} */
+function generateUniqueSlug(area: string, entityType: string): string {
+  const chars = '0123456789abcdef';
+  let rand = '';
+  for (let i = 0; i < 8; i++) {
+    rand += chars[Math.floor(Math.random() * 16)];
+  }
+  return `${area.toLowerCase()}_${entityType.toLowerCase()}_${rand}`;
+}
+
 // Cache for area/category lookups to avoid repeated queries
 let _areaCache: Map<string, string> | null = null; // code → id
 let _categoryCache: Map<string, string> | null = null; // code → id
@@ -534,10 +544,8 @@ export async function appendGolfCourse(
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
-  // Generate slug
-  const slug =
-    data.id ||
-    `${(data.area || '').toLowerCase()}_golf_${(data.display_name || '').replace(/\s+/g, '_').toLowerCase()}`;
+  // Server-side unique slug — never derived from user input
+  const slug = generateUniqueSlug(data.area || '', 'golf');
 
   // Insert entity
   const { data: entity, error: entityError } = await adminDb()
@@ -966,9 +974,13 @@ export async function appendHotel(
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
-  const slug =
-    data.id ||
-    `${(data.area || '').toLowerCase()}_hotel_${(data.display_name || '').replace(/\s+/g, '_').toLowerCase()}`;
+  // Server-side unique slug — never derived from user input
+  const slug = generateUniqueSlug(data.area || '', 'hotel');
+
+  // Map client form fields → DB columns
+  const displayName = data.name_kr ?? data.display_name ?? '';
+  const address = data.address_kr ?? data.address ?? '';
+  const transportNote = data.transport ?? data.transport_note ?? '';
 
   const { data: entity, error: entityError } = await adminDb()
     .from('entities')
@@ -976,7 +988,7 @@ export async function appendHotel(
       slug,
       entity_type: 'HOTEL',
       area_id: areaId,
-      display_name: data.display_name || '',
+      display_name: displayName,
       active: isActive(data.active),
       sort: parseInt(data.sort || '999') || 999,
     })
@@ -992,7 +1004,7 @@ export async function appendHotel(
     .insert({
       entity_id: entity.id,
       official_name: data.official_name || '',
-      address: data.address || '',
+      address,
       phone: data.phone || '',
       checkin_time: data.checkin_time || '',
       checkout_time: data.checkout_time || '',
@@ -1005,13 +1017,14 @@ export async function appendHotel(
       dinner_time: data.dinner_time || '',
       dinner_last_entry: data.dinner_last_entry || '',
       bath_spa_summary: data.bath_spa_summary || '',
-      has_public_bath: data.has_public_bath ? isActive(data.has_public_bath) : null,
-      has_outdoor_onsen: data.has_outdoor_onsen ? isActive(data.has_outdoor_onsen) : null,
-      has_sauna: data.has_sauna ? isActive(data.has_sauna) : null,
+      has_public_bath: data.has_public_bath !== undefined ? isActive(data.has_public_bath) : null,
+      has_outdoor_onsen:
+        data.has_outdoor_onsen !== undefined ? isActive(data.has_outdoor_onsen) : null,
+      has_sauna: data.has_sauna !== undefined ? isActive(data.has_sauna) : null,
       bath_spa_hours: data.bath_spa_hours || '',
       tattoo_policy: data.tattoo_policy || '',
       atm_payment: data.atm_payment || '',
-      transport_note: data.transport_note || '',
+      transport_note: transportNote,
       other_info: data.other_info || '',
       google_maps_url: data.google_maps_url || '',
       source_url: data.source_url || '',
@@ -1046,8 +1059,10 @@ export async function updateHotel(
     throw new ConflictError();
   }
 
+  // Map client form fields → DB columns for entity
   const entityUpdates: Record<string, unknown> = {};
-  if (data.display_name !== undefined) entityUpdates.display_name = data.display_name;
+  const displayName = data.name_kr ?? data.display_name;
+  if (displayName !== undefined) entityUpdates.display_name = displayName;
   if (data.active !== undefined) entityUpdates.active = isActive(data.active);
   if (data.sort !== undefined) entityUpdates.sort = parseInt(data.sort) || 0;
   if (data.area !== undefined) {
@@ -1063,8 +1078,13 @@ export async function updateHotel(
     }
   }
 
+  // Map client form fields → DB columns for hotel
   const hotelUpdates: Record<string, unknown> = {};
-  const fields = [
+  const fieldMap: Record<string, string> = {
+    address_kr: 'address',
+    transport: 'transport_note',
+  };
+  const directFields = [
     'official_name',
     'address',
     'phone',
@@ -1092,13 +1112,20 @@ export async function updateHotel(
     'status',
     'last_verified',
   ];
-  for (const f of fields) {
+  // Apply direct fields
+  for (const f of directFields) {
     if (data[f] !== undefined) hotelUpdates[f] = data[f];
   }
-  // Convert boolean fields
+  // Apply aliased fields (client name → DB column name)
+  for (const [clientKey, dbKey] of Object.entries(fieldMap)) {
+    if (data[clientKey] !== undefined && hotelUpdates[dbKey] === undefined) {
+      hotelUpdates[dbKey] = data[clientKey];
+    }
+  }
+  // Convert boolean fields — only when key is present, preserve false as false
   for (const bf of ['has_public_bath', 'has_outdoor_onsen', 'has_sauna']) {
-    if (hotelUpdates[bf] !== undefined) {
-      hotelUpdates[bf] = hotelUpdates[bf] ? isActive(hotelUpdates[bf]) : null;
+    if (bf in hotelUpdates) {
+      hotelUpdates[bf] = isActive(hotelUpdates[bf]);
     }
   }
 
@@ -1404,19 +1431,8 @@ export async function appendRestaurant(
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
-  let slug =
-    data.id ||
-    `${(data.area || '').toLowerCase()}_rest_${(data.name || data.name_kr || '').replace(/\s+/g, '_').toLowerCase()}`;
-
-  // Deduplicate slug if it already exists
-  const { data: existing } = await db()
-    .from('entities')
-    .select('id')
-    .eq('slug', slug)
-    .maybeSingle();
-  if (existing) {
-    slug = `${slug}_${Date.now().toString(36)}`;
-  }
+  // Server-side unique slug — never derived from user input
+  const slug = generateUniqueSlug(data.area || '', 'restaurant');
 
   const { data: entity, error: entityError } = await adminDb()
     .from('entities')

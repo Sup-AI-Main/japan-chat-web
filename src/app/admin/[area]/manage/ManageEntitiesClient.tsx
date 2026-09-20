@@ -169,7 +169,7 @@ export default function ManageEntitiesClient({
     setDeleteLoading(true);
     try {
       const endpoint = deleteTarget.type === "HOTEL" ? "/api/admin/hotel" : "/api/admin/golf";
-      await adminFetchJson(`${endpoint}?id=${deleteTarget.id}`, { method: "DELETE" });
+      await adminFetchJson(`${endpoint}?id=${deleteTarget.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
       if (deleteTarget.type === "HOTEL") {
         setHotels((prev) => prev.filter((h) => h.id !== deleteTarget.id));
       } else {

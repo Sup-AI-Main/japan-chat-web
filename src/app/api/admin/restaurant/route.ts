@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
     if (!body.active) body.active = "TRUE";
     const { id, slug } = await appendRestaurant(body as Record<string, string>);
     const restaurant = { ...body, id, slug };
-    revalidatePath(`/${(body.area as string || '').toLowerCase()}/restaurant`);
+    const areaCode = (body.area as string || '').toLowerCase();
+    if (areaCode) {
+      revalidatePath(`/${areaCode}/restaurant`);
+      revalidatePath(`/${areaCode}/restaurant/${slug}`);
+      revalidatePath("/[area]/restaurant/[id]", "page");
+    }
     return created({ id, slug, restaurant });
   } catch (err) {
     return serverError(err);
@@ -50,7 +55,10 @@ export async function PUT(req: NextRequest) {
       .eq('id', id as string)
       .single();
     const restaurant = { ...body, slug: entity?.slug || body.slug || '' };
-    if (area) revalidatePath(`/${(area as string).toLowerCase()}/restaurant`);
+    if (area) {
+      revalidatePath(`/${(area as string).toLowerCase()}/restaurant`);
+      revalidatePath("/[area]/restaurant/[id]", "page");
+    }
     return ok({ success, restaurant });
   } catch (err) {
     if (err instanceof ConflictError) {
@@ -70,6 +78,7 @@ export async function DELETE(req: NextRequest) {
     const success = await deleteRestaurantRow(id);
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/restaurant`);
+      revalidatePath("/[area]/restaurant/[id]", "page");
     }
     return ok({ success });
   } catch (err) {

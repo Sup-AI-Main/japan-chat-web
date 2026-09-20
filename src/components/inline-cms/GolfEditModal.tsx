@@ -85,11 +85,6 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved }: GolfEditMo
   };
 
   const handleSave = async () => {
-    if (!form.display_name.trim() && !form.official_name.trim()) {
-      setError("골프장 이름은 필수입니다.");
-      return;
-    }
-
     setSaving(true);
     setError("");
 

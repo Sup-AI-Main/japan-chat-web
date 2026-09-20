@@ -3,6 +3,7 @@ import { isAuthenticated } from "@/lib/auth";
 import { getHotels, appendHotel, updateHotel, deleteHotel } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
+import { revalidatePath } from "next/cache";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
@@ -24,6 +25,12 @@ export async function POST(req: NextRequest) {
     if (!body) return badRequest("Empty request body");
     if (!body.active) body.active = "TRUE";
     const { id, slug } = await appendHotel(body);
+    const area = (body.area || '').toLowerCase();
+    if (area) {
+      revalidatePath(`/${area}/hotel`);
+      revalidatePath(`/${area}/hotel/${slug}`);
+      revalidatePath("/[area]/hotel/[id]", "page");
+    }
     return created({ id, slug, hotel: { ...body, id, slug } });
   } catch (err) {
     return serverError(err);
@@ -35,10 +42,14 @@ export async function PUT(req: NextRequest) {
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const body = await safeJson<Record<string, string>>(req);
   if (!body) return badRequest("Empty request body");
-  const { id, updated_at, ...data } = body;
+  const { id, updated_at, area, ...data } = body;
   if (!id) return badRequest("Missing id");
   try {
     const success = await updateHotel(id, data, updated_at);
+    if (area) {
+      revalidatePath(`/${area.toLowerCase()}/hotel`);
+      revalidatePath("/[area]/hotel/[id]", "page");
+    }
     return ok({ success, hotel: { ...data, id } });
   } catch (err) {
     if (err instanceof ConflictError) {
@@ -54,7 +65,12 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return badRequest("Missing id");
+    const area = req.nextUrl.searchParams.get("area") || "";
     const success = await deleteHotel(id);
+    if (area) {
+      revalidatePath(`/${area.toLowerCase()}/hotel`);
+      revalidatePath("/[area]/hotel/[id]", "page");
+    }
     return ok({ success });
   } catch (err) {
     return serverError(err);

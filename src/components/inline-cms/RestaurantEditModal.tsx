@@ -116,11 +116,6 @@ export function RestaurantEditModal({
   };
 
   const handleSave = async () => {
-    if (!form.name_kr.trim()) {
-      setError("식당 이름(한국어)은 필수입니다.");
-      return;
-    }
-
     setSaving(true);
     setError("");
 

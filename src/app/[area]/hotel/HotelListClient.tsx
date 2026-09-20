@@ -40,7 +40,7 @@ export default function HotelListClient({
   };
 
   const handleDelete = async (hotel: Hotel) => {
-    const res = await fetch(`/api/admin/hotel?id=${hotel.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/hotel?id=${hotel.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
     if (res.ok) {
       setHotels((prev) => prev.filter((h) => h.id !== hotel.id));
     }
