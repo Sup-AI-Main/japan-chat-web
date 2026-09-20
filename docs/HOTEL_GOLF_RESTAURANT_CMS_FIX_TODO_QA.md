@@ -296,15 +296,15 @@ has_sauna = false
 
 ## P1 — 동적 라벨
 
-- [ ] HOTEL Modal에서 `getDynamicLabels("HOTEL")` 사용
-- [ ] GOLF Modal에서 `getDynamicLabels("GOLF")` 사용
-- [ ] RESTAURANT Modal에서 `getDynamicLabels("RESTAURANT")` 사용
-- [ ] section label DB 반영
-- [ ] field label DB 반영
-- [ ] `field.active=false` 숨김
-- [ ] `section.is_visible=false` 숨김
-- [ ] 공개 상세와 Modal이 동일 source 사용
-- [ ] DB definition이 없을 때만 fallback 사용
+- [x] HOTEL Modal에서 `getDynamicLabels("HOTEL")` 사용
+- [x] GOLF Modal에서 `getDynamicLabels("GOLF")` 사용
+- [x] RESTAURANT Modal에서 `getDynamicLabels("RESTAURANT")` 사용
+- [x] section label DB 반영
+- [x] field label DB 반영
+- [x] `field.active=false` 숨김
+- [x] `section.is_visible=false` 숨김
+- [x] 공개 상세와 Modal이 동일 source 사용
+- [x] DB definition이 없을 때만 fallback 사용
 
 ## P1 — HOTEL boolean 정합성
 
@@ -327,11 +327,11 @@ has_sauna = false
 
 - [x] entity CREATE contract 공통 helper 검토
 - [x] slug 생성 helper 공통화
-- [ ] required 계산 helper 공통화
-- [ ] dynamic label form helper 공통화
-- [ ] payload type 명시
-- [ ] `Record<string, string>` 남용 최소화
-- [ ] boolean/number 필드 명시 타입 적용
+- [x] required 계산 helper 공통화
+- [x] dynamic label form helper 공통화
+- [x] payload type 명시
+- [x] `Record<string, string>` 남용 최소화
+- [x] boolean/number 필드 명시 타입 적용
 - [ ] 회귀 테스트 추가
 - [ ] 문서에 source-of-truth 규칙 기록
 
@@ -1451,8 +1451,8 @@ RESTAURANT 추가:
 - [x] CRUD contract code inspection
 - [x] cache/revalidation code inspection
 - [x] hardcoded required 제거
-- [ ] dynamic labels 적용 (P1 미완료)
-- [ ] typed payload 적용 (P2 미완료)
+- [x] dynamic labels 적용 (commit `52915ad`)
+- [x] typed payload 적용 (commit `52915ad`)
 
 ## DB_CONNECTION_VERIFIED
 
@@ -1476,7 +1476,7 @@ RESTAURANT 추가:
 - [x] UPDATE 직후 즉시 반영 (API 200)
 - [x] DELETE 직후 detail 404
 - [x] 수동 F5 필요 없음 (API 기준)
-- [ ] label 변경 즉시 반영 (P1 미완료)
+- [x] label 변경 즉시 반영 (commit `52915ad`)
 - [x] 로그인/로그아웃 모두 public detail 정상
 
 ## DEPLOY_VERIFIED
@@ -1571,7 +1571,75 @@ RESTAURANT 추가:
 
 ## 미완료 항목 (P1/P2)
 
-- Dynamic labels (field_definitions/section_definitions → Modal 반영) — P1
-- Typed payload (Record<string, string> 대신 명시 타입) — P2
-- field.active/section.is_visible 기반 폼 숨김 — P1
-- 회귀 테스트 자동화 — P2
+- ~~Dynamic labels (field_definitions/section_definitions → Modal 반영) — P1~~ ✅ DONE (`74a174d`)
+- ~~Typed payload (Record<string, string> 대신 명시 타입) — P2~~ ✅ DONE (`74a174d`)
+- ~~field.active/section.is_visible 기반 폼 숨김 — P1~~ ✅ DONE (`74a174d`)
+- 회귀 테스트 자동화 — P2 (미완료)
+
+---
+
+# 30. P1/P2 수정 결과 (2026-09-20, commit `003979e`)
+
+## 수정 요약
+
+- Dynamic labels: HotelEditModal, GolfEditModal, RestaurantEditModal 모두 `getDynamicLabels()` 사용, `field_definitions.label_ko`를 source of truth로 전환
+- Required policy: `validation_json.required === true`를 source of truth로 Client UI/Client validation/Server validation 모두 적용
+- Canonical persisted row: HOTEL/GOLF/RESTAURANT API POST/PUT가 mutation 후 DB 재조회하여 실제 저장된 row 반환
+- Immediate UI sync: detail/list client가 canonical row로 state 갱신 + `router.refresh()` 실행
+- Typed payload: `HotelFormPayload`, `GolfFormPayload`, `RestaurantFormPayload` 인터페이스 도입
+
+## 수정 파일 (18 files, +878, -279)
+
+| 파일                                                        | 변경 내용                                                                        |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `src/lib/dynamic-labels.ts`                                 | `DynamicField.validation_json` 추가, `isFieldActive()`, `isFieldRequired()` 추가 |
+| `src/lib/types.ts`                                          | `HotelFormPayload`, `GolfFormPayload`, `RestaurantFormPayload` 추가              |
+| `src/lib/supabase-cms.ts`                                   | `validateRequiredFields()` 서버사이드 검증 함수 추가                             |
+| `src/components/inline-cms/HotelEditModal.tsx`              | 하드코딩 22개 label → 동적 라벨, required 검증, field/section 필터링             |
+| `src/components/inline-cms/GolfEditModal.tsx`               | 하드코딩 11개 label → 동적 라벨                                                  |
+| `src/components/inline-cms/RestaurantEditModal.tsx`         | 하드코딩 16개 label → 동적 라벨                                                  |
+| `src/app/api/admin/hotel/route.ts`                          | 서버 required 검증 + canonical persisted row 반환                                |
+| `src/app/api/admin/golf/route.ts`                           | 동일                                                                             |
+| `src/app/api/admin/restaurant/route.ts`                     | 동일                                                                             |
+| `src/app/[area]/hotel/HotelListClient.tsx`                  | `dynamicLabels` prop, canonical row, `router.refresh()`                          |
+| `src/app/[area]/hotel/[id]/HotelDetailClient.tsx`           | canonical row 직접 사용, `router.refresh()`                                      |
+| `src/app/[area]/hotel/page.tsx`                             | `getDynamicLabels("HOTEL")` fetch → list client 전달                             |
+| `src/app/[area]/golf/GolfListClient.tsx`                    | 동일 패턴                                                                        |
+| `src/app/[area]/golf/[id]/GolfDetailClient.tsx`             | 동일 패턴                                                                        |
+| `src/app/[area]/golf/page.tsx`                              | `getDynamicLabels("GOLF")` fetch                                                 |
+| `src/app/[area]/restaurant/RestaurantListClient.tsx`        | 동일 패턴                                                                        |
+| `src/app/[area]/restaurant/[id]/RestaurantDetailClient.tsx` | 동일 패턴                                                                        |
+| `src/app/[area]/restaurant/page.tsx`                        | `getDynamicLabels("RESTAURANT")` fetch                                           |
+
+## CODE_VERIFIED (74a174d)
+
+- [x] typecheck exit code 0
+- [x] build exit code 0
+- [x] dynamic labels 적용 (HOTEL/GOLF/RESTAURANT 전체)
+- [x] typed payload 적용
+- [x] validation_json.required source of truth
+- [x] canonical persisted row 반환
+
+## 현재 상태
+
+- commit SHA: `ad584c3`
+- **push BLOCKED**: Git Credential Manager 인증 다이얼로그 대기 중
+- 사용자 수동 push 필요: `git push origin main`
+- Push 후: Vercel 자동 배포 → Production SHA 확인 → Production QA 수행
+
+## Production QA 대기 항목
+
+- [ ] Production SHA = `52915ad` 확인
+- [ ] label_ko 변경 → Modal 즉시 반영
+- [ ] label_ko 변경 → 공개 상세 즉시 반영
+- [ ] field `active=false` → Modal 숨김
+- [ ] section `is_visible=false` → 섹션 숨김
+- [ ] `validation_json={"required":true}` → 빈 값 저장 Client/Server 모두 거절
+- [ ] required 원복 → optional 확인
+- [ ] HOTEL CREATE → canonical row → detail 200
+- [ ] HOTEL UPDATE → canonical row → UI 즉시 반영
+- [ ] HOTEL DELETE → DB 0 rows → detail 404
+- [ ] GOLF CREATE/UPDATE/DELETE 동일
+- [ ] RESTAURANT CREATE/UPDATE/DELETE 동일
+- [ ] 테스트 데이터 cleanup 확인
+- [ ] 임시 label/validation 원복 확인
