@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { isAuthenticated } from "@/lib/auth";
 import {
   getAdminOptions,
   appendAdminOption,
   updateAdminOption,
+  invalidateCategoryCache,
+  invalidateAreaCache,
 } from "@/lib/supabase-cms";
 import { ok, created, badRequest, notFound, duplicateCode, serverError, safeJson } from "@/lib/crud/response";
 import { deleteCategoryFull, deleteAreaFull } from "@/lib/crud/compound-delete";
@@ -58,7 +61,29 @@ export async function POST(request: NextRequest) {
     });
 
     if (option?.id) {
-      return created({ id: option.id, option });
+      // Normalize DB row → AdminOption (server is single source of truth)
+      const normalized = {
+        id: String(option.id),
+        option_type: String(option_type),
+        code: String(option.code ?? ""),
+        label: String(option.label ?? option.name_kr ?? ""),
+        icon: String(option.icon ?? ""),
+        description: String(option.description ?? ""),
+        group: String(option.group_type ?? option.group ?? group ?? ""),
+        active: String(option.active ?? "TRUE"),
+        sort: Number(option.sort ?? 0),
+        updated_at: String(option.updated_at ?? new Date().toISOString()),
+      };
+
+      // Invalidate resolver cache + ISR paths for the new option
+      if (option_type === "CATEGORY") {
+        invalidateCategoryCache();
+        revalidatePath("/guide");
+        if (normalized.code) revalidatePath(`/guide/${normalized.code.toLowerCase()}`);
+      } else if (option_type === "AREA") {
+        invalidateAreaCache();
+      }
+      return created({ id: normalized.id, option: normalized });
     }
     return serverError(new Error("저장에 실패했습니다."));
   } catch (err: unknown) {
@@ -85,12 +110,33 @@ export async function PUT(request: NextRequest) {
       return badRequest("id와 label은 필수입니다.");
     }
 
+    const db = getSupabaseAdmin();
+
+    // Fetch existing record before update to capture code + group_type
+    const { data: existingCat } = await db
+      .from("categories")
+      .select("id, code, group_type")
+      .eq("id", id)
+      .maybeSingle();
+    const { data: existingArea } = !existingCat
+      ? await db.from("areas").select("id, code").eq("id", id).maybeSingle()
+      : { data: null };
+
     const updateData: Record<string, string> = { id, label };
     if (icon !== undefined) updateData.icon = icon;
     if (description !== undefined) updateData.description = description;
     const success = await updateAdminOption(updateData);
 
     if (success) {
+      // Invalidate resolver cache + ISR paths
+      if (existingCat) {
+        invalidateCategoryCache();
+        revalidatePath("/guide");
+        const updatedCode = String(existingCat.code ?? "").toLowerCase();
+        if (updatedCode) revalidatePath(`/guide/${updatedCode}`);
+      } else if (existingArea) {
+        invalidateAreaCache();
+      }
       return ok({ success: true });
     }
     return serverError(new Error("수정에 실패했습니다."));
@@ -115,16 +161,21 @@ export async function DELETE(request: NextRequest) {
     const db = getSupabaseAdmin();
 
     // 카테고리인지 확인
-    const { data: cat } = await db.from("categories").select("id").eq("id", id).maybeSingle();
+    const { data: cat } = await db.from("categories").select("id, code").eq("id", id).maybeSingle();
     if (cat) {
       await deleteCategoryFull(id, true);
+      invalidateCategoryCache();
+      revalidatePath("/guide");
+      const deletedCode = String(cat.code ?? "").toLowerCase();
+      if (deletedCode) revalidatePath(`/guide/${deletedCode}`);
       return ok({ deleted: true, id });
     }
 
     // 지역인지 확인
-    const { data: area } = await db.from("areas").select("id").eq("id", id).maybeSingle();
+    const { data: area } = await db.from("areas").select("id, code").eq("id", id).maybeSingle();
     if (area) {
       await deleteAreaFull(id, true);
+      invalidateAreaCache();
       return ok({ deleted: true, id });
     }
 

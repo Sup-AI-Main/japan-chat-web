@@ -142,9 +142,9 @@ function CategoryCreateModal({
 
     // Step 3: SHEET_CREATE
     updateStep("sheet_create", "running");
-    let resultId: string;
+    let createdOption: AdminOption | null = null;
     try {
-      const result = await adminFetchJson<{ id?: string; data?: { id?: string; option?: Record<string, unknown> } }>("/api/admin/options", {
+      const result = await adminFetchJson<{ id?: string; data?: { id?: string; option?: AdminOption } }>("/api/admin/options", {
         method: "POST",
         body: JSON.stringify({
           option_type: "CATEGORY",
@@ -153,8 +153,11 @@ function CategoryCreateModal({
           group: "COMMON",
         }),
       });
-      resultId = result.data?.id || result.id || "";
-      setCreatedId(resultId);
+      createdOption = result.data?.option ?? null;
+      if (!createdOption?.id || !createdOption.code) {
+        throw new Error("생성된 카테고리 정보를 확인할 수 없습니다.");
+      }
+      setCreatedId(createdOption.id);
       updateStep("sheet_create", "success");
     } catch (err) {
       if (err instanceof ConflictError) {
@@ -172,7 +175,7 @@ function CategoryCreateModal({
       if (listRes.ok) {
         const listData = await listRes.json();
         const found = (listData.options || []).some(
-          (o: AdminOption) => o.id === resultId
+          (o: AdminOption) => o.id === createdOption!.id
         );
         if (found) {
           updateStep("site_sync", "success");
@@ -190,13 +193,21 @@ function CategoryCreateModal({
     // Step 5: ROUTE_VERIFY
     updateStep("route_verify", "running");
     try {
-      const routeRes = await fetch(`/guide/${code.toLowerCase()}`, {
+      const routeRes = await fetch(`/guide/${createdOption!.code.toLowerCase()}`, {
         method: "HEAD",
+        cache: "no-store",
       });
-      // 200 or 404 both mean the route system is working
+      if (!routeRes.ok) {
+        throw new Error(`공개 페이지 확인 실패 (${routeRes.status})`);
+      }
       updateStep("route_verify", "success");
-    } catch {
-      updateStep("route_verify", "success");
+    } catch (err) {
+      updateStep(
+        "route_verify",
+        "error",
+        err instanceof Error ? err.message : "공개 페이지 확인 실패"
+      );
+      return;
     }
 
     // Step 6: FINAL_VERIFY
@@ -208,18 +219,7 @@ function CategoryCreateModal({
 
     // After showing completion for ~800ms, close and notify parent
     setTimeout(() => {
-      onSaved({
-        id: resultId!,
-        option_type: "CATEGORY",
-        code,
-        label: trimmedLabel,
-        icon: icon.trim() || "📌",
-        description: "",
-        group: "COMMON",
-        sort: 999,
-        active: "TRUE",
-        updated_at: new Date().toISOString(),
-      });
+      onSaved(createdOption!);
     }, 800);
   };
 

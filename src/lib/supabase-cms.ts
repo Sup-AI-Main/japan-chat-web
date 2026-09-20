@@ -2098,7 +2098,13 @@ export async function getFaq(area?: string, category?: string): Promise<FaqItem[
     query = query.is('area_id', null);
   }
 
-  if (category && catId) {
+  if (category && !catId) {
+    // Category was requested but could not be resolved — return empty
+    // rather than silently dropping the filter and leaking unrelated FAQ
+    return [];
+  }
+
+  if (catId) {
     query = query.eq('category_id', catId);
   }
 
@@ -2132,7 +2138,11 @@ export async function getAdminFaqs(area?: string, category?: string): Promise<Fa
     query = query.is('area_id', null);
   }
 
-  if (category && catId) {
+  if (category && !catId) {
+    return [];
+  }
+
+  if (catId) {
     query = query.eq('category_id', catId);
   }
 
@@ -2303,6 +2313,9 @@ export async function appendAdminOption(
     logError('INSERT', tableName, data.code, error);
     throw error;
   }
+  // Invalidate resolver caches after successful insert
+  if (tableName === 'categories') invalidateCategoryCache();
+  else if (tableName === 'areas') invalidateAreaCache();
   return row || {};
 }
 
@@ -2353,6 +2366,9 @@ export async function updateAdminOption(data: Record<string, string>): Promise<b
     throw error;
   }
   if (!updated) throw new Error(`${table} not found`);
+  // Invalidate resolver caches after successful update
+  if (table === 'categories') invalidateCategoryCache();
+  else if (table === 'areas') invalidateAreaCache();
   return true;
 }
 
