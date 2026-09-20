@@ -4,7 +4,7 @@ import { getFaq, resolveArea, resolveCommonCategory } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import { routes } from "@/lib/routes";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export default async function FaqCategoryPage({
   params,

@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
       if (option_type === "CATEGORY") {
         invalidateCategoryCache();
         revalidatePath("/guide");
+        revalidatePath("/guide/[category]", "page");
         if (normalized.code) revalidatePath(`/guide/${normalized.code.toLowerCase()}`);
       } else if (option_type === "AREA") {
         invalidateAreaCache();
@@ -132,6 +133,7 @@ export async function PUT(request: NextRequest) {
       if (existingCat) {
         invalidateCategoryCache();
         revalidatePath("/guide");
+        revalidatePath("/guide/[category]", "page");
         const updatedCode = String(existingCat.code ?? "").toLowerCase();
         if (updatedCode) revalidatePath(`/guide/${updatedCode}`);
       } else if (existingArea) {
@@ -166,6 +168,7 @@ export async function DELETE(request: NextRequest) {
       await deleteCategoryFull(id, true);
       invalidateCategoryCache();
       revalidatePath("/guide");
+      revalidatePath("/guide/[category]", "page");
       const deletedCode = String(cat.code ?? "").toLowerCase();
       if (deletedCode) revalidatePath(`/guide/${deletedCode}`);
       return ok({ deleted: true, id });
