@@ -20,6 +20,18 @@ Stack: Next.js App Router + TypeScript + Supabase/PostgreSQL
 - QA/completion evidence is text-only; do not use screenshots as proof.
 - Treat `CODE_VERIFIED`, `DB_VERIFIED`, `FUNCTION_VERIFIED`, and `DEPLOY_VERIFIED` as independent claims.
 
+## Verification retry guardrails
+- **Do not accept Production E2E results as verification of the latest code until the deployed production SHA matches the intended/pushed SHA.** If the SHAs differ, classify the result as deployment timing/mismatch, not as proof for or against the latest change.
+- If the same verification fails **2 times**, a third automatic retry is forbidden. Stop immediately and report `BLOCKED` instead of looping.
+- A `BLOCKED` report must include:
+  - failed command or request,
+  - HTTP status (when applicable),
+  - stderr/error output,
+  - facts already confirmed,
+  - facts still unknown,
+  - exactly **one** next action required to proceed.
+- Infinite or open-ended retry loops are forbidden. Do not keep changing code merely because verification infrastructure, authentication, deployment timing, or environment state is unresolved.
+
 ## Read only when relevant
 Do **not** preload every agent document.
 
