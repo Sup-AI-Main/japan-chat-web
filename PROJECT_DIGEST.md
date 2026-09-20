@@ -38,7 +38,7 @@ Shared modal shells:
 - `ModalShell` — `src/components/inline-cms/ModalShell.tsx`
 - `EditModalShell` — `src/components/inline-cms/EditModalShell.tsx`
 
-Entity-specific modals compose these shells. Current design rules: `docs/06_디자인시스템_가이드라인.md`.
+Entity-specific modals compose these shells. Canonical design guide: `docs/05_디자인시스템_가이드.md`; verify current component implementation before assuming legacy modal details.
 
 ## Agent Context
 Start with root `AGENTS.md`. Load only the relevant detail file from `docs/agent/`; do not preload historical task documents.
