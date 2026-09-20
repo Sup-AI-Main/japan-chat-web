@@ -1,49 +1,44 @@
 # Project Architecture Digest
 
 ## Tech Stack
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS
+- Supabase/PostgreSQL
 
-- Next.js (App Router), TypeScript, Tailwind CSS, Supabase / Prisma
+## Key Directories
+- `/src/app` — page routes and API endpoints
+- `/src/components` — UI components
+- `/src/lib` — Supabase repositories, CRUD helpers, auth/shared utilities
+- `/supabase/migrations` — committed DB migrations
+- `/docs` — product/design/DB documentation
+- `/docs/agent` — task-specific Agent rules loaded only when relevant
 
-## Key Directory Structure
+## Data Architecture
+Supabase/PostgreSQL is the runtime source of truth. Google Sheets is not a runtime datastore.
 
-- `/src/app`: Page routes and API endpoints
-- `/src/components`: UI components (keep under 150 lines per file)
-- `/src/lib`: Supabase/Prisma client & shared utilities
-- `/types` or `/src/types`: Global TypeScript definitions
+Public reads use the public/server Supabase repository path with RLS. Privileged admin mutations remain server-side.
 
-## Core Database Schema (Summary)
-
-- Maintain key table names and primary foreign key relationships here.
-
-## Code Conventions
-
-- Use Functional Components with TypeScript interfaces.
-- Apply utility-first Tailwind CSS.
-- Keep components modular and atomic.
+Current DB details: `docs/06_DB_스키마_운영가이드.md`.
 
 ## Rendering Architecture (ISR)
+Public pages use standard Next.js ISR where configured.
 
-All public pages use standard Next.js ISR (Incremental Static Regeneration).
+- `generateStaticParams` is used on public routes that are prerendered.
+- Route-specific `revalidate` values control freshness.
+- `force-dynamic` is reserved for admin/debug paths where needed.
+- `cacheComponents: true` is not used.
+- Public read functions live primarily in `src/lib/supabase-cms.ts`.
 
-- `generateStaticParams` on all public pages/layouts for build-time prerender
-- `export const revalidate` per route (300s list, 60s detail, 3600s guide/faq)
-- `force-dynamic` only on admin pages and debug APIs
-- `cacheComponents: true` is NOT used (rolled back 2026-09)
-- DB queries use `Promise.allSettled` for parallel execution
-- Public read functions in `src/lib/supabase-cms.ts` (no cookies/headers)
-
-### Performance Targets
-
-- List pages: ~60ms warm (SSG + ISR HIT)
-- Detail pages: ~60ms warm (SSG + ISR HIT)
-- Cold start: <6s (first request after deploy)
+Verify the current route before assuming a specific revalidation interval.
 
 ## Admin Modal System
+Shared modal shells:
+- `ModalShell` — `src/components/inline-cms/ModalShell.tsx`
+- `EditModalShell` — `src/components/inline-cms/EditModalShell.tsx`
 
-All admin CRUD modals use a shared shell architecture:
+Entity-specific modals compose these shells. Current design rules: `docs/06_디자인시스템_가이드라인.md`.
 
-- `ModalShell` (`src/components/inline-cms/ModalShell.tsx`): base overlay + sticky header + scrollable content + optional footer
-- `EditModalShell` (`src/components/inline-cms/EditModalShell.tsx`): ModalShell + save/cancel footer
-- Entity-specific modals (HotelEditModal, RestaurantEditModal, GolfEditModal, etc.) compose these shells
-- Outside-click and Escape-to-close are blocked; only X / cancel / save-success close are allowed
-- Design system rules: `docs/06_디자인시스템_가이드라인.md`
+## Agent Context
+Start with root `AGENTS.md`. Load only the relevant detail file from `docs/agent/`; do not preload historical task documents.

@@ -1,67 +1,57 @@
-# Web App Agent Development Rules (Core)
+# Japan Chat Web — Core Agent Rules
 
-**Goal:** Smallest correct change, preserve architecture, token efficiency, text-only verification, protect production/security.
+Project: `japan-chat-web`  
+Stack: Next.js App Router + TypeScript + Supabase/PostgreSQL
 
-## 1. EXECUTION & CONTEXT
+## Always follow
+- Work on one logical task at a time and make the smallest correct change.
+- Use targeted searches by default. Repository-wide search is allowed for explicit audits/exhaustive verification or when all call sites must be found.
+- Follow Next.js App Router boundaries. Prefer Server Components/server-side data access; add `'use client'` only when state, effects, browser APIs, or event handlers require it.
+- Use explicit TypeScript types. Avoid `any` unless unavoidable and local.
+- Keep Supabase privileged access server-side. For SSR auth/session integration, follow the project's approved `@supabase/ssr` pattern; do not add dependencies during unrelated work.
+- Never expose `service_role`, secret keys, admin credentials, or privileged tokens to client code.
+- Public reads and admin writes are separate security boundaries. Never make an admin API public to fix a public-read issue.
+- Never disable/weaken RLS, policies, grants, or auth as a shortcut.
+- Never invent, reset, truncate, or silently delete production data.
+- Admin **Delete** means real DB hard DELETE unless an approved product spec explicitly says otherwise.
+- `0 rows affected` must never be reported as successful deletion.
+- A toast or HTTP 2xx is not persistence proof. Verify changed CRUD after reload and, for DB mutations, with DB queries.
+- Never claim production verification unless the intended deployment and relevant production behavior were actually checked.
+- QA/completion evidence is text-only; do not use screenshots as proof.
+- Treat `CODE_VERIFIED`, `DB_VERIFIED`, `FUNCTION_VERIFIED`, and `DEPLOY_VERIFIED` as independent claims.
 
-- **Single Task:** Work on ONE logical task at a time. Do not expand scope into unrelated refactoring.
-- **Context Control:** NO full repository scans. Use targeted searches, exact paths, and inspect only relevant functions/imports (±50–100 lines).
-- **Plan First:** Create a short text-based TODO list before implementation.
+## Read only when relevant
+Do **not** preload every agent document.
 
-## 2. DOCS & APPROVALS
+- Supabase/schema/RLS/RPC/migration/DB-security work → `docs/agent/supabase.md`
+- DELETE/CASCADE/destructive CRUD → `docs/agent/crud-delete.md`
+- CMS/entities/relations/FAQ/EAV/content model → `docs/agent/cms-data-model.md`
+- Final QA/regression/Vercel/production verification → `docs/agent/verification.md`
 
-- **Targeted Docs:** Read ONLY relevant documentation (IA, ERD, API, UI docs) required for the current task. Sync docs _only after_ making material changes.
-- **Structural Approval REQUIRED:** You MUST get explicit user approval BEFORE altering: DB tables/columns, enums, foreign keys, public APIs, auth flows, or major architecture. (Bug/UI fixes do not need approval).
+Read multiple detail files only when the task genuinely spans those areas. See `docs/agent/README.md`.
 
-## 3. DB, API & SECURITY
+## Approval
+An already-approved TODO/spec authorizes changes explicitly inside its scope. Do not request duplicate approval.
 
-- **DB Safety:** Never invent schemas. Sources of truth: `docs/04_ERD.md` & migrations. NEVER reset prod tables, delete prod data, or disable RLS/policies.
-- **API Contracts:** Verify request/response shape, auth, and DB mutation. Do not silently change public API contracts.
-- **Security:** Auth must be handled server-side. NEVER expose secrets, commit credentials, hardcode keys, or expose raw server errors to users.
+Ask before destructive/structural changes **outside** approved scope, including destructive schema removal, unexpected FK semantic changes, breaking public API/auth changes, or irreversible production-data transformations.
 
-## 4. UI, UX & CODE DISCIPLINE
+## Source of truth
+For DB work, never guess. Cross-check:
+1. actual Supabase production state,
+2. committed migrations,
+3. `docs/06_DB_스키마_운영가이드.md`.
 
-- **Implementation:** Mobile-first. Reuse existing shared UI components, hooks, and helpers. Make the smallest safe change.
-- **State Handling:** Account for loading, success, empty, and error states. Prevent duplicate actions (e.g., double submit).
-- **Dependencies:** Do NOT add new packages or run broad updates without explicit need/approval.
+If they disagree, report the drift and establish production reality before changing anything.
 
-## 5. CRITICAL: NO IMAGE QA (TEXT ONLY)
-
-- **Global Rule:** ALL QA, testing, and completion reporting MUST BE TEXT-ONLY.
-- **Prohibited:** NO image input, NO vision analysis, NO screenshot generation/attachment.
-- **Verification Method:** Use DOM inspection, computed styles, network logs, console errors, and behavior/persistence on reload.
-
-## 6. TESTING & DEPLOYMENT
-
-- **Targeted Testing:** Use the cheapest valid verification (Code inspect -> Lint -> Browser -> API -> Full build). Do not run full suites unprompted.
-- **CRUD Verification:** Verify persistence (items actually appear/change/disappear after reload), not just UI success toasts.
-- **Production Safety:** Local `build` PASS ≠ Production PASS. Report `DEPLOYED` ONLY if Vercel build is READY and prod live smoke test passes.
-
-## 7. COMPLETION REPORT
-
-- At the end of a task, provide a concise text report containing ONLY:
-  1. Modification Summary (3-4 lines)
-  2. Modified Files
-  3. Docs Updated
-  4. Verification Performed / Remaining.
-- Priority: User Request > Security > Specs > Minimal Change > Verification > Token saving. (Do not sacrifice safety for tokens).
-
-## Supabase Database
-
-- Use `DATABASE_URL` from `.env.local` for direct PostgreSQL access.
-- Do not use or request Supabase MCP.
-- Host: `aws-0-ap-southeast-1.pooler.supabase.com`
-- Port: `5432`
-- Database/User: `postgres`
-- Never print or commit credentials.
-- Inspect rows before modifying data.
+## Priority
+User request / approved TODO > security & production-data safety > production reality > project contracts/specs > existing architecture > minimal correct change > verification > token/time saving.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may differ from training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing Next.js code and heed deprecation notices.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+This block is written/re-added by `next dev`. Keep it committed so the working tree stays clean.
 
 <!-- END:nextjs-agent-rules -->

@@ -1,15 +1,30 @@
-# 일본 골프 여행 가이드 개발 문서 세트
+# Japan Chat Web — Documentation Map
 
-파일 순서:
+This directory contains product/design/database documentation. Agent execution rules are intentionally split so unrelated documents are not loaded on every task.
 
-1. 01_메뉴구조도_IA.md
-2. 02_기능명세서.md
-3. 03_화면설계서.md
-4. 04_Agent_개발가이드.md
-5. 05_디자인시스템_가이드.md
-6. 06_TODO.md
-7. 07_Agent_실행명령문.md
+## Product / UI documents
+- `01_메뉴구조도_IA.md` — information architecture / menu structure
+- `02_기능명세서.md` — product feature specification
+- `03_화면설계서.md` — screen/layout specification
+- `05_디자인시스템_가이드.md` — general design system
+- `06_디자인시스템_가이드라인.md` — current admin modal/design implementation rules
 
-Agent는 01~06을 읽고 07 명령을 기준으로 개발한다.
+Read only the documents relevant to the task.
 
-개발환경 기준: Node.js 22 LTS / Next.js 16.3.3+ (16.x Active LTS) / TypeScript 5.x / Tailwind CSS 4.x / npm / Vercel
+## Database
+- `06_DB_스키마_운영가이드.md` — current operational DB map, verified against production Supabase and migrations
+
+For DB changes, production Supabase is the primary reality. Cross-check it with migrations and this guide. If they disagree, report drift instead of guessing.
+
+## Agent rules
+- Root `../AGENTS.md` — short always-on core rules
+- `agent/README.md` — selective-loading map
+- `agent/supabase.md` — Supabase/schema/RLS/RPC rules
+- `agent/crud-delete.md` — hard-delete/CASCADE rules
+- `agent/cms-data-model.md` — CMS/EAV/relationship rules
+- `agent/verification.md` — final QA/deployment rules
+
+Do **not** read all agent detail files for every task.
+
+## Historical task documents
+Older TODO/audit/migration/rebuild documents in this directory are historical references unless the user explicitly selects one as the current task specification. They do not override current production reality or root Agent rules.
