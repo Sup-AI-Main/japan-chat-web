@@ -1841,6 +1841,7 @@ async function saveFieldValue(entityId: string, fieldKey: string, value: string)
     );
   if (error) {
     logError('UPSERT', 'entity_field_values', entityId, error);
+    throw error;
   }
 }
 
@@ -1873,6 +1874,7 @@ async function saveAttractionFieldValues(
       );
     if (error) {
       logError('UPSERT', 'entity_field_values', entityId, error);
+      throw error;
     }
   }
 }
@@ -2212,11 +2214,17 @@ export async function updateFaq(_rowIndex: number, data: Record<string, string>)
       : null;
   }
 
-  const { error } = await adminDb().from('faq').update(updates).eq('id', data.id);
+  const { data: updated, error } = await adminDb()
+    .from('faq')
+    .update(updates)
+    .eq('id', data.id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('UPDATE', 'faq', data.id, error);
     throw error;
   }
+  if (!updated) throw new Error('FAQ not found');
   return true;
 }
 
@@ -2334,11 +2342,17 @@ export async function updateAdminOption(data: Record<string, string>): Promise<b
   if (data.active !== undefined) updates.active = isActive(data.active);
   if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
 
-  const { error } = await adminDb().from(table).update(updates).eq('id', data.id);
+  const { data: updated, error } = await adminDb()
+    .from(table)
+    .update(updates)
+    .eq('id', data.id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('UPDATE', table, data.id, error);
     throw error;
   }
+  if (!updated) throw new Error(`${table} not found`);
   return true;
 }
 
@@ -2477,6 +2491,13 @@ export async function updateContentSection(
     if (existing && existing.updated_at !== expectedUpdatedAt) {
       throw new ConflictError();
     }
+  } else {
+    const { data: existing } = await db()
+      .from('content_sections')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+    if (!existing) throw new Error('Content section not found');
   }
 
   const updates: Record<string, unknown> = {};
@@ -2486,11 +2507,17 @@ export async function updateContentSection(
   if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
   if (data.is_visible !== undefined) updates.is_visible = data.is_visible !== 'FALSE';
 
-  const { error } = await adminDb().from('content_sections').update(updates).eq('id', id);
+  const { data: updated, error } = await adminDb()
+    .from('content_sections')
+    .update(updates)
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('UPDATE', 'content_sections', id, error);
     throw error;
   }
+  if (!updated) throw new Error('Content section not found');
   return true;
 }
 
@@ -2627,6 +2654,13 @@ export async function updateIncludeExclude(
     if (existing && existing.updated_at !== expectedUpdatedAt) {
       throw new ConflictError();
     }
+  } else {
+    const { data: existing } = await db()
+      .from('includes_excludes')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+    if (!existing) throw new Error('Include/exclude not found');
   }
 
   const updates: Record<string, unknown> = {};
@@ -2636,11 +2670,17 @@ export async function updateIncludeExclude(
   if (data.is_visible !== undefined) updates.is_visible = data.is_visible === 'TRUE';
   if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
 
-  const { error } = await adminDb().from('includes_excludes').update(updates).eq('id', id);
+  const { data: updated, error } = await adminDb()
+    .from('includes_excludes')
+    .update(updates)
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     logError('UPDATE', 'includes_excludes', id, error);
     throw error;
   }
+  if (!updated) throw new Error('Include/exclude not found');
   return true;
 }
 
