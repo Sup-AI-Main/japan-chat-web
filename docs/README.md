@@ -7,7 +7,7 @@ This directory contains product/design/database documentation. Agent execution r
 - `02_기능명세서.md` — product feature specification
 - `03_화면설계서.md` — screen/layout specification
 - `05_디자인시스템_가이드.md` — general design system
-- `06_디자인시스템_가이드라인.md` — current admin modal/design implementation rules
+- `05_디자인시스템_가이드.md` is the canonical design-system guide; verify current component implementation before assuming older modal details.
 
 Read only the documents relevant to the task.
 
