@@ -19,6 +19,42 @@ import type {
 import { ConflictError } from './types';
 
 // ---------------------------------------------------------------------------
+// Server-side required field validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate that all required fields (per field_definitions.validation_json.required === true)
+ * are present and non-empty in the submitted data.
+ * Returns null if valid, or an error message string if validation fails.
+ */
+export async function validateRequiredFields(
+  entityType: string,
+  data: Record<string, unknown>
+): Promise<string | null> {
+  const { data: fields } = await db()
+    .from('field_definitions')
+    .select('field_key, label_ko, validation_json')
+    .eq('scope_entity_type', entityType.toUpperCase())
+    .eq('active', true);
+
+  if (!fields) return null;
+
+  for (const f of fields) {
+    const vj = (f.validation_json as Record<string, unknown>) || null;
+    if (!vj || vj.required !== true) continue;
+
+    const fieldKey = f.field_key as string;
+    const label = (f.label_ko as string) || fieldKey;
+    const value = data[fieldKey];
+
+    if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) {
+      return `${label}은(는) 필수입니다.`;
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

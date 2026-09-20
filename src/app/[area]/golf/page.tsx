@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getGolfCourses, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
+import { getDynamicLabels } from "@/lib/dynamic-labels";
 import GolfListClient from "./GolfListClient";
 import { routes } from "@/lib/routes";
 
@@ -42,6 +43,8 @@ export default async function GolfListPage({
     );
   }
 
+  const dynamicLabels = await getDynamicLabels("GOLF").catch(() => ({ sections: [], fieldMap: {} }));
+
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[720px] mx-auto">
@@ -56,6 +59,7 @@ export default async function GolfListPage({
           area={area}
           areaLabel={areaLabel}
           areaEmoji={getAreaEmoji(areaCode)}
+          dynamicLabels={dynamicLabels}
         />
       </div>
     </main>

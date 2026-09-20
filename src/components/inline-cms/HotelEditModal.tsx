@@ -2,6 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { EditModalShell } from "./EditModalShell";
+import {
+  type DynamicLabelsResult,
+  getSectionLabel,
+  getFieldLabel,
+  isSectionVisible,
+  isFieldActive,
+  isFieldRequired,
+} from "@/lib/dynamic-labels";
+import type { HotelFormPayload } from "@/lib/types";
+
+// ---------------------------------------------------------------------------
+// Internal form state interface (unchanged)
+// ---------------------------------------------------------------------------
 
 interface HotelData {
   id?: string;
@@ -54,16 +67,135 @@ const EMPTY_HOTEL: HotelData = {
   transport: "",
 };
 
+// ---------------------------------------------------------------------------
+// Section / field configuration (data-driven)
+// ---------------------------------------------------------------------------
+
+interface FieldConfig {
+  fieldKey: string;
+  formKey: keyof HotelData;
+  fallback: string;
+  placeholder: string;
+  type?: "text" | "checkbox";
+}
+
+interface SectionConfig {
+  sectionKey: string;
+  fallbackTitle: string;
+  fields: FieldConfig[];
+}
+
+const SECTIONS: SectionConfig[] = [
+  {
+    sectionKey: "basic_info",
+    fallbackTitle: "기본 정보",
+    fields: [
+      { fieldKey: "name_kr", formKey: "name_kr", fallback: "호텔명 (한국어)", placeholder: "호텔 이름" },
+      { fieldKey: "name_jp", formKey: "name_jp", fallback: "호텔명 (일본어)", placeholder: "公式名称" },
+      { fieldKey: "address_kr", formKey: "address_kr", fallback: "주소 (한국어)", placeholder: "주소" },
+      { fieldKey: "address_jp", formKey: "address_jp", fallback: "주소 (일본어)", placeholder: "住所" },
+      { fieldKey: "phone", formKey: "phone", fallback: "전화번호", placeholder: "000-000-0000" },
+      { fieldKey: "google_maps_url", formKey: "google_maps_url", fallback: "Google Maps URL", placeholder: "https://maps.google.com/..." },
+    ],
+  },
+  {
+    sectionKey: "checkin",
+    fallbackTitle: "체크인",
+    fields: [
+      { fieldKey: "checkin_time", formKey: "checkin_time", fallback: "체크인 시간", placeholder: "15:00" },
+    ],
+  },
+  {
+    sectionKey: "checkout",
+    fallbackTitle: "체크아웃",
+    fields: [
+      { fieldKey: "checkout_time", formKey: "checkout_time", fallback: "체크아웃 시간", placeholder: "10:00" },
+    ],
+  },
+  {
+    sectionKey: "breakfast",
+    fallbackTitle: "조식",
+    fields: [
+      { fieldKey: "breakfast_place", formKey: "breakfast_place", fallback: "조식 장소", placeholder: "1F 레스토랑" },
+      { fieldKey: "breakfast_time", formKey: "breakfast_time", fallback: "조식 시간", placeholder: "7:00~9:30" },
+      { fieldKey: "breakfast_last_entry", formKey: "breakfast_last_entry", fallback: "조식 입장 마감", placeholder: "9:00" },
+    ],
+  },
+  {
+    sectionKey: "dinner",
+    fallbackTitle: "석식",
+    fields: [
+      { fieldKey: "dinner_place", formKey: "dinner_place", fallback: "석식 장소", placeholder: "1F 레스토랑" },
+      { fieldKey: "dinner_time", formKey: "dinner_time", fallback: "석식 시간", placeholder: "18:00~21:00" },
+      { fieldKey: "dinner_last_entry", formKey: "dinner_last_entry", fallback: "석식 입장 마감", placeholder: "20:30" },
+    ],
+  },
+  {
+    sectionKey: "onsen_spa",
+    fallbackTitle: "온천/스파",
+    fields: [
+      { fieldKey: "has_public_bath", formKey: "has_public_bath", fallback: "대욕장 있음", placeholder: "", type: "checkbox" },
+      { fieldKey: "has_outdoor_onsen", formKey: "has_outdoor_onsen", fallback: "노천탕 있음", placeholder: "", type: "checkbox" },
+      { fieldKey: "has_sauna", formKey: "has_sauna", fallback: "사우나 있음", placeholder: "", type: "checkbox" },
+    ],
+  },
+  {
+    sectionKey: "bath_hours",
+    fallbackTitle: "운영시간",
+    fields: [
+      { fieldKey: "bath_spa_hours", formKey: "bath_spa_hours", fallback: "대욕장/스파 운영시간", placeholder: "15:00~25:00, 6:00~9:00" },
+    ],
+  },
+  {
+    sectionKey: "tattoo_policy",
+    fallbackTitle: "타투 정책",
+    fields: [
+      { fieldKey: "tattoo_policy", formKey: "tattoo_policy", fallback: "타투 정책", placeholder: "타투 시 커버 필수" },
+    ],
+  },
+  {
+    sectionKey: "other_info",
+    fallbackTitle: "기타",
+    fields: [
+      { fieldKey: "other_info", formKey: "other_info", fallback: "기타 정보", placeholder: "추가 안내사항" },
+    ],
+  },
+  {
+    sectionKey: "atm_payment",
+    fallbackTitle: "ATM/결제",
+    fields: [
+      { fieldKey: "atm_payment", formKey: "atm_payment", fallback: "ATM/결제", placeholder: "세븐은행 ATM, 신용카드 가능" },
+    ],
+  },
+  {
+    sectionKey: "transport",
+    fallbackTitle: "교통",
+    fields: [
+      { fieldKey: "transport", formKey: "transport", fallback: "교통", placeholder: "공항에서 차량 약60분" },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
 interface HotelEditModalProps {
   hotel: HotelData | null;
   area: string;
   open: boolean;
   onClose: () => void;
-  onSaved: (hotel: HotelData) => void;
+  onSaved: (saved: Record<string, unknown>) => void;
+  dynamicLabels?: DynamicLabelsResult;
 }
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 function InputField({
   label,
+  required,
   value,
   onChange,
   placeholder,
@@ -71,6 +203,7 @@ function InputField({
   className = "",
 }: {
   label: string;
+  required?: boolean;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -79,7 +212,10 @@ function InputField({
 }) {
   return (
     <div className={className}>
-      <label className="text-[13px] font-medium text-text mb-1 block">{label}</label>
+      <label className="text-[13px] font-medium text-text mb-1 block">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <input
         type={type}
         value={value}
@@ -93,11 +229,13 @@ function InputField({
 
 function CheckboxField({
   label,
+  required,
   checked,
   onChange,
   className = "",
 }: {
   label: string;
+  required?: boolean;
   checked: boolean;
   onChange: (v: boolean) => void;
   className?: string;
@@ -110,12 +248,28 @@ function CheckboxField({
         onChange={(e) => onChange(e.target.checked)}
         className="w-4 h-4 accent-primary"
       />
-      <span className="text-[14px] text-text">{label}</span>
+      <span className="text-[14px] text-text">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </span>
     </label>
   );
 }
 
-export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEditModalProps) {
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+export function HotelEditModal({
+  hotel,
+  area,
+  open,
+  onClose,
+  onSaved,
+  dynamicLabels,
+}: HotelEditModalProps) {
+  const L: DynamicLabelsResult = dynamicLabels ?? { sections: [], fieldMap: {} };
+
   const [form, setForm] = useState<HotelData>(EMPTY_HOTEL);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -136,14 +290,29 @@ export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEdi
     setSaving(true);
     setError("");
 
+    // Validate required fields
+    for (const section of SECTIONS) {
+      for (const field of section.fields) {
+        if (!isFieldActive(L, field.fieldKey)) continue;
+        if (!isFieldRequired(L, field.fieldKey)) continue;
+        const value = form[field.formKey];
+        if (typeof value === "string" && !value.trim()) {
+          const label = getFieldLabel(L, field.fieldKey, field.fallback);
+          setError(`${label}은(는) 필수입니다.`);
+          setSaving(false);
+          return;
+        }
+      }
+    }
+
     try {
       const isEdit = !!hotel?.id;
-      // Map form fields → DB column names
-      const payload: Record<string, unknown> = {
+      const payload: HotelFormPayload = {
         ...form,
         display_name: form.name_kr,
         address: form.address_kr,
         transport_note: form.transport,
+        official_name: form.name_jp,
         id: hotel?.id,
         area: area.toUpperCase(),
       };
@@ -156,7 +325,11 @@ export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEdi
       if (!res.ok) {
         const text = await res.text();
         let msg = "저장에 실패했습니다.";
-        try { msg = JSON.parse(text).error || msg; } catch { /* ignore */ }
+        try {
+          msg = JSON.parse(text).error || msg;
+        } catch {
+          /* ignore */
+        }
         throw new Error(msg);
       }
 
@@ -167,7 +340,9 @@ export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEdi
       }
       onSaved(saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
+      setError(
+        err instanceof Error ? err.message : "저장 중 문제가 발생했습니다."
+      );
     } finally {
       setSaving(false);
     }
@@ -182,71 +357,59 @@ export function HotelEditModal({ hotel, area, open, onClose, onSaved }: HotelEdi
       saving={saving}
       error={error}
     >
-      {/* 기본 정보 */}
-      <div className="mb-6">
-        <h3 className="text-[15px] font-bold text-text mb-3">기본 정보</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="호텔명 (한국어)" value={form.name_kr} onChange={(v) => update("name_kr", v)} placeholder="호텔 이름" />
-          <InputField label="호텔명 (일본어)" value={form.name_jp} onChange={(v) => update("name_jp", v)} placeholder="公式名称" />
-          <InputField label="주소 (한국어)" value={form.address_kr} onChange={(v) => update("address_kr", v)} placeholder="주소" />
-          <InputField label="주소 (일본어)" value={form.address_jp} onChange={(v) => update("address_jp", v)} placeholder="住所" />
-          <InputField label="전화번호" value={form.phone} onChange={(v) => update("phone", v)} placeholder="000-000-0000" />
-          <InputField label="Google Maps URL" value={form.google_maps_url} onChange={(v) => update("google_maps_url", v)} placeholder="https://maps.google.com/..." />
-        </div>
-      </div>
+      {SECTIONS.filter((s) => isSectionVisible(L, s.sectionKey)).map(
+        (section) => {
+          const visibleFields = section.fields.filter((f) =>
+            isFieldActive(L, f.fieldKey)
+          );
+          if (visibleFields.length === 0) return null;
 
-      {/* 체크인/아웃 */}
-      <div className="mb-6">
-        <h3 className="text-[15px] font-bold text-text mb-3">체크인/아웃</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="체크인 시간" value={form.checkin_time} onChange={(v) => update("checkin_time", v)} placeholder="15:00" />
-          <InputField label="체크아웃 시간" value={form.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="10:00" />
-        </div>
-      </div>
+          // Separate checkbox fields from text/input fields
+          const checkboxFields = visibleFields.filter(
+            (f) => f.type === "checkbox"
+          );
+          const inputFields = visibleFields.filter(
+            (f) => f.type !== "checkbox"
+          );
 
-      {/* 조식 */}
-      <div className="mb-6">
-        <h3 className="text-[15px] font-bold text-text mb-3">조식</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="조식 장소" value={form.breakfast_place} onChange={(v) => update("breakfast_place", v)} placeholder="1F 레스토랑" />
-          <InputField label="조식 시간" value={form.breakfast_time} onChange={(v) => update("breakfast_time", v)} placeholder="7:00~9:30" />
-          <InputField label="조식 입장 마감" value={form.breakfast_last_entry} onChange={(v) => update("breakfast_last_entry", v)} placeholder="9:00" />
-        </div>
-      </div>
-
-      {/* 석식 */}
-      <div className="mb-6">
-        <h3 className="text-[15px] font-bold text-text mb-3">석식</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="석식 장소" value={form.dinner_place} onChange={(v) => update("dinner_place", v)} placeholder="1F 레스토랑" />
-          <InputField label="석식 시간" value={form.dinner_time} onChange={(v) => update("dinner_time", v)} placeholder="18:00~21:00" />
-          <InputField label="석식 입장 마감" value={form.dinner_last_entry} onChange={(v) => update("dinner_last_entry", v)} placeholder="20:30" />
-        </div>
-      </div>
-
-      {/* 온천/스파 */}
-      <div className="mb-6">
-        <h3 className="text-[15px] font-bold text-text mb-3">온천/스파</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <div className="md:col-span-2 flex flex-wrap gap-x-6 gap-y-2">
-            <CheckboxField label="대욕장 있음" checked={form.has_public_bath} onChange={(v) => update("has_public_bath", v)} />
-            <CheckboxField label="노천탕 있음" checked={form.has_outdoor_onsen} onChange={(v) => update("has_outdoor_onsen", v)} />
-            <CheckboxField label="사우나 있음" checked={form.has_sauna} onChange={(v) => update("has_sauna", v)} />
-          </div>
-          <InputField label="대욕장/스파 운영시간" value={form.bath_spa_hours} onChange={(v) => update("bath_spa_hours", v)} placeholder="15:00~25:00, 6:00~9:00" />
-          <InputField label="타투 정책" value={form.tattoo_policy} onChange={(v) => update("tattoo_policy", v)} placeholder="타투 시 커버 필수" />
-        </div>
-      </div>
-
-      {/* 기타 */}
-      <div className="mb-2">
-        <h3 className="text-[15px] font-bold text-text mb-3">기타</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="기타 정보" value={form.other_info} onChange={(v) => update("other_info", v)} placeholder="추가 안내사항" />
-          <InputField label="ATM/결제" value={form.atm_payment} onChange={(v) => update("atm_payment", v)} placeholder="세븐은행 ATM, 신용카드 가능" />
-          <InputField label="교통" value={form.transport} onChange={(v) => update("transport", v)} placeholder="공항에서 차량 약60분" />
-        </div>
-      </div>
+          return (
+            <div key={section.sectionKey} className="mb-6">
+              <h3 className="text-[15px] font-bold text-text mb-3">
+                {getSectionLabel(L, section.sectionKey, section.fallbackTitle)}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+                {checkboxFields.length > 0 && (
+                  <div className="md:col-span-2 flex flex-wrap gap-x-6 gap-y-2">
+                    {checkboxFields.map((field) => (
+                      <CheckboxField
+                        key={field.fieldKey}
+                        label={getFieldLabel(
+                          L,
+                          field.fieldKey,
+                          field.fallback
+                        )}
+                        required={isFieldRequired(L, field.fieldKey)}
+                        checked={form[field.formKey] as boolean}
+                        onChange={(v) => update(field.formKey, v)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {inputFields.map((field) => (
+                  <InputField
+                    key={field.fieldKey}
+                    label={getFieldLabel(L, field.fieldKey, field.fallback)}
+                    required={isFieldRequired(L, field.fieldKey)}
+                    value={form[field.formKey] as string}
+                    onChange={(v) => update(field.formKey, v)}
+                    placeholder={field.placeholder}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        }
+      )}
     </EditModalShell>
   );
 }

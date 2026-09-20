@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Hotel, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
@@ -80,49 +81,6 @@ function hotelToEditData(hotel: Hotel) {
   };
 }
 
-function editDataToHotel(id: string, slug: string, area: string, data: HotelData): Hotel {
-  return {
-    id,
-    slug,
-    area,
-    official_name: data.name_kr || "",
-    name_kr: data.name_kr || "",
-    name_jp: data.name_jp || "",
-    address: data.address_kr || "",
-    address_kr: data.address_kr || "",
-    address_jp: data.address_jp || "",
-    phone: data.phone || "",
-    google_maps_url: data.google_maps_url || "",
-    check_in: data.checkin_time || "",
-    check_out: data.checkout_time || "",
-    checkin_time: data.checkin_time || "",
-    checkout_time: data.checkout_time || "",
-    breakfast: "",
-    breakfast_place: data.breakfast_place || "",
-    breakfast_time: data.breakfast_time || "",
-    breakfast_last_entry: data.breakfast_last_entry || "",
-    hotel_dining: "",
-    dinner_place: data.dinner_place || "",
-    dinner_time: data.dinner_time || "",
-    dinner_last_entry: data.dinner_last_entry || "",
-    bath_spa: "",
-    has_public_bath: data.has_public_bath ? "TRUE" : "FALSE",
-    has_outdoor_onsen: data.has_outdoor_onsen ? "TRUE" : "FALSE",
-    has_sauna: data.has_sauna ? "TRUE" : "FALSE",
-    bath_spa_hours: data.bath_spa_hours || "",
-    tattoo_policy: data.tattoo_policy || "",
-    other_info: data.other_info || "",
-    atm_payment: data.atm_payment || "",
-    transport: data.transport || "",
-    source_url: "",
-    status: "",
-    active: "",
-    sort: 0,
-    last_verified: "",
-    updated_at: "",
-  };
-}
-
 export function HotelDetailClient({
   hotel: initialHotel,
   area,
@@ -133,6 +91,7 @@ export function HotelDetailClient({
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
   const isAdmin = useAdmin();
+  const router = useRouter();
 
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
@@ -161,10 +120,11 @@ export function HotelDetailClient({
     hotel.bath_spa_hours || hotel.tattoo_policy;
   const hasOther = hotel.other_info || hotel.atm_payment || hotel.transport;
 
-  const handleHotelSaved = (data: HotelData) => {
-    setHotel(editDataToHotel(hotel.id, hotel.slug, hotel.area, data));
+  const handleHotelSaved = (saved: Record<string, unknown>) => {
+    setHotel(saved as unknown as Hotel);
     showToast("수정 완료");
     setTimeout(closeHotelModal, 500);
+    router.refresh();
   };
 
   return (
@@ -397,6 +357,7 @@ export function HotelDetailClient({
         open={editHotelOpen}
         onClose={closeHotelModal}
         onSaved={handleHotelSaved}
+        dynamicLabels={dynamicLabels}
       />
 
       <Toast message={message} visible={visible} />

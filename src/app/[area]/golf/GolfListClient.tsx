@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { GolfCourse } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import {
   EditableContainer,
   AddButton,
@@ -14,6 +16,7 @@ interface GolfListClientProps {
   area: string;
   areaLabel: string;
   areaEmoji: string;
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 interface GolfData {
@@ -36,21 +39,25 @@ export default function GolfListClient({
   area,
   areaLabel,
   areaEmoji,
+  dynamicLabels,
 }: GolfListClientProps) {
   const [courses, setCourses] = useState<GolfCourse[]>(initialCourses);
+  const router = useRouter();
   const [editModal, setEditModal] = useState<{ open: boolean; course: GolfCourse | null }>({
     open: false,
     course: null,
   });
 
-  const handleSaved = (data: GolfData) => {
+  const handleSaved = (saved: Record<string, unknown>) => {
+    const savedCourse = saved as unknown as GolfCourse;
     setCourses((prev) => {
-      const exists = prev.find((c) => c.id === data.id);
+      const exists = prev.find((c) => c.id === savedCourse.id);
       if (exists) {
-        return prev.map((c) => (c.id === data.id ? { ...c, ...data } as GolfCourse : c));
+        return prev.map((c) => (c.id === savedCourse.id ? savedCourse : c));
       }
-      return [...prev, { ...data, area: area.toUpperCase(), active: "TRUE", status: "published", sort: 99, source_url: "", last_verified: "", updated_at: new Date().toISOString() } as GolfCourse];
+      return [...prev, savedCourse];
     });
+    router.refresh();
   };
 
   const handleDelete = async (course: GolfCourse) => {
@@ -127,6 +134,7 @@ export default function GolfListClient({
           open={editModal.open}
           onClose={() => setEditModal({ open: false, course: null })}
           onSaved={handleSaved}
+          dynamicLabels={dynamicLabels}
         />
       )}
     </>

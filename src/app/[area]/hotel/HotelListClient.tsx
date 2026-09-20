@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Hotel } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import {
   EditableContainer,
   AddButton,
@@ -14,6 +16,7 @@ interface HotelListClientProps {
   area: string;
   areaLabel: string;
   areaEmoji: string;
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 export default function HotelListClient({
@@ -21,22 +24,25 @@ export default function HotelListClient({
   area,
   areaLabel,
   areaEmoji,
+  dynamicLabels,
 }: HotelListClientProps) {
   const [hotels, setHotels] = useState<Hotel[]>(initialHotels);
+  const router = useRouter();
   const [editModal, setEditModal] = useState<{ open: boolean; hotel: Hotel | null }>({
     open: false,
     hotel: null,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSaved = (data: any) => {
+  const handleSaved = (saved: Record<string, unknown>) => {
+    const savedHotel = saved as unknown as Hotel;
     setHotels((prev) => {
-      const exists = prev.find((h) => h.id === data.id);
+      const exists = prev.find((h) => h.id === savedHotel.id);
       if (exists) {
-        return prev.map((h) => (h.id === data.id ? { ...h, ...data } as Hotel : h));
+        return prev.map((h) => (h.id === savedHotel.id ? savedHotel : h));
       }
-      return [...prev, { ...data, area: area.toUpperCase(), active: "TRUE", status: "published", sort: 99, source_url: "", last_verified: "", updated_at: new Date().toISOString() } as Hotel];
+      return [...prev, savedHotel];
     });
+    router.refresh();
   };
 
   const handleDelete = async (hotel: Hotel) => {
@@ -123,6 +129,7 @@ export default function HotelListClient({
           open={editModal.open}
           onClose={() => setEditModal({ open: false, hotel: null })}
           onSaved={handleSaved}
+          dynamicLabels={dynamicLabels}
         />
       )}
     </>

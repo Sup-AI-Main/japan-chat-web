@@ -105,10 +105,11 @@ export default function RestaurantDetailClient({
     }
   };
 
-  const handleSaved = (saved: Restaurant) => {
-    setRestaurant((prev) => ({ ...prev, ...saved }));
+  const handleSaved = (saved: Record<string, unknown>) => {
+    setRestaurant(saved as unknown as Restaurant);
     showToast("수정 완료");
     setTimeout(closeEditModal, 500);
+    router.refresh();
   };
 
   const displayName = restaurant.name_kr || restaurant.name;
@@ -310,8 +311,9 @@ export default function RestaurantDetailClient({
           area={area}
           open={editModal}
           onClose={closeEditModal}
-          onSaved={(saved) => handleSaved(saved as unknown as Restaurant)}
+          onSaved={(saved) => handleSaved(saved)}
           nearOptions={nearOptions}
+          dynamicLabels={dynamicLabels}
         />
       )}
 

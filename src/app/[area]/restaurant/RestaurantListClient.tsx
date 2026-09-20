@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAdmin } from "@/hooks/use-admin";
 import { EditToolbar, AddButton, ConfirmModal, RestaurantEditModal } from "@/components/inline-cms";
 import type { Restaurant } from "@/lib/types";
+import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 
 interface NearOption {
   id: string;
@@ -16,6 +18,7 @@ interface RestaurantListClientProps {
   area: string;
   areaLabel: string;
   areaEmoji: string;
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 const NEAR_SECTIONS: { key: string; label: string }[] = [
@@ -55,8 +58,10 @@ export default function RestaurantListClient({
   area,
   areaLabel,
   areaEmoji,
+  dynamicLabels,
 }: RestaurantListClientProps) {
   const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
+  const router = useRouter();
   const [editModal, setEditModal] = useState<{ open: boolean; restaurant: Restaurant | null }>({
     open: false,
     restaurant: null,
@@ -182,14 +187,16 @@ export default function RestaurantListClient({
     }
   };
 
-  const handleSaved = (saved: Restaurant) => {
+  const handleSaved = (saved: Record<string, unknown>) => {
+    const savedRest = saved as unknown as Restaurant;
     setRestaurants((prev) => {
-      const exists = prev.find((r) => r.id === saved.id);
+      const exists = prev.find((r) => r.id === savedRest.id);
       if (exists) {
-        return prev.map((r) => (r.id === saved.id ? { ...r, ...saved } : r));
+        return prev.map((r) => (r.id === savedRest.id ? savedRest : r));
       }
-      return [...prev, saved];
+      return [...prev, savedRest];
     });
+    router.refresh();
   };
 
   return (
@@ -324,10 +331,11 @@ export default function RestaurantListClient({
           open={editModal.open}
           onClose={() => setEditModal({ open: false, restaurant: null })}
           onSaved={(saved) => {
-            handleSaved(saved as unknown as Restaurant);
+            handleSaved(saved);
             setEditModal({ open: false, restaurant: null });
           }}
           nearOptions={nearOptions}
+          dynamicLabels={dynamicLabels}
         />
       )}
 

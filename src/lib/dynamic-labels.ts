@@ -26,6 +26,7 @@ export interface DynamicField {
   icon: string | null;
   sort: number;
   active: boolean;
+  validation_json: Record<string, unknown> | null;
 }
 
 export interface DynamicLabelsResult {
@@ -107,9 +108,8 @@ export async function getDynamicLabels(entityType: string): Promise<DynamicLabel
       .order("sort"),
     db
       .from("field_definitions")
-      .select("field_key, label_ko, label_ja, field_type, icon, section_key, sort, active")
+      .select("field_key, label_ko, label_ja, field_type, icon, section_key, sort, active, validation_json")
       .eq("scope_entity_type", type)
-      .eq("active", true)
       .order("sort"),
   ]);
 
@@ -127,6 +127,7 @@ export async function getDynamicLabels(entityType: string): Promise<DynamicLabel
       icon: f.icon,
       sort: f.sort,
       active: f.active,
+      validation_json: (f.validation_json as Record<string, unknown>) || null,
     };
   }
 
@@ -190,4 +191,22 @@ export function getFieldLabel(
   fallback: string
 ): string {
   return labels.fieldMap[fieldKey]?.label_ko || fallback;
+}
+
+/** Check if a field is active (visible in forms) */
+export function isFieldActive(
+  labels: DynamicLabelsResult,
+  fieldKey: string
+): boolean {
+  return labels.fieldMap[fieldKey]?.active ?? true;
+}
+
+/** Check if a field is required by validation_json */
+export function isFieldRequired(
+  labels: DynamicLabelsResult,
+  fieldKey: string
+): boolean {
+  const vj = labels.fieldMap[fieldKey]?.validation_json;
+  if (!vj) return false;
+  return vj.required === true;
 }

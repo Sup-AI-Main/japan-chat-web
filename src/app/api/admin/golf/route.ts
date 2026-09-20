@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getGolfCourses, appendGolfCourse, updateGolfCourse, deleteGolfCourse } from "@/lib/supabase-cms";
+import { getGolfCourses, getGolfCourseById, appendGolfCourse, updateGolfCourse, deleteGolfCourse, validateRequiredFields } from "@/lib/supabase-cms";
+import { getSupabaseServer } from "@/lib/supabase/server";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -23,6 +24,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await safeJson<Record<string, string>>(req);
     if (!body) return badRequest("Empty request body");
+
+    // Server-side required field validation
+    const validationError = await validateRequiredFields("GOLF", body);
+    if (validationError) return badRequest(validationError);
+
     if (!body.active) body.active = "TRUE";
     const { id, slug } = await appendGolfCourse(body);
     const area = (body.area || '').toLowerCase();
@@ -31,7 +37,12 @@ export async function POST(req: NextRequest) {
       revalidatePath(`/${area}/golf/${slug}`);
       revalidatePath("/[area]/golf/[id]", "page");
     }
-    return created({ id, slug, course: { ...body, id, slug } });
+    // Return canonical persisted row from DB
+    let canonicalCourse = null;
+    try {
+      canonicalCourse = await getGolfCourseById(slug);
+    } catch { /* fallback to basic response */ }
+    return created({ id, slug, course: canonicalCourse || { id, slug } });
   } catch (err) {
     return serverError(err);
   }
@@ -42,6 +53,11 @@ export async function PUT(req: NextRequest) {
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   const body = await safeJson<Record<string, string>>(req);
   if (!body) return badRequest("Empty request body");
+
+  // Server-side required field validation
+  const validationError = await validateRequiredFields("GOLF", body);
+  if (validationError) return badRequest(validationError);
+
   const { id, updated_at, area, ...data } = body;
   if (!id) return badRequest("Missing id");
   try {
@@ -50,7 +66,19 @@ export async function PUT(req: NextRequest) {
       revalidatePath(`/${area.toLowerCase()}/golf`);
       revalidatePath("/[area]/golf/[id]", "page");
     }
-    return ok({ success, course: { ...data, id } });
+    // Return canonical persisted row from DB (resolve slug from entity UUID)
+    let canonicalCourse = null;
+    try {
+      const { data: entity } = await getSupabaseServer()
+        .from('entities')
+        .select('slug')
+        .eq('id', id)
+        .single();
+      if (entity?.slug) {
+        canonicalCourse = await getGolfCourseById(entity.slug);
+      }
+    } catch { /* fallback to basic response */ }
+    return ok({ success, course: canonicalCourse || { id } });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);

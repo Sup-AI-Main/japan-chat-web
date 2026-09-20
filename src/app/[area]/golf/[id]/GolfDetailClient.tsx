@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { GolfCourse, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
@@ -37,6 +38,7 @@ export function GolfDetailClient({
   const [editGolfOpen, setEditGolfOpen] = useState(false);
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
+  const router = useRouter();
 
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
@@ -46,10 +48,11 @@ export function GolfDetailClient({
     setEditGolfOpen(false);
   }, []);
 
-  const handleGolfSaved = (data: { display_name: string; official_name: string; address: string; phone: string; course_summary: string; play_cart: string; clubhouse_dining: string; bath_shower: string; rental: string; dress_code: string; google_maps_url: string }) => {
-    setCourse((prev) => ({ ...prev, ...data }));
+  const handleGolfSaved = (saved: Record<string, unknown>) => {
+    setCourse(saved as unknown as GolfCourse);
     showToast("수정 완료");
     setTimeout(closeGolfModal, 500);
+    router.refresh();
   };
 
   return (
@@ -211,6 +214,7 @@ export function GolfDetailClient({
         open={editGolfOpen}
         onClose={closeGolfModal}
         onSaved={handleGolfSaved}
+        dynamicLabels={dynamicLabels}
       />
 
       <Toast message={message} visible={visible} />

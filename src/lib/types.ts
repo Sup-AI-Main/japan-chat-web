@@ -214,6 +214,85 @@ export interface ContentSection {
 }
 
 // Concurrency control error
+
+// Form Payload types — explicit typed contracts for admin CRUD
+export interface HotelFormPayload {
+  id?: string;
+  area: string;
+  display_name: string;
+  name_kr: string;
+  name_jp: string;
+  address: string;
+  address_kr: string;
+  address_jp: string;
+  phone: string;
+  google_maps_url: string;
+  checkin_time: string;
+  checkout_time: string;
+  breakfast_place: string;
+  breakfast_time: string;
+  breakfast_last_entry: string;
+  dinner_place: string;
+  dinner_time: string;
+  dinner_last_entry: string;
+  has_public_bath: boolean;
+  has_outdoor_onsen: boolean;
+  has_sauna: boolean;
+  bath_spa_hours: string;
+  tattoo_policy: string;
+  other_info: string;
+  atm_payment: string;
+  transport: string;
+  transport_note: string;
+  official_name: string;
+  active?: string;
+  sort?: string;
+}
+
+export interface GolfFormPayload {
+  id?: string;
+  area: string;
+  display_name: string;
+  official_name: string;
+  address: string;
+  phone: string;
+  course_summary: string;
+  play_cart: string;
+  clubhouse_dining: string;
+  bath_shower: string;
+  rental: string;
+  dress_code: string;
+  google_maps_url: string;
+  active?: string;
+  sort?: string;
+}
+
+export interface RestaurantFormPayload {
+  id?: string;
+  area: string;
+  name_kr: string;
+  name_jp: string;
+  category: string;
+  menu_kr: string;
+  menu_jp: string;
+  menu_price: string;
+  address: string;
+  hours: string;
+  closed_days: string;
+  distance_km: string;
+  drive_minutes: string;
+  walk_minutes: string;
+  phone: string;
+  price_range: string;
+  google_maps_url: string;
+  description: string;
+  recommended: boolean;
+  near_type: "HOTEL" | "GOLF" | "AREA";
+  near_id: string;
+  active?: string;
+  sort?: string;
+}
+
 export class ConflictError extends Error {
   constructor(message = "다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 불러와 주세요.") {
     super(message);

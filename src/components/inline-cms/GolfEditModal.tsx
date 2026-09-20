@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { EditModalShell } from "./EditModalShell";
+import {
+  type DynamicLabelsResult,
+  getSectionLabel,
+  getFieldLabel,
+  isSectionVisible,
+  isFieldActive,
+  isFieldRequired,
+} from "@/lib/dynamic-labels";
 
 interface GolfData {
   id?: string;
@@ -32,12 +40,69 @@ const EMPTY_GOLF: GolfData = {
   google_maps_url: "",
 };
 
+const SECTIONS = [
+  {
+    sectionKey: "basic_info",
+    fallbackTitle: "기본 정보",
+    fields: [
+      { fieldKey: "display_name", formKey: "display_name" as const, fallback: "표시명", placeholder: "골프장 표시 이름" },
+      { fieldKey: "official_name", formKey: "official_name" as const, fallback: "공식명", placeholder: "골프장 공식 이름" },
+      { fieldKey: "address", formKey: "address" as const, fallback: "주소", placeholder: "주소" },
+      { fieldKey: "phone", formKey: "phone" as const, fallback: "전화번호", placeholder: "000-000-0000" },
+      { fieldKey: "google_maps_url", formKey: "google_maps_url" as const, fallback: "Google Maps URL", placeholder: "https://maps.google.com/..." },
+    ],
+  },
+  {
+    sectionKey: "description",
+    fallbackTitle: "코스 정보",
+    fields: [
+      { fieldKey: "course_summary", formKey: "course_summary" as const, fallback: "코스 안내", placeholder: "코스 요약" },
+    ],
+  },
+  {
+    sectionKey: "play_cart",
+    fallbackTitle: "플레이/카트",
+    fields: [
+      { fieldKey: "play_cart", formKey: "play_cart" as const, fallback: "플레이/카트", placeholder: "카트 필수, 전동카트" },
+    ],
+  },
+  {
+    sectionKey: "clubhouse",
+    fallbackTitle: "클럽하우스 식사",
+    fields: [
+      { fieldKey: "clubhouse_dining", formKey: "clubhouse_dining" as const, fallback: "클럽하우스 식사", placeholder: "식사 가능" },
+    ],
+  },
+  {
+    sectionKey: "bath_shower",
+    fallbackTitle: "목욕/샤워",
+    fields: [
+      { fieldKey: "bath_shower", formKey: "bath_shower" as const, fallback: "목욕/샤워", placeholder: "샤워실 있음" },
+    ],
+  },
+  {
+    sectionKey: "rental",
+    fallbackTitle: "렌탈 골프채",
+    fields: [
+      { fieldKey: "rental", formKey: "rental" as const, fallback: "렌탈 골프채", placeholder: "클럽 렌탈 가능" },
+    ],
+  },
+  {
+    sectionKey: "dress_code",
+    fallbackTitle: "복장",
+    fields: [
+      { fieldKey: "dress_code", formKey: "dress_code" as const, fallback: "복장 규정", placeholder: "collar 있는 셔츠 필수" },
+    ],
+  },
+];
+
 interface GolfEditModalProps {
   golf: GolfData | null;
   area: string;
   open: boolean;
   onClose: () => void;
-  onSaved: (golf: GolfData) => void;
+  onSaved: (saved: Record<string, unknown>) => void;
+  dynamicLabels?: DynamicLabelsResult;
 }
 
 function InputField({
@@ -67,7 +132,9 @@ function InputField({
   );
 }
 
-export function GolfEditModal({ golf, area, open, onClose, onSaved }: GolfEditModalProps) {
+export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabels }: GolfEditModalProps) {
+  const L: DynamicLabelsResult = dynamicLabels ?? { sections: [], fieldMap: {} };
+
   const [form, setForm] = useState<GolfData>(EMPTY_GOLF);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -85,8 +152,25 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved }: GolfEditMo
   };
 
   const handleSave = async () => {
-    setSaving(true);
     setError("");
+
+    // Validate required fields
+    for (const section of SECTIONS) {
+      if (!isSectionVisible(L, section.sectionKey)) continue;
+      for (const field of section.fields) {
+        if (!isFieldActive(L, field.fieldKey)) continue;
+        if (isFieldRequired(L, field.fieldKey)) {
+          const value = form[field.formKey];
+          if (!value || value.trim() === "") {
+            const label = getFieldLabel(L, field.fieldKey, field.fallback);
+            setError(`"${label}" 항목은 필수입니다.`);
+            return;
+          }
+        }
+      }
+    }
+
+    setSaving(true);
 
     try {
       const isEdit = !!golf?.id;
@@ -129,30 +213,28 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved }: GolfEditMo
       saving={saving}
       error={error}
     >
-      {/* 기본 정보 */}
-      <div className="mb-6">
-        <h3 className="text-[15px] font-bold text-text mb-3">기본 정보</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="표시명" value={form.display_name} onChange={(v) => update("display_name", v)} placeholder="골프장 표시 이름" />
-          <InputField label="공식명" value={form.official_name} onChange={(v) => update("official_name", v)} placeholder="골프장 공식 이름" />
-          <InputField label="주소" value={form.address} onChange={(v) => update("address", v)} placeholder="주소" />
-          <InputField label="전화번호" value={form.phone} onChange={(v) => update("phone", v)} placeholder="000-000-0000" />
-          <InputField label="Google Maps URL" value={form.google_maps_url} onChange={(v) => update("google_maps_url", v)} placeholder="https://maps.google.com/..." />
-        </div>
-      </div>
-
-      {/* 코스 정보 */}
-      <div className="mb-2">
-        <h3 className="text-[15px] font-bold text-text mb-3">코스 정보</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-          <InputField label="코스 안내" value={form.course_summary} onChange={(v) => update("course_summary", v)} placeholder="코스 요약" />
-          <InputField label="플레이/카트" value={form.play_cart} onChange={(v) => update("play_cart", v)} placeholder="카트 필수, 전동카트" />
-          <InputField label="클럽하우스 식사" value={form.clubhouse_dining} onChange={(v) => update("clubhouse_dining", v)} placeholder="식사 가능" />
-          <InputField label="목욕/샤워" value={form.bath_shower} onChange={(v) => update("bath_shower", v)} placeholder="샤워실 있음" />
-          <InputField label="렌탈" value={form.rental} onChange={(v) => update("rental", v)} placeholder="클럽 렌탈 가능" />
-          <InputField label="복장 규정" value={form.dress_code} onChange={(v) => update("dress_code", v)} placeholder="collar 있는 셔츠 필수" />
-        </div>
-      </div>
+      {SECTIONS.filter((s) => isSectionVisible(L, s.sectionKey)).map((section) => {
+        const visibleFields = section.fields.filter((f) => isFieldActive(L, f.fieldKey));
+        if (visibleFields.length === 0) return null;
+        return (
+          <div key={section.sectionKey} className="mb-6">
+            <h3 className="text-[15px] font-bold text-text mb-3">
+              {getSectionLabel(L, section.sectionKey, section.fallbackTitle)}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
+              {visibleFields.map((field) => (
+                <InputField
+                  key={field.fieldKey}
+                  label={getFieldLabel(L, field.fieldKey, field.fallback) + (isFieldRequired(L, field.fieldKey) ? " *" : "")}
+                  value={form[field.formKey]}
+                  onChange={(v) => update(field.formKey, v)}
+                  placeholder={field.placeholder}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </EditModalShell>
   );
 }
