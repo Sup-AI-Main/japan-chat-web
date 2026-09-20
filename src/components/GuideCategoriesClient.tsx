@@ -194,7 +194,7 @@ function CategoryCreateModal({
     updateStep("route_verify", "running");
     try {
       const routeRes = await fetch(`/guide/${createdOption!.code.toLowerCase()}`, {
-        method: "HEAD",
+        method: "GET",
         cache: "no-store",
       });
       if (!routeRes.ok) {
