@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getRestaurants, getRestaurantById, appendRestaurant, updateRestaurant, deleteRestaurantRow, validateRequiredFields } from "@/lib/supabase-cms";
+import { getRestaurants, appendRestaurant, updateRestaurant, deleteRestaurantRow, validateRequiredFields, getRestaurantByEntityIdAdmin } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -37,11 +37,12 @@ export async function POST(req: NextRequest) {
       revalidatePath("/[area]/restaurant/[id]", "page");
     }
     // Return canonical persisted row from DB
-    let canonicalRestaurant = null;
-    try {
-      canonicalRestaurant = await getRestaurantById(slug);
-    } catch { /* fallback to basic response */ }
-    return created({ id, slug, restaurant: canonicalRestaurant || { id, slug } });
+    const canonicalRestaurant = await getRestaurantByEntityIdAdmin(id);
+    if (!canonicalRestaurant) {
+      console.error("[RESTAURANT_CANONICAL_READ_FAILED]", id);
+      return serverError(new Error("Restaurant created but canonical read failed"));
+    }
+    return created({ id, slug, restaurant: canonicalRestaurant });
   } catch (err) {
     return serverError(err);
   }
@@ -67,23 +68,12 @@ export async function PUT(req: NextRequest) {
       revalidatePath("/[area]/restaurant/[id]", "page");
     }
     // Return canonical persisted row from DB
-    let canonicalRestaurant = null;
-    try {
-      canonicalRestaurant = await getRestaurantById(id as string);
-    } catch { /* fallback: try by slug from entity */ }
+    const canonicalRestaurant = await getRestaurantByEntityIdAdmin(id as string);
     if (!canonicalRestaurant) {
-      // Try re-querying slug from DB
-      const { getSupabaseServer } = await import("@/lib/supabase/server");
-      const { data: entity } = await getSupabaseServer()
-        .from('entities')
-        .select('slug')
-        .eq('id', id as string)
-        .single();
-      if (entity?.slug) {
-        try { canonicalRestaurant = await getRestaurantById(entity.slug); } catch { /* give up */ }
-      }
+      console.error("[RESTAURANT_CANONICAL_READ_FAILED]", id);
+      return serverError(new Error("Restaurant updated but canonical read failed"));
     }
-    return ok({ success, restaurant: canonicalRestaurant || { id } });
+    return ok({ success, restaurant: canonicalRestaurant });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);

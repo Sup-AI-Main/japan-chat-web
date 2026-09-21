@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getGolfCourses, getGolfCourseById, appendGolfCourse, updateGolfCourse, deleteGolfCourse, validateRequiredFields } from "@/lib/supabase-cms";
-import { getSupabaseServer } from "@/lib/supabase/server";
+import { getGolfCourses, appendGolfCourse, updateGolfCourse, deleteGolfCourse, validateRequiredFields, getGolfCourseByEntityIdAdmin } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -38,11 +37,12 @@ export async function POST(req: NextRequest) {
       revalidatePath("/[area]/golf/[id]", "page");
     }
     // Return canonical persisted row from DB
-    let canonicalCourse = null;
-    try {
-      canonicalCourse = await getGolfCourseById(slug);
-    } catch { /* fallback to basic response */ }
-    return created({ id, slug, course: canonicalCourse || { id, slug } });
+    const canonicalCourse = await getGolfCourseByEntityIdAdmin(id);
+    if (!canonicalCourse) {
+      console.error("[GOLF_CANONICAL_READ_FAILED]", id);
+      return serverError(new Error("Golf course created but canonical read failed"));
+    }
+    return created({ id, slug, course: canonicalCourse });
   } catch (err) {
     return serverError(err);
   }
@@ -67,19 +67,13 @@ export async function PUT(req: NextRequest) {
       revalidatePath("/[area]/golf/[id]", "page");
     }
     if (!success) return notFound("Golf course not found");
-    // Return canonical persisted row from DB (resolve slug from entity UUID)
-    let canonicalCourse = null;
-    try {
-      const { data: entity } = await getSupabaseServer()
-        .from('entities')
-        .select('slug')
-        .eq('id', id)
-        .single();
-      if (entity?.slug) {
-        canonicalCourse = await getGolfCourseById(entity.slug);
-      }
-    } catch { /* fallback to basic response */ }
-    return ok({ success, course: canonicalCourse || { id } });
+    // Return canonical persisted row from DB
+    const canonicalCourse = await getGolfCourseByEntityIdAdmin(id);
+    if (!canonicalCourse) {
+      console.error("[GOLF_CANONICAL_READ_FAILED]", id);
+      return serverError(new Error("Golf course updated but canonical read failed"));
+    }
+    return ok({ success, course: canonicalCourse });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);

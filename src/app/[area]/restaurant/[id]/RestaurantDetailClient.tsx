@@ -8,7 +8,7 @@ import { useToast, Toast } from "@/components/Toast";
 import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection, IncludeExcludeSummary } from "@/components/inline-cms";
 import type { Restaurant, ContentSection, IncludeExclude, FaqItem } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
-import { getFieldLabel } from "@/lib/dynamic-labels";
+import { getFieldLabel, getSectionLabel, isSectionVisible } from "@/lib/dynamic-labels";
 
 interface NearOption {
   id: string;
@@ -44,6 +44,7 @@ export default function RestaurantDetailClient({
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
   const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
+  const sectionVisible = (key: string) => isSectionVisible(L, key);
 
   const closeEditModal = useCallback(() => {
     setEditModal(false);
@@ -159,7 +160,7 @@ export default function RestaurantDetailClient({
         )}
 
         {/* Category badge */}
-        {restaurant.category && (
+        {restaurant.category && sectionVisible("basic_info") && (
           <span className="inline-block text-[13px] text-primary bg-primary/10 px-2 py-0.5 rounded-[6px] mb-4">
             {restaurant.category}
           </span>
@@ -167,7 +168,7 @@ export default function RestaurantDetailClient({
 
         <div className="space-y-3">
           {/* 대표 메뉴 */}
-          {(restaurant.menu_kr || restaurant.menu_jp) && (
+          {(restaurant.menu_kr || restaurant.menu_jp) && sectionVisible("menu") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("menu_kr", "대표 메뉴")}</h3>
               <p className="text-[15px] text-text">
@@ -183,7 +184,7 @@ export default function RestaurantDetailClient({
           )}
 
           {/* 주소 + Google Maps */}
-          {restaurant.address && (
+          {restaurant.address && sectionVisible("address") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("address", "주소")}</h3>
               <p className="text-[15px] text-text">{restaurant.address}</p>
@@ -201,7 +202,7 @@ export default function RestaurantDetailClient({
           )}
 
           {/* 영업시간 */}
-          {restaurant.hours && (
+          {restaurant.hours && sectionVisible("hours") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("hours", "영업시간")}</h3>
               <p className="text-[15px] text-text">{restaurant.hours}</p>
@@ -209,7 +210,7 @@ export default function RestaurantDetailClient({
           )}
 
           {/* 휴무일 */}
-          {restaurant.closed_days && (
+          {restaurant.closed_days && sectionVisible("closed_days") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("closed_days", "휴무일")}</h3>
               <p className="text-[15px] text-text">{restaurant.closed_days}</p>
@@ -217,15 +218,15 @@ export default function RestaurantDetailClient({
           )}
 
           {/* 거리 */}
-          {displayDistance && (
+          {displayDistance && sectionVisible("distance") && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">거리</h3>
+              <h3 className="text-[15px] font-bold text-text">{getSectionLabel(L, "distance", "거리")}</h3>
               <p className="text-[15px] text-text">{displayDistance}</p>
             </div>
           )}
 
           {/* 가격대 */}
-          {restaurant.price_range && (
+          {restaurant.price_range && sectionVisible("price_range") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("price_range", "가격대")}</h3>
               <p className="text-[15px] text-text">{restaurant.price_range}</p>
@@ -233,7 +234,7 @@ export default function RestaurantDetailClient({
           )}
 
           {/* 전화 */}
-          {restaurant.phone && (
+          {restaurant.phone && sectionVisible("phone") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("phone", "전화")}</h3>
               <a
@@ -246,7 +247,7 @@ export default function RestaurantDetailClient({
           )}
 
           {/* 설명 */}
-          {restaurant.description && (
+          {restaurant.description && sectionVisible("other_info") && (
             <div>
               <h3 className="text-[15px] font-bold text-text">{fieldLabel("description", "설명")}</h3>
               <p className="text-[15px] text-text leading-relaxed">

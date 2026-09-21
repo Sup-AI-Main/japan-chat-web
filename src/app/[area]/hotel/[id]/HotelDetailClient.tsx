@@ -155,19 +155,19 @@ export function HotelDetailClient({
           <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
             <h2 className="text-[16px] font-bold text-text mb-3">{sectionLabel("basic_info", "기본 정보")}</h2>
             <div className="space-y-2">
-              {hotel.checkin_time && (
+              {hotel.checkin_time && sectionVisible("checkin") && (
                 <div className="flex">
                   <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("checkin_time", "체크인")}</span>
                   <span className="text-[15px] text-text">{hotel.checkin_time}</span>
                 </div>
               )}
-              {hotel.checkout_time && (
+              {hotel.checkout_time && sectionVisible("checkout") && (
                 <div className="flex">
                   <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("checkout_time", "체크아웃")}</span>
                   <span className="text-[15px] text-text">{hotel.checkout_time}</span>
                 </div>
               )}
-              {addressMain && (
+              {addressMain && sectionVisible("address") && (
                 <div className="flex">
                   <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("address", "주소")}</span>
                   <div>
@@ -178,13 +178,13 @@ export function HotelDetailClient({
                   </div>
                 </div>
               )}
-              {hotel.phone && (
+              {hotel.phone && sectionVisible("phone") && (
                 <div className="flex">
                   <span className="text-[14px] text-muted w-[80px] shrink-0">{fieldLabel("phone", "전화")}</span>
                   <span className="text-[15px] text-text">{hotel.phone}</span>
                 </div>
               )}
-              {hotel.google_maps_url && (
+              {hotel.google_maps_url && sectionVisible("address") && (
                 <a
                   href={hotel.google_maps_url}
                   target="_blank"

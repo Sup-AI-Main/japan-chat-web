@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getHotels, getHotelById, appendHotel, updateHotel, deleteHotel, validateRequiredFields } from "@/lib/supabase-cms";
-import { getSupabaseServer } from "@/lib/supabase/server";
+import { getHotels, appendHotel, updateHotel, deleteHotel, validateRequiredFields, getHotelByEntityIdAdmin } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -38,11 +37,12 @@ export async function POST(req: NextRequest) {
       revalidatePath("/[area]/hotel/[id]", "page");
     }
     // Return canonical persisted row from DB
-    let canonicalHotel = null;
-    try {
-      canonicalHotel = await getHotelById(slug);
-    } catch { /* fallback to basic response */ }
-    return created({ id, slug, hotel: canonicalHotel || { id, slug } });
+    const canonicalHotel = await getHotelByEntityIdAdmin(id);
+    if (!canonicalHotel) {
+      console.error("[HOTEL_CANONICAL_READ_FAILED]", id);
+      return serverError(new Error("Hotel created but canonical read failed"));
+    }
+    return created({ id, slug, hotel: canonicalHotel });
   } catch (err) {
     return serverError(err);
   }
@@ -67,19 +67,13 @@ export async function PUT(req: NextRequest) {
       revalidatePath(`/${area.toLowerCase()}/hotel`);
       revalidatePath("/[area]/hotel/[id]", "page");
     }
-    // Return canonical persisted row from DB (resolve slug from entity UUID)
-    let canonicalHotel = null;
-    try {
-      const { data: entity } = await getSupabaseServer()
-        .from('entities')
-        .select('slug')
-        .eq('id', id)
-        .single();
-      if (entity?.slug) {
-        canonicalHotel = await getHotelById(entity.slug);
-      }
-    } catch { /* fallback to basic response */ }
-    return ok({ success, hotel: canonicalHotel || { id } });
+    // Return canonical persisted row from DB
+    const canonicalHotel = await getHotelByEntityIdAdmin(id);
+    if (!canonicalHotel) {
+      console.error("[HOTEL_CANONICAL_READ_FAILED]", id);
+      return serverError(new Error("Hotel updated but canonical read failed"));
+    }
+    return ok({ success, hotel: canonicalHotel });
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);

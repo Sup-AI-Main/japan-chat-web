@@ -17,6 +17,7 @@ import type {
   ContentSection,
 } from './types';
 import { ConflictError } from './types';
+import { randomBytes } from 'node:crypto';
 
 // ---------------------------------------------------------------------------
 // Server-side required field validation
@@ -137,13 +138,9 @@ function isActive(v: unknown): boolean {
   return false;
 }
 
-/** Generate a unique slug: {area}_{entityType}_{random8hex} */
+/** Generate a unique slug candidate: {area}_{entityType}_{random8hex} using crypto */
 function generateUniqueSlug(area: string, entityType: string): string {
-  const chars = '0123456789abcdef';
-  let rand = '';
-  for (let i = 0; i < 8; i++) {
-    rand += chars[Math.floor(Math.random() * 16)];
-  }
+  const rand = randomBytes(4).toString('hex');
   return `${area.toLowerCase()}_${entityType.toLowerCase()}_${rand}`;
 }
 
@@ -630,26 +627,46 @@ export async function appendGolfCourse(
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
-  // Server-side unique slug — never derived from user input
-  const slug = generateUniqueSlug(data.area || '', 'golf');
+  // Insert entity with slug collision retry
+  let entity: { id: string } | null = null;
+  let currentSlug = generateUniqueSlug(data.area || '', 'golf');
+  const MAX_SLUG_RETRIES = 5;
 
-  // Insert entity
-  const { data: entity, error: entityError } = await adminDb()
-    .from('entities')
-    .insert({
-      slug,
-      entity_type: 'GOLF',
-      area_id: areaId,
-      display_name: data.display_name || '',
-      active: isActive(data.active),
-      sort: parseInt(data.sort || '999') || 999,
-    })
-    .select('id')
-    .single();
-  if (entityError) {
-    logError('INSERT', 'entities', slug, entityError);
+  for (let attempt = 0; attempt < MAX_SLUG_RETRIES; attempt++) {
+    const { data: inserted, error: entityError } = await adminDb()
+      .from('entities')
+      .insert({
+        slug: currentSlug,
+        entity_type: 'GOLF',
+        area_id: areaId,
+        display_name: data.display_name || '',
+        active: isActive(data.active),
+        sort: parseInt(data.sort || '999') || 999,
+      })
+      .select('id')
+      .single();
+
+    if (!entityError) {
+      entity = inserted;
+      break;
+    }
+
+    // Only retry on slug unique violation (23505 + entities_slug_key)
+    if (entityError.code === '23505' && entityError.message?.includes('entities_slug_key')) {
+      currentSlug = generateUniqueSlug(data.area || '', 'golf');
+      continue;
+    }
+
+    // Other errors: throw immediately
+    logError('INSERT', 'entities', currentSlug, entityError);
     throw entityError;
   }
+
+  if (!entity) {
+    throw new Error(`Failed to generate unique slug after ${MAX_SLUG_RETRIES} attempts`);
+  }
+
+  const slug = currentSlug;
 
   // Insert golf_course
   const { error: golfError } = await adminDb()
@@ -1100,30 +1117,49 @@ export async function appendHotel(
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
-  // Server-side unique slug — never derived from user input
-  const slug = generateUniqueSlug(data.area || '', 'hotel');
-
   // Map client form fields → DB columns
   const displayName = data.name_kr ?? data.display_name ?? '';
   const address = data.address_kr ?? data.address ?? '';
   const transportNote = data.transport ?? data.transport_note ?? '';
 
-  const { data: entity, error: entityError } = await adminDb()
-    .from('entities')
-    .insert({
-      slug,
-      entity_type: 'HOTEL',
-      area_id: areaId,
-      display_name: displayName,
-      active: isActive(data.active),
-      sort: parseInt(data.sort || '999') || 999,
-    })
-    .select('id')
-    .single();
-  if (entityError) {
-    logError('INSERT', 'entities', slug, entityError);
+  // Insert entity with slug collision retry
+  let entity: { id: string } | null = null;
+  let currentSlug = generateUniqueSlug(data.area || '', 'hotel');
+  const MAX_SLUG_RETRIES = 5;
+
+  for (let attempt = 0; attempt < MAX_SLUG_RETRIES; attempt++) {
+    const { data: inserted, error: entityError } = await adminDb()
+      .from('entities')
+      .insert({
+        slug: currentSlug,
+        entity_type: 'HOTEL',
+        area_id: areaId,
+        display_name: displayName,
+        active: isActive(data.active),
+        sort: parseInt(data.sort || '999') || 999,
+      })
+      .select('id')
+      .single();
+
+    if (!entityError) {
+      entity = inserted;
+      break;
+    }
+
+    if (entityError.code === '23505' && entityError.message?.includes('entities_slug_key')) {
+      currentSlug = generateUniqueSlug(data.area || '', 'hotel');
+      continue;
+    }
+
+    logError('INSERT', 'entities', currentSlug, entityError);
     throw entityError;
   }
+
+  if (!entity) {
+    throw new Error(`Failed to generate unique slug after ${MAX_SLUG_RETRIES} attempts`);
+  }
+
+  const slug = currentSlug;
 
   const { error: hotelError } = await adminDb()
     .from('hotels')
@@ -1593,6 +1629,140 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
   );
 }
 
+// ---------------------------------------------------------------------------
+// Admin canonical read helpers (no active filter, includes inactive entities)
+// ---------------------------------------------------------------------------
+
+export async function getHotelByEntityIdAdmin(entityId: string): Promise<Hotel | null> {
+  const { data, error } = await adminDb()
+    .from('hotels')
+    .select(
+      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+    )
+    .eq('entity_id', entityId)
+    .maybeSingle();
+  if (error) {
+    logError('READ_ADMIN', 'hotels', entityId, error);
+    throw error;
+  }
+  if (!data) return null;
+  const ent = data.entities as unknown as EntityRow & { areas: { code: string } };
+  const areaCode = ent.areas?.code || '';
+  const { entities: _ent, ...hotelFields } = data;
+  return mapHotel(ent, hotelFields, areaCode);
+}
+
+export async function getGolfCourseByEntityIdAdmin(entityId: string): Promise<GolfCourse | null> {
+  const { data, error } = await adminDb()
+    .from('golf_courses')
+    .select(
+      'entity_id, official_name, address, phone, course_summary, play_cart, clubhouse_dining, bath_shower, rental, dress_code, google_maps_url, source_url, status, last_verified, product_reference_minutes, travel_time_note, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+    )
+    .eq('entity_id', entityId)
+    .maybeSingle();
+  if (error) {
+    logError('READ_ADMIN', 'golf_courses', entityId, error);
+    throw error;
+  }
+  if (!data) return null;
+  const ent = data.entities as unknown as EntityRow & { areas: { code: string } };
+  const areaCode = ent.areas?.code || '';
+  const { entities: _ent, ...golfFields } = data;
+  return mapGolfCourse(ent, golfFields, areaCode);
+}
+
+export async function getRestaurantByEntityIdAdmin(entityId: string): Promise<Restaurant | null> {
+  const { data: entity, error: findError } = await adminDb()
+    .from('entities')
+    .select(
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
+    )
+    .eq('id', entityId)
+    .eq('entity_type', 'RESTAURANT')
+    .maybeSingle();
+  if (findError) {
+    logError('READ_ADMIN', 'entities', entityId, findError);
+    throw findError;
+  }
+  if (!entity) return null;
+
+  const areaCode = (entity.areas as unknown as { code: string })?.code || '';
+  const rawRest = entity.restaurants;
+  const restData =
+    ((Array.isArray(rawRest) ? rawRest[0] : rawRest) as Record<string, unknown>) || {};
+
+  // Get ALL near relationships
+  const { data: rawLocations } = await adminDb()
+    .from('restaurant_locations')
+    .select(
+      'id, distance_text, distance_km, drive_minutes, walk_minutes, sort, near:entities!near_entity_id(id, slug, display_name, entity_type)'
+    )
+    .eq('restaurant_entity_id', entity.id)
+    .order('sort');
+
+  const locRows = rawLocations || [];
+  const firstLoc = locRows[0];
+  const near = firstLoc?.near as unknown as EntityRow | undefined;
+  const nearType =
+    near?.entity_type === 'GOLF'
+      ? 'GOLF'
+      : near?.entity_type === 'HOTEL'
+        ? 'HOTEL'
+        : near
+          ? near.entity_type
+          : 'AREA';
+
+  const locations: import('@/lib/types').RestaurantLocation[] = locRows.map((loc) => {
+    const locNear = loc.near as unknown as
+      | { id: string; slug: string; display_name: string; entity_type: string }
+      | undefined;
+    const scope =
+      locNear?.entity_type === 'GOLF'
+        ? ('GOLF' as const)
+        : locNear?.entity_type === 'HOTEL'
+          ? ('HOTEL' as const)
+          : ('AREA' as const);
+    return {
+      id: loc.id as string,
+      scope,
+      near_entity_id: locNear?.id || null,
+      near_entity_slug: locNear?.slug || null,
+      near_entity_name: locNear?.display_name || null,
+      distance_text: (loc.distance_text as string) || null,
+      distance_km: loc.distance_km != null ? Number(loc.distance_km) : null,
+      drive_minutes: (loc.drive_minutes as number) ?? null,
+      walk_minutes: (loc.walk_minutes as number) ?? null,
+      sort: (loc.sort as number) || 0,
+    };
+  });
+
+  // Fetch name_jp from entity_field_values
+  let nameJp = '';
+  const { data: fvRows } = await adminDb()
+    .from('entity_field_values')
+    .select('value_text, field_definition:field_definitions!inner(field_key)')
+    .eq('entity_id', entity.id)
+    .eq('field_definitions.field_key', 'rest_name_jp')
+    .maybeSingle();
+  if (fvRows) {
+    nameJp = (fvRows.value_text as string) || '';
+  }
+
+  return mapRestaurant(
+    entity as unknown as EntityRow,
+    restData,
+    areaCode,
+    nearType,
+    near?.slug || '',
+    (firstLoc?.distance_text as string) || '',
+    firstLoc?.distance_km != null ? String(firstLoc.distance_km) : '',
+    firstLoc?.drive_minutes != null ? String(firstLoc.drive_minutes) : '',
+    firstLoc?.walk_minutes != null ? String(firstLoc.walk_minutes) : '',
+    locations,
+    nameJp
+  );
+}
+
 export async function appendRestaurant(
   data: Record<string, unknown>
 ): Promise<{ id: string; slug: string }> {
@@ -1602,8 +1772,6 @@ export async function appendRestaurant(
   if (!areaId) {
     throw new Error(`Area not found: ${areaCode}`);
   }
-
-  const slug = generateUniqueSlug(areaCode, 'restaurant');
 
   const payload: Record<string, unknown> = { ...data };
 
@@ -1615,27 +1783,35 @@ export async function appendRestaurant(
     payload.active = isActive(data.active);
   }
 
-  const { data: created, error } = await adminDb().rpc('admin_create_restaurant_full', {
-    p_area_id: areaId,
-    p_slug: slug,
-    p_payload: payload,
-  });
+  const MAX_SLUG_RETRIES = 5;
+  let currentSlug = generateUniqueSlug(areaCode, 'restaurant');
 
-  if (error) {
-    logError('INSERT', 'restaurants', slug, error);
+  for (let attempt = 0; attempt < MAX_SLUG_RETRIES; attempt++) {
+    const { data: created, error } = await adminDb().rpc('admin_create_restaurant_full', {
+      p_area_id: areaId,
+      p_slug: currentSlug,
+      p_payload: payload,
+    });
+
+    if (!error) {
+      const row = created as { id?: string; slug?: string } | null;
+      if (!row?.id || !row?.slug) {
+        throw new Error('Restaurant atomic create returned invalid result');
+      }
+      return { id: row.id, slug: row.slug };
+    }
+
+    // Only retry on slug unique violation
+    if (error.code === '23505' && error.message?.includes('entities_slug_key')) {
+      currentSlug = generateUniqueSlug(areaCode, 'restaurant');
+      continue;
+    }
+
+    logError('INSERT', 'restaurants', currentSlug, error);
     throw error;
   }
 
-  const row = created as { id?: string; slug?: string } | null;
-
-  if (!row?.id || !row?.slug) {
-    throw new Error('Restaurant atomic create returned invalid result');
-  }
-
-  return {
-    id: row.id,
-    slug: row.slug,
-  };
+  throw new Error(`Failed to generate unique slug after ${MAX_SLUG_RETRIES} attempts`);
 }
 
 export async function updateRestaurant(

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { GolfCourse, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
-import { getFieldLabel } from "@/lib/dynamic-labels";
+import { getFieldLabel, getSectionLabel, isSectionVisible } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast, Toast } from "@/components/Toast";
@@ -43,6 +43,7 @@ export function GolfDetailClient({
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
   const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
+  const sectionVisible = (key: string) => isSectionVisible(L, key);
 
   const closeGolfModal = useCallback(() => {
     setEditGolfOpen(false);
@@ -91,6 +92,7 @@ export function GolfDetailClient({
           )}
 
           {/* Address & Phone */}
+          {sectionVisible("basic_info") && (
           <div className="space-y-2 mb-6">
             {course.address && (
               <p className="text-[15px] text-text">
@@ -110,40 +112,41 @@ export function GolfDetailClient({
               </div>
             )}
           </div>
+          )}
 
           {/* Golf Detail Fields */}
           <div className="space-y-3 mb-6">
-            {course.course_summary && (
+            {course.course_summary && sectionVisible("description") && (
               <div>
                 <h3 className="text-[15px] font-bold text-text">{fieldLabel("course_summary", "코스 요약")}</h3>
                 <p className="text-[15px] text-text leading-relaxed">{course.course_summary}</p>
               </div>
             )}
-            {course.play_cart && (
+            {course.play_cart && sectionVisible("play_cart") && (
               <div>
                 <h3 className="text-[15px] font-bold text-text">{fieldLabel("play_cart", "플레이/카트")}</h3>
                 <p className="text-[15px] text-text leading-relaxed">{course.play_cart}</p>
               </div>
             )}
-            {course.clubhouse_dining && (
+            {course.clubhouse_dining && sectionVisible("clubhouse") && (
               <div>
                 <h3 className="text-[15px] font-bold text-text">{fieldLabel("clubhouse_dining", "클럽하우스 식사")}</h3>
                 <p className="text-[15px] text-text leading-relaxed">{course.clubhouse_dining}</p>
               </div>
             )}
-            {course.bath_shower && (
+            {course.bath_shower && sectionVisible("bath_shower") && (
               <div>
                 <h3 className="text-[15px] font-bold text-text">{fieldLabel("bath_shower", "욕실/샤워")}</h3>
                 <p className="text-[15px] text-text leading-relaxed">{course.bath_shower}</p>
               </div>
             )}
-            {course.rental && (
+            {course.rental && sectionVisible("rental") && (
               <div>
                 <h3 className="text-[15px] font-bold text-text">{fieldLabel("rental", "대여")}</h3>
                 <p className="text-[15px] text-text leading-relaxed">{course.rental}</p>
               </div>
             )}
-            {course.dress_code && (
+            {course.dress_code && sectionVisible("dress_code") && (
               <div>
                 <h3 className="text-[15px] font-bold text-text">{fieldLabel("dress_code", "드레스코드")}</h3>
                 <p className="text-[15px] text-text leading-relaxed">{course.dress_code}</p>

@@ -326,8 +326,8 @@ export function RestaurantEditModal({
         );
       })}
 
-      {/* Distance section (always visible) */}
-      {(() => {
+      {/* Distance section */}
+      {isSectionVisible(L, DISTANCE_SECTION.sectionKey) && (() => {
         const distFields = DISTANCE_SECTION.fields.filter((f) => isFieldActive(L, f.fieldKey));
         if (distFields.length === 0) return null;
         return (
@@ -353,8 +353,8 @@ export function RestaurantEditModal({
         );
       })()}
 
-      {/* Connection info section (always visible, special selects) */}
-      {(isFieldActive(L, "near_type") || isFieldActive(L, "near_id")) && (
+      {/* Connection info section */}
+      {isSectionVisible(L, NEARBY_SECTION.sectionKey) && (isFieldActive(L, "near_type") || isFieldActive(L, "near_id")) && (
         <div className="mb-2">
           <h3 className="text-[15px] font-bold text-text mb-3">
             {getSectionLabel(L, NEARBY_SECTION.sectionKey, NEARBY_SECTION.fallbackTitle)}

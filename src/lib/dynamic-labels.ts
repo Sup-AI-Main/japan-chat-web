@@ -99,8 +99,8 @@ export async function getDynamicLabels(entityType: string): Promise<DynamicLabel
   const type = entityType.toUpperCase();
   const db = getSupabaseServer();
 
-  // Fetch sections and fields in parallel
-  const [sectionsRes, fieldsRes] = await Promise.allSettled([
+  // Fetch sections and fields in parallel - both are source-of-truth
+  const [sectionsRes, fieldsRes] = await Promise.all([
     db
       .from("section_definitions")
       .select("id, entity_type, section_key, label_ko, label_ja, sort, is_visible")
@@ -113,8 +113,18 @@ export async function getDynamicLabels(entityType: string): Promise<DynamicLabel
       .order("sort"),
   ]);
 
-  const dbSections = sectionsRes.status === "fulfilled" ? sectionsRes.value.data || [] : [];
-  const dbFields = fieldsRes.status === "fulfilled" ? fieldsRes.value.data || [] : [];
+  // Check for query errors - fail loudly
+  if (sectionsRes.error) {
+    console.error("[DYNAMIC_LABELS_SECTION_QUERY_FAIL]", type, sectionsRes.error);
+    throw new Error(`Failed to load section definitions for ${type}: ${sectionsRes.error.message}`);
+  }
+  if (fieldsRes.error) {
+    console.error("[DYNAMIC_LABELS_FIELD_QUERY_FAIL]", type, fieldsRes.error);
+    throw new Error(`Failed to load field definitions for ${type}: ${fieldsRes.error.message}`);
+  }
+
+  const dbSections = sectionsRes.data || [];
+  const dbFields = fieldsRes.data || [];
 
   // Build field map
   const fieldMap: Record<string, DynamicField> = {};
@@ -181,7 +191,7 @@ export function isSectionVisible(
   sectionKey: string
 ): boolean {
   const section = labels.sections.find((s) => s.section_key === sectionKey);
-  return section?.is_visible ?? true;
+  return section?.is_visible === true;
 }
 
 /** Get field label by key, with fallback */
@@ -198,7 +208,7 @@ export function isFieldActive(
   labels: DynamicLabelsResult,
   fieldKey: string
 ): boolean {
-  return labels.fieldMap[fieldKey]?.active ?? true;
+  return labels.fieldMap[fieldKey]?.active === true;
 }
 
 /** Check if a field is required by validation_json */

@@ -14,29 +14,35 @@ const ENTITY_PATH_MAP: Record<string, string> = {
   ATTRACTION: "attraction",
 };
 
+export interface RevalidationResult {
+  revalidatedCount: number;
+  errors: string[];
+}
+
 /**
  * Revalidate all public detail pages for a given entity type.
  * Queries the DB for all areas and slugs, then revalidates each path.
+ * Returns structured result with error details instead of silently swallowing failures.
  */
-export async function revalidateEntityPaths(entityType: string): Promise<number> {
+export async function revalidateEntityPaths(entityType: string): Promise<RevalidationResult> {
   const type = entityType.toUpperCase();
   const pathSegment = ENTITY_PATH_MAP[type];
-  if (!pathSegment) return 0;
+  if (!pathSegment) return { revalidatedCount: 0, errors: [`Unknown entity type: ${type}`] };
 
   const db = getSupabaseAdmin();
+  const errors: string[] = [];
 
-  // A07: 실제 스키마 컬럼 사용 (entity_type, areas 관계)
   const { data: entities, error } = await db
     .from("entities")
     .select("slug, areas(code)")
     .eq("entity_type", type);
 
   if (error) {
-    console.error("[REVALIDATE_ENTITY_PATHS_FAIL]", error);
-    return 0;
+    console.error("[REVALIDATE_ENTITY_PATHS_DB_FAIL]", type, error);
+    return { revalidatedCount: 0, errors: [`DB query failed: ${error.message}`] };
   }
 
-  if (!entities || entities.length === 0) return 0;
+  if (!entities || entities.length === 0) return { revalidatedCount: 0, errors: [] };
 
   let count = 0;
   const revalidatedAreas = new Set<string>();
@@ -51,17 +57,21 @@ export async function revalidateEntityPaths(entityType: string): Promise<number>
     try {
       revalidatePath(`/${area}/${pathSegment}/${entity.slug}`);
       count++;
-    } catch { /* ignore */ }
+    } catch (err) {
+      errors.push(`revalidatePath detail ${area}/${pathSegment}/${entity.slug}: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     // Revalidate list page (once per area)
     if (!revalidatedAreas.has(area)) {
       try {
         revalidatePath(`/${area}/${pathSegment}`);
         count++;
-      } catch { /* ignore */ }
+      } catch (err) {
+        errors.push(`revalidatePath list ${area}/${pathSegment}: ${err instanceof Error ? err.message : String(err)}`);
+      }
       revalidatedAreas.add(area);
     }
   }
 
-  return count;
+  return { revalidatedCount: count, errors };
 }

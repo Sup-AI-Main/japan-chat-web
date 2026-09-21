@@ -49,7 +49,13 @@ export async function POST(req: NextRequest) {
     }
 
     const definition = await createFieldDefinition(body);
-    return created(definition);
+
+    // Revalidate public pages for this entity type
+    const revalidation = definition.scope_entity_type
+      ? await revalidateEntityPaths(definition.scope_entity_type)
+      : { revalidatedCount: 0, errors: [] };
+
+    return created({ ...definition, _revalidation: revalidation.errors.length > 0 ? { warning: revalidation.errors } : undefined });
   } catch (err) {
     return serverError(err);
   }
@@ -74,7 +80,10 @@ export async function PUT(req: NextRequest) {
 
     // Revalidate all public pages for this entity type
     if (result.scope_entity_type) {
-      await revalidateEntityPaths(result.scope_entity_type);
+      const revalidation = await revalidateEntityPaths(result.scope_entity_type);
+      if (revalidation.errors.length > 0) {
+        console.error("[FIELD_DEF_PUT_REVALIDATION_ERRORS]", revalidation.errors);
+      }
     }
 
     return ok(result);
@@ -99,7 +108,10 @@ export async function DELETE(req: NextRequest) {
     await deleteFieldDefinitionFull(id);
 
     if (existing?.scope_entity_type) {
-      await revalidateEntityPaths(existing.scope_entity_type);
+      const revalidation = await revalidateEntityPaths(existing.scope_entity_type);
+      if (revalidation.errors.length > 0) {
+        console.error("[FIELD_DEF_DELETE_REVALIDATION_ERRORS]", revalidation.errors);
+      }
     }
 
     return ok({ deleted: true });

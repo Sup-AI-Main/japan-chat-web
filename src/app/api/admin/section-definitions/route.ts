@@ -39,7 +39,11 @@ export async function POST(req: NextRequest) {
     if (!body) return badRequest("요청 본문이 비어 있습니다.");
 
     const definition = await createSectionDefinition(body);
-    return created(definition);
+
+    // Revalidate public pages for this entity type
+    const revalidation = await revalidateEntityPaths(definition.entity_type);
+
+    return created({ ...definition, _revalidation: revalidation.errors.length > 0 ? { warning: revalidation.errors } : undefined });
   } catch (err) {
     return serverError(err);
   }
@@ -63,7 +67,10 @@ export async function PUT(req: NextRequest) {
     );
 
     // Revalidate all public pages for this entity type
-    await revalidateEntityPaths(result.entity_type);
+    const revalidation = await revalidateEntityPaths(result.entity_type);
+    if (revalidation.errors.length > 0) {
+      console.error("[SECTION_DEF_PUT_REVALIDATION_ERRORS]", revalidation.errors);
+    }
 
     return ok(result);
   } catch (err) {
@@ -87,7 +94,10 @@ export async function DELETE(req: NextRequest) {
     await deleteSectionDefinition(id);
 
     if (existing) {
-      await revalidateEntityPaths(existing.entity_type);
+      const revalidation = await revalidateEntityPaths(existing.entity_type);
+      if (revalidation.errors.length > 0) {
+        console.error("[SECTION_DEF_DELETE_REVALIDATION_ERRORS]", revalidation.errors);
+      }
     }
 
     return ok({ deleted: true });
