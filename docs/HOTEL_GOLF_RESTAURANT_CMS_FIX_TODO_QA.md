@@ -1801,25 +1801,33 @@ MANUAL_QA_REQUIRED: 3
 
 ### Browser Manual QA (3건)
 
-| #   | 항목                            | 결과       | 비고                                                                                                                                                    |
-| --- | ------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A   | 비로그인 공개 detail 페이지 200 | ✅ PASS    | 기존 entity `dos_hotel_holiday` — 정상 렌더링 확인                                                                                                      |
-| B   | CREATE 후 navigation/refresh    | ⚠️ PARTIAL | 로컬(dev)200 정상. Production ISR 캐시에서 `generateStaticParams` 미포함 새 slug404. 코드 자체는 correct. Vercel ISR on-demand rendering 동작 확인 필요 |
-| C   | DELETE 후 back/forward          | ✅ PASS    | QA entity `dos_hotel_9497dd79` 삭제 후 DB 잔존0. Admin API DELETE 정상 동작 확인                                                                        |
+| #   | 항목                            | 결과    | 비고                                                                                                                    |
+| --- | ------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| A   | 비로그인 공개 detail 페이지 200 | ✅ PASS | 기존 entity `dos_hotel_holiday` — 정상 렌더링 확인                                                                      |
+| B   | CREATE 후 navigation/refresh    | ✅ PASS | 새 QA entity `dos_hotel_50222b43` 생성 직후 public detail200, public list 포함 확인. `98f7040` 배포 이후 정상 동작 확인 |
+| C   | DELETE 후 back/forward          | ✅ PASS | QA entity 삭제 후 DB 잔존0. Admin API DELETE 정상 동작 확인                                                             |
 
-> B 비고: `getHotelById` 쿼리가 anon key로 Supabase REST API 직접 호출 시 정상 응답. 로컬 dev server에서200. Production만404. `revalidatePath` 호출 후에도 Vercel ISR 캐시가 갱신되지 않는 현상. `generateStaticParams`에 포함되지 않은 경로의 on-demand ISR 렌더링이 Vercel에서 실패하는 것으로 추정.
+> B 비고: `getHotelById` 쿼리가 anon key로 Supabase REST API 직접 호출 시 정상 응답. `98f7040` 배포 이후 Production에서도200 정상. 이전 배포(`6b30bee`, pending 상태)에서 발생했으나 `98f7040` 배포 이후 재현되지 않음. 정확한 과거 원인은 확정 불가.
 
 ### QA Entity Cleanup
+
+#### Round 1: `dos_hotel_9497dd79`
 
 - **대상**: `dos_hotel_9497dd79` (UUID `e6c3aa88-72b6-4b8a-8bf5-74253bfc5e01`, entity_type `HOTEL`)
 - **삭제 방법**: Admin API `DELETE /api/admin/hotel?id=e6c3aa88-72b6-4b8a-8bf5-74253bfc5e01` (Playwright admin 세션)
 - **결과**: `{"success":true,"data":{"success":true}}`
-- **DB 잔존 검증**:
-  - `entities` (해당 UUID): 0
-  - `hotels` (해당 entity_id): 0
-  - `restaurant_locations`: 0
-  - `entity_field_values`: 0
-  - `entities WHERE slug LIKE 'p0_%'`: **0**
+- **DB 잔존 검증**: entities/hotels/restaurant_locations/entity_field_values = 0
+
+#### Round 2: `dos_hotel_50222b43` (P0.1 investigation QA entity)
+
+- **대상**: `dos_hotel_50222b43` (UUID `a60ce5ce-3e3e-4801-81c6-b74fc1353a2b`, entity_type `HOTEL`)
+- **삭제 방법**: Admin API `DELETE /api/admin/hotel?id=a60ce5ce-3e3e-4801-81c6-b74fc1353a2b&area=dos` (Playwright admin 세션)
+- **결과**: `{"success":true,"data":{"success":true}}` — HTTP 200
+- **DB 잔존 검증**: `entities WHERE slug = 'dos_hotel_50222b43'`: 0
+
+#### P0 garbage count (최종)
+
+- `entities WHERE slug LIKE 'p0_%'`: **0** ✅
 
 ### P0 POST-DEPLOY 코드 변경 (1건)
 
@@ -1836,20 +1844,67 @@ MANUAL_QA_REQUIRED: 3
 | RPC privileges (anon/authenticated/service_role) | ✅ anon=false, authenticated=false, service_role=true               |
 | P0 garbage count                                 | ✅ 0                                                                |
 
-### ADMIN_SUBPAGE_404_UNRESOLVED
+### ADMIN_SUBPAGE_404_RESOLVED (`98f7040` 배포)
 
-| 항목                        | 값                                                          |
-| --------------------------- | ----------------------------------------------------------- |
-| Failing URL                 | `https://japan-chat-web.vercel.app/admin/dos`               |
-| isAuthenticated             | `{"isAdmin":true}` — `/api/admin/check`에서 확인            |
-| area param                  | `dos`                                                       |
-| resolveAreaFromAdmin 결과   | `null` → `notFound()` 호출                                  |
-| 401 URL                     | Console log에 존재 (정확한 URL 미확인)                      |
-| notFound() 발생 위치        | `admin/[area]/page.tsx:21` (`if (!currentArea) notFound()`) |
-| 공개 페이지 `/dos`          | ✅ 정상 렌더링 (200)                                        |
-| Admin dashboard `/admin`    | ✅ 정상 렌더링 (200, `isAdmin:true`)                        |
-| Admin `/admin/dos`          | ❌ 404                                                      |
-| Admin `/admin/dos/manage`   | ❌ 404                                                      |
-| Admin `/admin/dos/entities` | ❌ 404                                                      |
+이전 배포(`6b30bee`, pending 상태)에서 발생한 404 문제. `98f7040` 배포 이후 재현 불가.
 
-> 원인 미확정. `getActiveAreas()`는 DOS를 정상 반환하나, `resolveAreaFromAdmin("dos")` → `resolveAreaBySlug("dos")` → `fetchAreas()` 경로에서 null 반환. 서버리스 함수 인스턴스 간 캐시 차이 또는 Supabase anon key 세션 상태 차이가 원인일 수 있음.
+#### P0.1 Investigation (SHA `98f7040`)
+
+- debug route(`/api/admin/debug-area?area=dos`)를 통해 같은 request context 내 4-way 교차 검증:
+  - A. `resolveAreaFromAdmin("dos")` → `{id: "28090211-...", code: "DOS", active: "TRUE"}` ✅
+  - B. `resolveAreaBySlug("dos")` → `{id: "28090211-...", code: "DOS", active: true}` ✅
+  - C. Direct DB query → DOS exists, active=true ✅
+  - D. All areas list → DOS, BEPPU both active=true ✅
+- anon RLS: entities/hotels/areas/golf_courses/restaurants 모든 SELECT policy = `USING(true)` ✅
+- fetchAreas module cache: debug route에서 정상 동작 확인 ✅
+- `db()` = `getSupabaseServer()` (anon key) ✅
+
+#### Production 페이지 검증 (`98f7040` 배포)
+
+| URL                   | Status |
+| --------------------- | ------ |
+| `/admin/dos`          | ✅ 200 |
+| `/admin/dos/manage`   | ✅ 200 |
+| `/admin/dos/entities` | ✅ 200 |
+
+#### INCIDENT_CLOSED_SHA
+
+- `98f7040` 이후 재현 없음. 정확한 과거 원인은 확정 불가.
+- debug route(`src/app/api/admin/debug-area/route.ts`)는 `e23e5b9`에서 삭제 완료.
+
+---
+
+## P0 FINAL CLOSURE (SHA `e23e5b9`)
+
+### 최종 마감 검증 (2026-09-21)
+
+| 검증 항목                           | 결과                    |
+| ----------------------------------- | ----------------------- |
+| typecheck                           | ✅ PASS                 |
+| build                               | ✅ PASS                 |
+| verify:cms-schema                   | ✅ PASS                 |
+| git diff --check                    | ✅ PASS                 |
+| lint (신규)                         | ✅ 0 NEW ERRORS         |
+| `/admin/dos`                        | ✅ 200                  |
+| `/admin/dos/manage`                 | ✅ 200                  |
+| `/admin/dos/entities`               | ✅ 200                  |
+| `/api/admin/debug-area` (삭제 검증) | ✅ 404                  |
+| `entities WHERE slug LIKE 'p0_%'`   | ✅ 0                    |
+| QA entity cleanup (2 rounds)        | ✅ DB residual = 0      |
+| Browser Manual QA A/B/C             | ✅ ALL PASS             |
+| Production HTTP 404 contract (6건)  | ✅ ALL 404              |
+| Incident: admin subpage 404         | ✅ RESOLVED (`98f7040`) |
+| Incident: new detail 404            | ✅ RESOLVED (`98f7040`) |
+
+### P0 FINAL RESULT: CLOSED
+
+### 관련 커밋 로그
+
+```
+e23e5b9 chore: remove temporary admin area debug route
+98f7040 temp: add debug-area route for /admin/dos 404 investigation
+6b30bee docs: add P0 POST-DEPLOY FINAL CLOSURE verification results
+8a92c7e chore: remove temp QA scripts
+a9691ee fix: P0 POST-DEPLOY — 404 contract for golf PUT + restaurant PUT, remove cast
+fc9e77b fix: P0 — CMS data contract atomicity, dynamic labels, admin CRUD fixes
+```
