@@ -1539,7 +1539,7 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
   const { data: entity, error: findError } = await db()
     .from('entities')
     .select(
-      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants!inner(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
     )
     .eq('slug', id)
     .eq('entity_type', 'RESTAURANT')
@@ -1675,7 +1675,7 @@ export async function getRestaurantByEntityIdAdmin(entityId: string): Promise<Re
   const { data: entity, error: findError } = await adminDb()
     .from('entities')
     .select(
-      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants!inner(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
     )
     .eq('id', entityId)
     .eq('entity_type', 'RESTAURANT')
@@ -1738,12 +1738,16 @@ export async function getRestaurantByEntityIdAdmin(entityId: string): Promise<Re
 
   // Fetch name_jp from entity_field_values
   let nameJp = '';
-  const { data: fvRows } = await adminDb()
+  const { data: fvRows, error: fvError } = await adminDb()
     .from('entity_field_values')
     .select('value_text, field_definition:field_definitions!inner(field_key)')
     .eq('entity_id', entity.id)
     .eq('field_definitions.field_key', 'rest_name_jp')
     .maybeSingle();
+  if (fvError) {
+    logError('READ_ADMIN', 'entity_field_values', entityId, fvError);
+    throw fvError;
+  }
   if (fvRows) {
     nameJp = (fvRows.value_text as string) || '';
   }

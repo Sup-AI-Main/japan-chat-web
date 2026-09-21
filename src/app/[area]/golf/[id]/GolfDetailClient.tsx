@@ -79,7 +79,9 @@ export function GolfDetailClient({
             <p className="text-[16px] text-muted mb-4">{course.official_name}</p>
           )}
 
-          {/* Map link */}
+          {/* Address, Phone & Map link */}
+          {sectionVisible("basic_info") && (
+          <>
           {course.google_maps_url && (
             <a
               href={course.google_maps_url}
@@ -90,9 +92,6 @@ export function GolfDetailClient({
               Google Maps에서 보기
             </a>
           )}
-
-          {/* Address & Phone */}
-          {sectionVisible("basic_info") && (
           <div className="space-y-2 mb-6">
             {course.address && (
               <p className="text-[15px] text-text">
@@ -112,6 +111,7 @@ export function GolfDetailClient({
               </div>
             )}
           </div>
+          </>
           )}
 
           {/* Golf Detail Fields */}

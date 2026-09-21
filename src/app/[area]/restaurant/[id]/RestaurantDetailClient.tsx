@@ -155,7 +155,7 @@ export default function RestaurantDetailClient({
           <h2 className="text-[20px] font-bold text-text mb-0.5">
             {displayName}
           </h2>
-          {restaurant.name_jp && (
+          {restaurant.name_jp && sectionVisible("basic_info") && (
             <p className="text-[14px] text-muted mb-3">{restaurant.name_jp}</p>
         )}
 
