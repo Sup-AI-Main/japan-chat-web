@@ -1044,7 +1044,7 @@ CODE_VERIFIED / DB_VERIFIED / FUNCTION_VERIFIED / DEPLOY_VERIFIED
 - [x] `NEXT_PUBLIC_SUPABASE_URL` ✅ (code review: client.ts/server.ts/admin.ts에서 사용, admin.ts에 `server-only` 가드)
 - [x] `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` ✅ (code review: client.ts에서 사용, secret key와 분리)
 - [x] 서버 전용 Supabase secret key ✅ (code review: admin.ts에서 `SUPABASE_SECRET_KEY` 사용, `server-only` 가드)
-- [x] Vercel Production 환경변수와 로컬/Preview 환경변수가 의도한 프로젝트를 가리키는지 확인 — 검증 불가: Vercel 환경변수 대시보드 접근 불가
+- [ ] Vercel Production 환경변수와 로컬/Preview 환경변수가 의도한 프로젝트를 가리키는지 확인 — CAVEAT: Vercel 대시보드 접근 불가로 실제 환경변수 값은 검증되지 않음. 코드 레벨에서는 환경변수 사용 패턴이 올바르나, Production 대시보드에서 실제 값 확인 필요.
 - [x] `service_role`/secret key가 Client Component 또는 `NEXT_PUBLIC_` 변수로 노출되지 않음 ✅ (code review: admin.ts에 `import 'server-only'`, API 라우트에서 getBrowserClient import 없음)
 
 검증 기준:
@@ -1672,19 +1672,19 @@ RESTAURANT 추가:
 
 # 31. 최종 QA 집계 (2026-09-21)
 
-**상태: 자동 검증 가능한 항목 완료, 브라우저 수동 QA 3건 남음**
+**상태: 자동 검증 가능한 항목 완료, 브라우저 수동 QA 3건 + Vercel env 검증 1건 남음**
 
-MANUAL_QA_REQUIRED: 3
+MANUAL_QA_REQUIRED: 4
 
 ## 항목 수 집계
 
 | 구분                | 수  |
 | ------------------- | --- |
-| TOTAL QA ITEMS      | 221 |
-| VERIFIED [x]        | 218 |
-| REMAINING [ ]       | 3   |
+| TOTAL QA ITEMS      | 320 |
+| VERIFIED [x]        | 316 |
+| REMAINING [ ]       | 4   |
 | OBSOLETE/SUPERSEDED | 0   |
-| MANUAL_QA_REQUIRED  | 3   |
+| MANUAL_QA_REQUIRED  | 4   |
 
 ## 검증 상태
 
@@ -1696,17 +1696,18 @@ MANUAL_QA_REQUIRED: 3
 | DEPLOY_VERIFIED     | ✅ PASS | `2d0d9c5` (Vercel status: success) |
 | PRODUCTION_VERIFIED | ✅ PASS | `2d0d9c5`                          |
 
-## MANUAL_QA_REQUIRED — 브라우저 수동 QA 필요 (3건)
+## MANUAL_QA_REQUIRED — 브라우저 수동 QA + Vercel env 검증 필요 (4건)
 
-아래 항목은 자동 검증이 불가능하며, 브라우저 수동 테스트가 필요합니다.
+아래 항목은 자동 검증이 불가능하며, 브라우저 수동 테스트 또는 대시보드 접근이 필요합니다.
 코드 레벨에서 revalidatePath()/router.refresh() 적용은 확인되었으나,
-실제 브라우저 동작은 수동으로 확인해야 합니다.
+실제 브라우저 동작 및 Vercel 환경변수 값은 수동으로 확인해야 합니다.
 
-| #   | 섹션 | 항목                                                       | 수동 QA 내용                                                                                  |
-| --- | ---- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| 1   | 21.1 | 새 시크릿 창에서 detail 200 확인                           | 새 시크릿/프라이빗 브라우저 창에서 entity detail URL 접근 시200 응답 확인                     |
-| 2   | 21.1 | 강력 새로고침 없이 일반 navigation/refresh에서 정상 반영   | 브라우저 강력 새로고침(Ctrl+Shift+R) 없이 일반 navigation 및 refresh만으로 변경사항 반영 확인 |
-| 3   | 21.3 | DELETE 후 browser back/forward에서 삭제 항목 미재출현 확인 | DELETE 후 브라우저 back/forward 네비게이션에서 삭제된 항목이 다시 나타나지 않는지 확인        |
+| #   | 섹션 | 항목                                                       | 수동 QA 내용                                                                                                |
+| --- | ---- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1   | 21.1 | 새 시크릿 창에서 detail 200 확인                           | 새 시크릿/프라이빗 브라우저 창에서 entity detail URL 접근 시200 응답 확인                                   |
+| 2   | 21.1 | 강력 새로고침 없이 일반 navigation/refresh에서 정상 반영   | 브라우저 강력 새로고침(Ctrl+Shift+R) 없이 일반 navigation 및 refresh만으로 변경사항 반영 확인               |
+| 3   | 21.3 | DELETE 후 browser back/forward에서 삭제 항목 미재출현 확인 | DELETE 후 브라우저 back/forward 네비게이션에서 삭제된 항목이 다시 나타나지 않는지 확인                      |
+| 4   | 19.1 | Vercel Production 환경변수 값 직접 확인                    | Vercel 대시보드에서 실제 환경변수 값이 의도한 Supabase 프로젝트를 가리키는지 확인 (코드 레벨 패턴은 올바름) |
 
 ## 부분 검증 항목 (1건 → 코드 검증으로 충분 판정)
 
@@ -1716,9 +1717,9 @@ MANUAL_QA_REQUIRED: 3
 
 ## Vercel 환경변수 검증 불가 (1건)
 
-| #   | 섹션 | 항목                                                                                   | 사유                                                                    |
-| --- | ---- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| 1   | 19.1 | Vercel Production 환경변수와 로컬/Preview 환경변수가 의도한 프로젝트를 가리키는지 확인 | Vercel 대시보드 접근 불가. 코드 레벨에서는 환경변수 사용 패턴이 올바름. |
+| #   | 섹션 | 항목                                                                                   | 사유                                                                                                                                                            |
+| --- | ---- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 19.1 | Vercel Production 환경변수와 로컬/Preview 환경변수가 의도한 프로젝트를 가리키는지 확인 | CAVEAT: Vercel 대시보드 접근 불가로 실제 환경변수 값은 검증되지 않음. 코드 레벨에서는 환경변수 사용 패턴이 올바르나, Production 대시보드에서 실제 값 확인 필요. |
 
 ## 수정 요약
 
@@ -1784,7 +1785,7 @@ MANUAL_QA_REQUIRED: 3
 
 ---
 
-## P0 POST-DEPLOY FINAL CLOSURE (SHA `fc9e77b` → `8a92c7e`)
+## P0 POST-DEPLOY FINAL CLOSURE (SHA `6b30bee` → `8a92c7e`)
 
 ### Production HTTP 404 검증 (6개 요청, 인증 필수)
 
@@ -1801,11 +1802,11 @@ MANUAL_QA_REQUIRED: 3
 
 ### Browser Manual QA (3건)
 
-| #   | 항목                            | 결과    | 비고                                                                                                                    |
-| --- | ------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
-| A   | 비로그인 공개 detail 페이지 200 | ✅ PASS | 기존 entity `dos_hotel_holiday` — 정상 렌더링 확인                                                                      |
-| B   | CREATE 후 navigation/refresh    | ✅ PASS | 새 QA entity `dos_hotel_50222b43` 생성 직후 public detail200, public list 포함 확인. `98f7040` 배포 이후 정상 동작 확인 |
-| C   | DELETE 후 back/forward          | ✅ PASS | QA entity 삭제 후 DB 잔존0. Admin API DELETE 정상 동작 확인                                                             |
+| #   | 항목                            | 결과       | 비고                                                                                                                                                                                                                     |
+| --- | ------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A   | 비로그인 공개 detail 페이지 200 | ✅ PASS    | 기존 entity `dos_hotel_holiday` — 정상 렌더링 확인                                                                                                                                                                       |
+| B   | CREATE 후 navigation/refresh    | ✅ PASS    | 새 QA entity `dos_hotel_50222b43` 생성 직후 public detail200, public list 포함 확인. `98f7040` 배포 이후 정상 동작 확인                                                                                                  |
+| C   | DELETE 후 back/forward          | ⚠️ PARTIAL | MANUAL_QA_NOT_DIRECTLY_VERIFIED: API DELETE 성공 + DB 잔존0 확인됨. 실제 브라우저 back/forward 네비게이션 테스트는 수행되지 않음 (Playwright 기반 브라우저 내비게이션 테스트 없음). router.refresh() 코드 적용은 확인됨. |
 
 > B 비고: `getHotelById` 쿼리가 anon key로 Supabase REST API 직접 호출 시 정상 응답. `98f7040` 배포 이후 Production에서도200 정상. 이전 배포(`6b30bee`, pending 상태)에서 발생했으나 `98f7040` 배포 이후 재현되지 않음. 정확한 과거 원인은 확정 불가.
 
@@ -1891,7 +1892,7 @@ MANUAL_QA_REQUIRED: 3
 | `/api/admin/debug-area` (삭제 검증) | ✅ 404                  |
 | `entities WHERE slug LIKE 'p0_%'`   | ✅ 0                    |
 | QA entity cleanup (2 rounds)        | ✅ DB residual = 0      |
-| Browser Manual QA A/B/C             | ✅ ALL PASS             |
+| Browser Manual QA A/B/C             | ⚠️ A/B PASS, C PARTIAL  |
 | Production HTTP 404 contract (6건)  | ✅ ALL 404              |
 | Incident: admin subpage 404         | ✅ RESOLVED (`98f7040`) |
 | Incident: new detail 404            | ✅ RESOLVED (`98f7040`) |
@@ -1903,8 +1904,86 @@ MANUAL_QA_REQUIRED: 3
 ```
 e23e5b9 chore: remove temporary admin area debug route
 98f7040 temp: add debug-area route for /admin/dos 404 investigation
+d31dae8 docs: P0 FINAL CLOSURE — mark P0 CLOSED with full verification evidence
 6b30bee docs: add P0 POST-DEPLOY FINAL CLOSURE verification results
-8a92c7e chore: remove temp QA scripts
-a9691ee fix: P0 POST-DEPLOY — 404 contract for golf PUT + restaurant PUT, remove cast
-fc9e77b fix: P0 — CMS data contract atomicity, dynamic labels, admin CRUD fixes
+8a92c7e fix: close remaining P0 production QA gaps
+fc9e77b docs: update P0 QA verification results - all checks passed
+9f15ff4 fix(cms): P0 data contract atomicity - fieldKey alignment, atomic Restaurant RPC, 404 contracts
 ```
+
+---
+
+## P1 CMS CONTRACT / VISIBILITY / CACHE CONSISTENCY
+
+### P1-0: QA 문서 정합성 수정
+
+- [x] Summary 카운트 실제 checkbox 기준으로 재계산 (218/221 → 316/320)
+- [x] 존재하지 않는 `a9691ee` 커밋 참조 제거
+- [x] `fc9e77b` = docs 커밋 (P0 core code 커밋 아님) 명시
+- [x] `8a92c7e` 실제 메시지 `fix: close remaining P0 production QA gaps`로 수정
+- [x] `9f15ff4` P0 핵심 코드 커밋으로 명시
+- [x] Manual QA C: `MANUAL_QA_NOT_DIRECTLY_VERIFIED`로 정정 (browser back/forward Playwright 미수행)
+- [x] Vercel env 검증 caveat 추가
+
+### P1-1: Dynamic Labels Fail-Closed
+
+- [x] `getDynamicLabels()`: `Promise.allSettled` → `Promise.all` + `.error` throw
+- [x] `isSectionVisible()`: `?? true` → `=== true` (fail-closed)
+- [x] `isFieldActive()`: `?? true` → `=== true` (fail-closed)
+- [x] Label text fallback은 유지 (UI 문구용), visibility/active만 fail-closed
+
+### P1-2: Public Detail Section Visibility
+
+- [x] Golf: `basic_info`(address/phone), `description`(course_summary), `play_cart`, `clubhouse`, `bath_shower`, `rental`, `dress_code` 섹션 가시성 적용
+- [x] Restaurant: `basic_info`(category), `menu`, `address`, `hours`, `closed_days`, `distance`, `price_range`, `phone`, `other_info`(description) 섹션 가시성 적용
+- [x] Restaurant 거리 제목: 하드코딩 "거리" → `getSectionLabel(L, "distance", "거리")`
+- [x] Hotel: `checkin`, `checkout`, `address`, `phone` 각 row에 고유 section key 적용 (기존 `basic_info` 단일 gate에서 분리)
+
+### P1-3: RestaurantEditModal Distance/Nearby
+
+- [x] Distance section: `isSectionVisible(L, DISTANCE_SECTION.sectionKey)` 게이트 추가
+- [x] Nearby section: `isSectionVisible(L, NEARBY_SECTION.sectionKey)` 게이트 추가
+- [x] "always visible" 주석 제거
+
+### P1-4: Definition POST Revalidation
+
+- [x] `field-definitions` POST: `revalidateEntityPaths()` 호출 추가
+- [x] `section-definitions` POST: `revalidateEntityPaths()` 호출 추가
+- [x] `revalidateEntityPaths()` 반환 타입: `Promise<number>` → `Promise<RevalidationResult>`
+- [x] DB query error: errors 배열에 수집 (더 이상 silent return 0)
+- [x] `revalidatePath` error: errors 배열에 수집 (더 이상 catch ignore)
+- [x] PUT/DELETE 핸들러: revalidation errors를 `console.error`로 로깅
+
+### P1-5: Canonical Persisted Row Guarantee
+
+- [x] `getHotelByEntityIdAdmin()` — adminDb(), no active filter, entityId 기준
+- [x] `getGolfCourseByEntityIdAdmin()` — 동일 패턴
+- [x] `getRestaurantByEntityIdAdmin()` — near 관계, name_jp EAV 포함
+- [x] Hotel POST/PUT: `getHotelByEntityIdAdmin(id)` 사용, null 시 500 에러
+- [x] Golf POST/PUT: `getGolfCourseByEntityIdAdmin(id)` 사용, null 시 500 에러
+- [x] Restaurant POST/PUT: `getRestaurantByEntityIdAdmin(id)` 사용, null 시 500 에러
+- [x] `{ id, slug }` partial fallback 제거
+- [x] 미사용 `getHotelById`/`getGolfCourseById`/`getRestaurantById` import 정리
+
+### P1-6: Slug Collision Hardening
+
+- [x] `Math.random()` → `randomBytes(4).toString('hex')` (node:crypto)
+- [x] `appendGolfCourse`: entities INSERT에 slug collision retry (max 5)
+- [x] `appendHotel`: 동일 retry 패턴
+- [x] `appendRestaurant`: RPC `admin_create_restaurant_full` 전체 retry
+- [x] Retry 조건: `error.code === '23505'` && `entities_slug_key` 만
+- [x] 다른 23505 에러는 즉시 throw
+- [x] 5회 실패 시 명확한 Error throw
+- [x] UPDATE에서는 slug 재생성 안 함 (기존 동작 유지)
+
+### Static Verification
+
+| 항목                        | 결과                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
+| `npm run typecheck`         | ✅ exit 0                                                                                     |
+| `npm run lint`              | ⚠️ exit 1 — 13개 에러 모두 기존 `react-hooks/set-state-in-effect` debt. P1 신규 lint 에러 0건 |
+| `npm run build`             | ✅ exit 0                                                                                     |
+| `npm run verify:cms-schema` | ✅ exit 0                                                                                     |
+| `git diff --check`          | ✅ exit 0                                                                                     |
+
+### P1 RESULT: COMPLETE
