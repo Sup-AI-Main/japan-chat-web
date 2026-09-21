@@ -1986,4 +1986,44 @@ fc9e77b docs: update P0 QA verification results - all checks passed
 | `npm run verify:cms-schema` | ✅ exit 0                                                                                     |
 | `git diff --check`          | ✅ exit 0                                                                                     |
 
+### P1 FINAL CLOSURE VERIFICATION (2026-09-21)
+
+**Code Fixes Applied:**
+| Fix | File | Detail |
+|-----|------|--------|
+| Golf google_maps_url basic_info visibility | `GolfDetailClient.tsx` | Moved inside `sectionVisible("basic_info")` gate |
+| Restaurant name_jp basic_info visibility | `RestaurantDetailClient.tsx` | Added `sectionVisible("basic_info")` gate |
+| Restaurant canonical child integrity | `supabase-cms.ts` | `restaurants!inner(...)` in both public and admin helpers |
+| restaurant_locations error handling | `supabase-cms.ts` | `throw locationsError` on query failure |
+| entity_field_values error handling | `supabase-cms.ts` | `throw fvError` on query failure |
+
+**Static Verification:**
+| Check | Result |
+|-------|--------|
+| `npm run typecheck` | ✅ exit 0 |
+| `npm run lint` | ✅ 13 pre-existing, 0 new |
+| `npm run build` | ✅ exit 0 |
+| `npm run verify:cms-schema` | ✅ PASS |
+| `git diff --check` | ✅ exit 0 |
+
+**Production QA (Vercel deploy 86400e2):**
+| Test | Method | Result |
+|------|--------|--------|
+| 6A Golf dress*code visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
+| 6B Golf basic_info visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
+| 6C Restaurant price_range visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
+| 6D Restaurant basic_info visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
+| 6E Restaurant distance visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
+| 6F Restaurant nearby_restaurants visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
+| 7 Field active toggle | DB→RSC payload | ✅ `active:false` confirmed in payload |
+| 8 Definition POST revalidation | Code verified | ✅ `revalidateEntityPaths` called in POST/PUT/DELETE |
+| 9 Canonical CRUD (Restaurant) | RPC create | ✅ `{id, slug}` returned |
+| 9 Canonical CRUD (Hotel/Golf) | SQL create+subtype | ✅ entity+subtype rows created |
+| 10 Inactive canonical | DB→public listing | ✅ inactive entity hidden from public |
+| 11 Slug format | Code verified | ✅ `generateUniqueSlug` uses `{area}*{type}_{8hex}` |
+| 11 Slug uniqueness | Code verified | ✅ UNIQUE constraint + retry logic |
+| 12 Cleanup | DB verification | ✅ p1_ entities=0, p0\_ entities=0, all is_visible=true, all active=true |
+
+**Commit:** `86400e2` — fix: close P1 visibility and canonical read gaps
+
 ### P1 RESULT: COMPLETE
