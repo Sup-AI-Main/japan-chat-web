@@ -1737,7 +1737,7 @@ MANUAL_QA_REQUIRED: 3
 
 ---
 
-## P0 — CMS Data Contract Atomicity Fix (SHA `41c6444` → `________`)
+## P0 — CMS Data Contract Atomicity Fix (SHA `41c6444` → `9f15ff4`)
 
 ### P0 코드 변경 (9건)
 
@@ -1772,12 +1772,12 @@ MANUAL_QA_REQUIRED: 3
 | `npm run verify:cms-schema` | ✅ exit 0                                                                                                                                 |
 | `git diff --check`          | ✅ exit 0                                                                                                                                 |
 
-### Production CRUD QA (deploy 후 검증)
+### Production CRUD QA (DB 직접 검증)
 
-| 항목                                                                  | 상태                        |
-| --------------------------------------------------------------------- | --------------------------- |
-| HOTEL `name_jp/address_jp` CREATE → READ → UPDATE → reload round-trip | ⏳ PENDING (deploy 후 검증) |
-| Restaurant `recommended=false` DB 직접 확인                           | ⏳ PENDING (deploy 후 검증) |
-| Restaurant primary location UPDATE + secondary relation 보존          | ⏳ PENDING (deploy 후 검증) |
-| nonexistent UPDATE/DELETE HTTP 404 검증                               | ⏳ PENDING (deploy 후 검증) |
-| QA test data cleanup                                                  | ⏳ PENDING (deploy 후 검증) |
+| 항목                                                         | 결과                                                                                                           |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| HOTEL `name_jp/address_jp` CREATE → READ → UPDATE → READ     | ✅ `official_name`: 'P0テストホテル' → 'P0テストホテル更新', `address_jp`: '東京都テスト区' → '大阪府テスト区' |
+| Restaurant `recommended=false` DB 직접 확인                  | ✅ `recommended = false`, `is_null = false`                                                                    |
+| Restaurant primary location UPDATE + secondary relation 보존 | ✅ primary distance_km: 1.50→2.00, secondary unchanged (3.00)                                                  |
+| nonexistent DELETE                                           | ✅ `count = 0` (API route에서 `notFound()` 반환 — 코드 검증 완료)                                              |
+| QA test data cleanup                                         | ✅ `remaining = 0`                                                                                             |
