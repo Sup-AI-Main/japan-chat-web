@@ -171,7 +171,7 @@ const SECTIONS: SectionConfig[] = [
     sectionKey: "transport",
     fallbackTitle: "교통",
     fields: [
-      { fieldKey: "transport", formKey: "transport", fallback: "교통", placeholder: "공항에서 차량 약60분" },
+      { fieldKey: "transport_note", formKey: "transport", fallback: "교통", placeholder: "공항에서 차량 약60분" },
     ],
   },
 ];

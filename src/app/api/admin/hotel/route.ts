@@ -3,7 +3,7 @@ import { isAuthenticated } from "@/lib/auth";
 import { getHotels, getHotelById, appendHotel, updateHotel, deleteHotel, validateRequiredFields } from "@/lib/supabase-cms";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { ConflictError } from "@/lib/types";
-import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
 
 export async function GET(req: NextRequest) {
@@ -62,6 +62,7 @@ export async function PUT(req: NextRequest) {
   if (!id) return badRequest("Missing id");
   try {
     const success = await updateHotel(id, data, updated_at);
+    if (!success) return notFound("Hotel not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/hotel`);
       revalidatePath("/[area]/hotel/[id]", "page");
@@ -95,6 +96,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) return badRequest("Missing id");
     const area = req.nextUrl.searchParams.get("area") || "";
     const success = await deleteHotel(id);
+    if (!success) return notFound("Hotel not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/hotel`);
       revalidatePath("/[area]/hotel/[id]", "page");

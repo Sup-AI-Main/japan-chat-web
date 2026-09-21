@@ -98,23 +98,38 @@ export default function RestaurantListClient({
       if (nearType === "HOTEL") {
         const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
         if (res.ok) {
-          const data = await res.json();
+          const json = await res.json();
+          const hotels = json.data?.hotels ?? [];
           setNearOptions(
-            (data.hotels || []).map((h: { id: string; slug: string; name_kr?: string; official_name: string }) => ({
-              id: h.slug,
-              name: h.name_kr || h.official_name,
-            }))
+            hotels.map(
+              (h: {
+                id: string;
+                slug: string;
+                name_kr?: string;
+                official_name: string;
+              }) => ({
+                id: h.slug,
+                name: h.name_kr || h.official_name,
+              })
+            )
           );
         }
       } else if (nearType === "GOLF") {
         const res = await fetch(`/api/admin/golf?area=${area.toUpperCase()}`);
         if (res.ok) {
-          const data = await res.json();
+          const json = await res.json();
+          const courses = json.data?.courses ?? [];
           setNearOptions(
-            (data.courses || []).map((c: { id: string; slug: string; display_name: string }) => ({
-              id: c.slug,
-              name: c.display_name,
-            }))
+            courses.map(
+              (c: {
+                id: string;
+                slug: string;
+                display_name: string;
+              }) => ({
+                id: c.slug,
+                name: c.display_name,
+              })
+            )
           );
         }
       } else {

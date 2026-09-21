@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { getRestaurants, getRestaurantById, appendRestaurant, updateRestaurant, deleteRestaurantRow, validateRequiredFields } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
-import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
 
 export async function GET(req: NextRequest) {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (validationError) return badRequest(validationError);
 
     if (!body.active) body.active = "TRUE";
-    const { id, slug } = await appendRestaurant(body as Record<string, string>);
+    const { id, slug } = await appendRestaurant(body);
     const areaCode = (body.area as string || '').toLowerCase();
     if (areaCode) {
       revalidatePath(`/${areaCode}/restaurant`);
@@ -99,6 +99,7 @@ export async function DELETE(req: NextRequest) {
   const area = req.nextUrl.searchParams.get("area") || "";
   try {
     const success = await deleteRestaurantRow(id);
+    if (!success) return notFound("Restaurant not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/restaurant`);
       revalidatePath("/[area]/restaurant/[id]", "page");

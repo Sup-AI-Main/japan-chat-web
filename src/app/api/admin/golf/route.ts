@@ -3,7 +3,7 @@ import { isAuthenticated } from "@/lib/auth";
 import { getGolfCourses, getGolfCourseById, appendGolfCourse, updateGolfCourse, deleteGolfCourse, validateRequiredFields } from "@/lib/supabase-cms";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { ConflictError } from "@/lib/types";
-import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
 
 export async function GET(req: NextRequest) {
@@ -95,6 +95,7 @@ export async function DELETE(req: NextRequest) {
     if (!id) return badRequest("Missing id");
     const area = req.nextUrl.searchParams.get("area") || "";
     const success = await deleteGolfCourse(id);
+    if (!success) return notFound("Golf course not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/golf`);
       revalidatePath("/[area]/golf/[id]", "page");

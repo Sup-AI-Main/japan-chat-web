@@ -80,7 +80,7 @@ const SECTIONS = [
     sectionKey: "basic_info",
     fallbackTitle: "기본 정보",
     fields: [
-      { fieldKey: "rest_name_kr", formKey: "name_kr" as const, fallback: "식당명 (한국어)", placeholder: "식당 이름" },
+      { fieldKey: "name", formKey: "name_kr" as const, fallback: "식당명 (한국어)", placeholder: "식당 이름" },
       { fieldKey: "rest_name_jp", formKey: "name_jp" as const, fallback: "식당명 (일본어)", placeholder: "店名" },
       { fieldKey: "category", formKey: "category" as const, fallback: "카테고리", placeholder: "이자카야, 라멘, 스시" },
       { fieldKey: "phone", formKey: "phone" as const, fallback: "전화번호", placeholder: "000-000-0000" },

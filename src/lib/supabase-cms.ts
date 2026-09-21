@@ -22,6 +22,45 @@ import { ConflictError } from './types';
 // Server-side required field validation
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Required field aliases — maps DB field_key → client formKey aliases
+// ---------------------------------------------------------------------------
+
+const REQUIRED_FIELD_ALIASES: Record<string, Record<string, readonly string[]>> = {
+  HOTEL: {
+    display_name: ['name_kr'],
+    official_name: ['name_jp'],
+    address: ['address_kr'],
+    address_jp: ['address_jp'],
+    transport_note: ['transport'],
+  },
+  RESTAURANT: {
+    name: ['name_kr'],
+    rest_name_jp: ['name_jp'],
+  },
+  GOLF: {},
+};
+
+function getSubmittedFieldValue(
+  entityType: string,
+  fieldKey: string,
+  data: Record<string, unknown>
+): unknown {
+  if (Object.prototype.hasOwnProperty.call(data, fieldKey)) {
+    return data[fieldKey];
+  }
+
+  const aliases = REQUIRED_FIELD_ALIASES[entityType]?.[fieldKey] ?? [];
+
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(data, alias)) {
+      return data[alias];
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Validate that all required fields (per field_definitions.validation_json.required === true)
  * are present and non-empty in the submitted data.
@@ -31,26 +70,37 @@ export async function validateRequiredFields(
   entityType: string,
   data: Record<string, unknown>
 ): Promise<string | null> {
-  const { data: fields } = await db()
+  const type = entityType.toUpperCase();
+
+  const { data: fields, error } = await db()
     .from('field_definitions')
     .select('field_key, label_ko, validation_json')
-    .eq('scope_entity_type', entityType.toUpperCase())
+    .eq('scope_entity_type', type)
     .eq('active', true);
 
-  if (!fields) return null;
+  if (error) {
+    logError('READ', 'field_definitions', type, error);
+    throw error;
+  }
+
+  if (!fields) {
+    throw new Error(`Required field definitions unavailable: ${type}`);
+  }
 
   for (const f of fields) {
-    const vj = (f.validation_json as Record<string, unknown>) || null;
-    if (!vj || vj.required !== true) continue;
+    const validation = (f.validation_json as Record<string, unknown> | null) ?? null;
+
+    if (validation?.required !== true) continue;
 
     const fieldKey = f.field_key as string;
     const label = (f.label_ko as string) || fieldKey;
-    const value = data[fieldKey];
+    const value = getSubmittedFieldValue(type, fieldKey, data);
 
     if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) {
       return `${label}은(는) 필수입니다.`;
     }
   }
+
   return null;
 }
 
@@ -655,6 +705,20 @@ export async function updateGolfCourse(
     throw new ConflictError();
   }
 
+  // Verify golf child exists before updating
+  const { data: existingGolf, error: golfFindError } = await db()
+    .from('golf_courses')
+    .select('entity_id')
+    .eq('entity_id', entity.id)
+    .maybeSingle();
+
+  if (golfFindError) {
+    logError('READ', 'golf_courses', id, golfFindError);
+    throw golfFindError;
+  }
+
+  if (!existingGolf) return false;
+
   // Update entity
   const entityUpdates: Record<string, unknown> = {};
   if (data.display_name !== undefined) entityUpdates.display_name = data.display_name;
@@ -701,14 +765,19 @@ export async function updateGolfCourse(
   }
 
   if (Object.keys(golfUpdates).length > 0) {
-    const { error } = await adminDb()
+    const { data: updatedGolf, error } = await adminDb()
       .from('golf_courses')
       .update(golfUpdates)
-      .eq('entity_id', entity.id);
+      .eq('entity_id', entity.id)
+      .select('entity_id')
+      .maybeSingle();
+
     if (error) {
       logError('UPDATE', 'golf_courses', id, error);
       throw error;
     }
+
+    if (!updatedGolf) return false;
   }
 
   return true;
@@ -888,19 +957,40 @@ export async function getFaqForEntity(
 }
 
 export async function deleteGolfCourse(id: string): Promise<boolean> {
-  const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
-  if (!entity) return false;
+  const { data: golf, error: findError } = await db()
+    .from('golf_courses')
+    .select('entity_id')
+    .eq('entity_id', id)
+    .maybeSingle();
+
+  if (findError) {
+    logError('READ', 'golf_courses', id, findError);
+    throw findError;
+  }
+
+  if (!golf) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+  await adminDb()
+    .from('faq')
+    .delete()
+    .eq('scope', 'SPECIFIC')
+    .eq('related_entity_id', golf.entity_id);
 
   // Hard delete (cascades to golf_courses)
-  const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
+  const { data: deleted, error } = await adminDb()
+    .from('entities')
+    .delete()
+    .eq('id', golf.entity_id)
+    .select('id')
+    .maybeSingle();
+
   if (error) {
     logError('DELETE', 'entities', id, error);
     throw error;
   }
-  return true;
+
+  return !!deleted;
 }
 
 // ---------------------------------------------------------------------------
@@ -929,9 +1019,9 @@ function mapHotel(entity: EntityRow, hotel: Record<string, unknown>, areaCode: s
     sort: entity.sort,
     last_verified: (hotel.last_verified as string) || '',
     name_kr: entity.display_name,
-    name_jp: '',
+    name_jp: (hotel.official_name as string) || '',
     address_kr: (hotel.address as string) || '',
-    address_jp: '',
+    address_jp: (hotel.address_jp as string) || '',
     checkin_time: (hotel.checkin_time as string) || '',
     checkout_time: (hotel.checkout_time as string) || '',
     breakfast_place: (hotel.breakfast_place as string) || '',
@@ -956,7 +1046,7 @@ export async function getHotels(area?: string): Promise<Hotel[]> {
   let query = db()
     .from('hotels')
     .select(
-      'entity_id, official_name, address, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
     );
 
   if (area) {
@@ -988,7 +1078,7 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
   const { data, error } = await db()
     .from('hotels')
     .select(
-      'entity_id, official_name, address, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
     )
     .eq('entities.slug', id)
     .eq('entities.active', true) // A09: 비활성 entity 제외
@@ -1041,6 +1131,7 @@ export async function appendHotel(
       entity_id: entity.id,
       official_name: data.official_name || '',
       address,
+      address_jp: data.address_jp || '',
       phone: data.phone || '',
       checkin_time: data.checkin_time || '',
       checkout_time: data.checkout_time || '',
@@ -1095,6 +1186,20 @@ export async function updateHotel(
     throw new ConflictError();
   }
 
+  // Verify hotel child exists before updating
+  const { data: existingHotel, error: hotelFindError } = await db()
+    .from('hotels')
+    .select('entity_id')
+    .eq('entity_id', entity.id)
+    .maybeSingle();
+
+  if (hotelFindError) {
+    logError('READ', 'hotels', id, hotelFindError);
+    throw hotelFindError;
+  }
+
+  if (!existingHotel) return false;
+
   // Map client form fields → DB columns for entity
   const entityUpdates: Record<string, unknown> = {};
   const displayName = data.name_kr ?? data.display_name;
@@ -1123,6 +1228,7 @@ export async function updateHotel(
   const directFields = [
     'official_name',
     'address',
+    'address_jp',
     'phone',
     'checkin_time',
     'checkout_time',
@@ -1166,32 +1272,58 @@ export async function updateHotel(
   }
 
   if (Object.keys(hotelUpdates).length > 0) {
-    const { error } = await adminDb()
+    const { data: updatedHotel, error } = await adminDb()
       .from('hotels')
       .update(hotelUpdates)
-      .eq('entity_id', entity.id);
+      .eq('entity_id', entity.id)
+      .select('entity_id')
+      .maybeSingle();
+
     if (error) {
       logError('UPDATE', 'hotels', id, error);
       throw error;
     }
+
+    if (!updatedHotel) return false;
   }
 
   return true;
 }
 
 export async function deleteHotel(id: string): Promise<boolean> {
-  const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
-  if (!entity) return false;
+  const { data: hotel, error: findError } = await db()
+    .from('hotels')
+    .select('entity_id')
+    .eq('entity_id', id)
+    .maybeSingle();
+
+  if (findError) {
+    logError('READ', 'hotels', id, findError);
+    throw findError;
+  }
+
+  if (!hotel) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+  await adminDb()
+    .from('faq')
+    .delete()
+    .eq('scope', 'SPECIFIC')
+    .eq('related_entity_id', hotel.entity_id);
 
-  const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
+  const { data: deleted, error } = await adminDb()
+    .from('entities')
+    .delete()
+    .eq('id', hotel.entity_id)
+    .select('id')
+    .maybeSingle();
+
   if (error) {
     logError('DELETE', 'entities', id, error);
     throw error;
   }
-  return true;
+
+  return !!deleted;
 }
 
 // ---------------------------------------------------------------------------
@@ -1462,185 +1594,118 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
 }
 
 export async function appendRestaurant(
-  data: Record<string, string>
+  data: Record<string, unknown>
 ): Promise<{ id: string; slug: string }> {
-  const areaId = await resolveAreaId(data.area || '');
-  if (!areaId) throw new Error(`Area not found: ${data.area}`);
+  const areaCode = typeof data.area === 'string' ? data.area : '';
+  const areaId = await resolveAreaId(areaCode);
 
-  // Server-side unique slug — never derived from user input
-  const slug = generateUniqueSlug(data.area || '', 'restaurant');
-
-  const { data: entity, error: entityError } = await adminDb()
-    .from('entities')
-    .insert({
-      slug,
-      entity_type: 'RESTAURANT',
-      area_id: areaId,
-      display_name: data.name_kr || data.name || '',
-      active: isActive(data.active),
-      sort: parseInt(data.sort || '999') || 999,
-    })
-    .select('id')
-    .single();
-  if (entityError) {
-    logError('INSERT', 'entities', slug, entityError);
-    throw entityError;
+  if (!areaId) {
+    throw new Error(`Area not found: ${areaCode}`);
   }
 
-  const { error: restError } = await adminDb()
-    .from('restaurants')
-    .insert({
-      entity_id: entity.id,
-      category: data.category || '',
-      address: data.address || '',
-      hours: data.hours || '',
-      price_range: data.price_range || '',
-      phone: data.phone || '',
-      menu_kr: data.menu_kr || '',
-      menu_jp: data.menu_jp || '',
-      menu_price: data.menu_price || '',
-      closed_days: data.closed_days || '',
-      description: data.description || '',
-      recommended: data.recommended ? isActive(data.recommended) : null,
-      google_maps_url: data.google_maps_url || '',
-      source_url: data.source_url || '',
-      status: data.status || '',
-      last_verified: data.last_verified || null,
-    });
-  if (restError) {
-    await adminDb().from('entities').delete().eq('id', entity.id);
-    logError('INSERT', 'restaurants', slug, restError);
-    throw restError;
+  const slug = generateUniqueSlug(areaCode, 'restaurant');
+
+  const payload: Record<string, unknown> = { ...data };
+
+  if (Object.prototype.hasOwnProperty.call(data, 'recommended')) {
+    payload.recommended = isActive(data.recommended);
   }
 
-  // Add near relationship if provided
-  if (data.near_id && data.near_type) {
-    const nearEntityId = await resolveEntityIdBySlug(data.near_id);
-    if (nearEntityId) {
-      const locInsert: Record<string, unknown> = {
-        restaurant_entity_id: entity.id,
-        near_entity_id: nearEntityId,
-        distance_text: data.near_name || '',
-        sort: 1,
-      };
-      if (data.distance_km) locInsert.distance_km = parseFloat(data.distance_km) || null;
-      if (data.drive_minutes) locInsert.drive_minutes = parseInt(data.drive_minutes) || null;
-      if (data.walk_minutes) locInsert.walk_minutes = parseInt(data.walk_minutes) || null;
-      const { error: locError } = await adminDb().from('restaurant_locations').insert(locInsert);
-      if (locError) {
-        logError('INSERT', 'restaurant_locations', slug, locError);
-      }
-    }
+  if (Object.prototype.hasOwnProperty.call(data, 'active')) {
+    payload.active = isActive(data.active);
   }
 
-  // Save name_jp to EAV if provided
-  if (data.name_jp !== undefined) {
-    await saveFieldValue(entity.id, 'rest_name_jp', data.name_jp);
+  const { data: created, error } = await adminDb().rpc('admin_create_restaurant_full', {
+    p_area_id: areaId,
+    p_slug: slug,
+    p_payload: payload,
+  });
+
+  if (error) {
+    logError('INSERT', 'restaurants', slug, error);
+    throw error;
   }
 
-  return { id: entity.id, slug };
+  const row = created as { id?: string; slug?: string } | null;
+
+  if (!row?.id || !row?.slug) {
+    throw new Error('Restaurant atomic create returned invalid result');
+  }
+
+  return {
+    id: row.id,
+    slug: row.slug,
+  };
 }
 
 export async function updateRestaurant(
   id: string,
-  data: Record<string, string>,
+  data: Record<string, unknown>,
   expectedUpdatedAt?: string
 ): Promise<boolean> {
-  const { data: entity, error: findError } = await db()
-    .from('entities')
-    .select('id, updated_at')
-    .eq('id', id)
-    .single();
-  if (findError || !entity) {
-    logError('UPDATE', 'restaurants', id, findError || { message: 'Not found' });
-    return false;
+  const payload: Record<string, unknown> = { ...data };
+
+  if (Object.prototype.hasOwnProperty.call(data, 'recommended')) {
+    payload.recommended = isActive(data.recommended);
   }
 
-  if (expectedUpdatedAt && entity.updated_at !== expectedUpdatedAt) {
-    throw new ConflictError();
+  if (Object.prototype.hasOwnProperty.call(data, 'active')) {
+    payload.active = isActive(data.active);
   }
 
-  const entityUpdates: Record<string, unknown> = {};
-  if (data.name_kr !== undefined || data.name !== undefined)
-    entityUpdates.display_name = data.name_kr || data.name || '';
-  if (data.active !== undefined) entityUpdates.active = isActive(data.active);
-  if (data.sort !== undefined) entityUpdates.sort = parseInt(data.sort) || 0;
-  if (data.area !== undefined) {
-    const areaId = await resolveAreaId(data.area);
-    if (areaId) entityUpdates.area_id = areaId;
+  const { data: updated, error } = await adminDb().rpc('admin_update_restaurant_full', {
+    p_entity_id: id,
+    p_expected_updated_at: expectedUpdatedAt || null,
+    p_payload: payload,
+  });
+
+  if (error) {
+    if (error.code === 'P0002') return false;
+    if (error.code === '40001') throw new ConflictError();
+
+    logError('UPDATE', 'restaurants', id, error);
+    throw error;
   }
 
-  if (Object.keys(entityUpdates).length > 0) {
-    const { error } = await adminDb().from('entities').update(entityUpdates).eq('id', entity.id);
-    if (error) {
-      logError('UPDATE', 'entities', id, error);
-      throw error;
-    }
-  }
+  const row = updated as { id?: string; slug?: string } | null;
 
-  const restUpdates: Record<string, unknown> = {};
-  const fields = [
-    'category',
-    'address',
-    'hours',
-    'price_range',
-    'phone',
-    'menu_kr',
-    'menu_jp',
-    'menu_price',
-    'closed_days',
-    'description',
-    'recommended',
-    'google_maps_url',
-    'source_url',
-    'status',
-    'last_verified',
-  ];
-  for (const f of fields) {
-    if (data[f] !== undefined) restUpdates[f] = data[f];
-  }
-  // Convert boolean fields
-  if (restUpdates['recommended'] !== undefined) {
-    restUpdates['recommended'] = restUpdates['recommended']
-      ? isActive(restUpdates['recommended'])
-      : null;
-  }
-
-  if (Object.keys(restUpdates).length > 0) {
-    const { error } = await adminDb()
-      .from('restaurants')
-      .update(restUpdates)
-      .eq('entity_id', entity.id);
-    if (error) {
-      logError('UPDATE', 'restaurants', id, error);
-      throw error;
-    }
-  }
-
-  // A06: 관계 수정은 별도 restaurant-locations API에서 처리
-  // 기본 정보 수정 시 관계를 삭제하지 않음
-
-  // Save name_jp to EAV if provided
-  if (data.name_jp !== undefined) {
-    await saveFieldValue(entity.id, 'rest_name_jp', data.name_jp);
-  }
-
-  return true;
+  return !!row?.id;
 }
 
 export async function deleteRestaurantRow(id: string): Promise<boolean> {
-  const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
-  if (!entity) return false;
+  const { data: rest, error: findError } = await db()
+    .from('restaurants')
+    .select('entity_id')
+    .eq('entity_id', id)
+    .maybeSingle();
+
+  if (findError) {
+    logError('READ', 'restaurants', id, findError);
+    throw findError;
+  }
+
+  if (!rest) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+  await adminDb()
+    .from('faq')
+    .delete()
+    .eq('scope', 'SPECIFIC')
+    .eq('related_entity_id', rest.entity_id);
 
-  const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
+  const { data: deleted, error } = await adminDb()
+    .from('entities')
+    .delete()
+    .eq('id', rest.entity_id)
+    .select('id')
+    .maybeSingle();
+
   if (error) {
     logError('DELETE', 'entities', id, error);
     throw error;
   }
-  return true;
+
+  return !!deleted;
 }
 
 // ---------------------------------------------------------------------------
@@ -1876,21 +1941,79 @@ export async function updateAttraction(
   return true;
 }
 
-/** Save a single EAV field value by field_key */
+/** Save a single EAV field value by field_key — 3-level scope lookup */
 async function saveFieldValue(entityId: string, fieldKey: string, value: string): Promise<void> {
-  const { data: fd } = await db()
-    .from('field_definitions')
-    .select('id')
-    .eq('field_key', fieldKey)
-    .limit(1)
+  const { data: entity, error: entityError } = await db()
+    .from('entities')
+    .select('entity_type')
+    .eq('id', entityId)
     .maybeSingle();
-  if (!fd) return;
+
+  if (entityError) {
+    logError('READ', 'entities', entityId, entityError);
+    throw entityError;
+  }
+
+  if (!entity) {
+    throw new Error(`Entity not found: ${entityId}`);
+  }
+
+  let definitionId: string | null = null;
+
+  // Priority 1: entity-specific
+  {
+    const { data: fd, error } = await db()
+      .from('field_definitions')
+      .select('id')
+      .eq('field_key', fieldKey)
+      .eq('scope_entity_id', entityId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (fd?.id) definitionId = fd.id;
+  }
+
+  // Priority 2: entity-type
+  if (!definitionId) {
+    const { data: fd, error } = await db()
+      .from('field_definitions')
+      .select('id')
+      .eq('field_key', fieldKey)
+      .eq('scope_entity_type', entity.entity_type)
+      .is('scope_entity_id', null)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (fd?.id) definitionId = fd.id;
+  }
+
+  // Priority 3: true global
+  if (!definitionId) {
+    const { data: fd, error } = await db()
+      .from('field_definitions')
+      .select('id')
+      .eq('field_key', fieldKey)
+      .is('scope_entity_type', null)
+      .is('scope_entity_id', null)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (fd?.id) definitionId = fd.id;
+  }
+
+  if (!definitionId) return;
+
   const { error } = await adminDb()
     .from('entity_field_values')
     .upsert(
-      { entity_id: entityId, field_definition_id: fd.id, value_text: value || null },
+      {
+        entity_id: entityId,
+        field_definition_id: definitionId,
+        value_text: value || null,
+      },
       { onConflict: 'entity_id,field_definition_id' }
     );
+
   if (error) {
     logError('UPSERT', 'entity_field_values', entityId, error);
     throw error;

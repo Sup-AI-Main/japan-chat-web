@@ -195,7 +195,7 @@ export async function createFieldDefinition(
     }
 
     // Check if this is a unique violation on field_key indexes (23505)
-    if (error.code === "23505" && (error.message?.includes("idx_fd_key_global") || error.message?.includes("idx_fd_key_per_entity"))) {
+    if (error.code === "23505" && (error.message?.includes("idx_fd_key_global") || error.message?.includes("idx_fd_key_entity_type") || error.message?.includes("idx_fd_key_per_entity"))) {
       fieldKey = generateFieldKey(labelKo);
       lastError = error;
       continue;

@@ -1200,8 +1200,8 @@ POST 성공
 - [x] 생성 직후 **첫 접근부터 200** ✅ (Production QA: HOTEL/GOLF/RESTAURANT detail 200)
 - [x] 관리자 로그인 상태 200 ✅ (Production QA: SHA `2d0d9c5`)
 - [x] 로그아웃 상태 200 ✅ (Production QA: 숙소 상세 200, 식당 상세 200)
-- [ ] 새 시크릿 창 200 — 검증 불가: 시크릿 창 테스트 환경 미구비
-- [ ] 브라우저 강력 새로고침 없이 정상 — 검증 불가: 수동 테스트 필요
+- [ ] 새 시크릿 창에서 detail 200 확인 — MANUAL_QA_REQUIRED: 브라우저 수동 테스트 필요
+- [ ] 강력 새로고침 없이 일반 navigation/refresh에서 정상 반영 — MANUAL_QA_REQUIRED: 브라우저 수동 테스트 필요
 - [x] Vercel stale 404가 남지 않음 ✅ (Production QA: revalidatePath 적용 확인)
 
 ## 21.2 UPDATE 직후
@@ -1734,3 +1734,50 @@ MANUAL_QA_REQUIRED: 3
 | types.ts                   | 1       | HotelFormPayload/GolfFormPayload/RestaurantFormPayload 추가                                            |
 | QA 문서                    | 1       | 전체 체크 상태 업데이트                                                                                |
 | **합계**                   | **19**  | **+878 / -279 lines**                                                                                  |
+
+---
+
+## P0 — CMS Data Contract Atomicity Fix (SHA `41c6444` → `________`)
+
+### P0 코드 변경 (9건)
+
+- [x] P0-1: Supabase migration (`20260921120000_p0_cms_contract_atomicity.sql`) — `hotels.address_jp` 컬럼, 3 unique indexes, field_definitions 보강, restaurant sections, admin_create/admin_update RPC
+- [x] P0-2: `HotelEditModal.tsx` — fieldKey 수정 (`name_kr→display_name`, `name_jp→official_name`, `address_kr→address`, `transport→transport_note`)
+- [x] P0-3: `RestaurantEditModal.tsx` — fieldKey 수정 (`rest_name_kr→name`)
+- [x] P0-4: `supabase-cms.ts` — REQUIRED_FIELD_ALIASES, getSubmittedFieldValue(), validateRequiredFields() throw 패턴, saveFieldValue() 3-level scope lookup, mapHotel address_jp 매핑, HOTEL SELECT/INSERT/UPDATE address_jp, Restaurant atomic RPC (appendRestaurant, updateRestaurant)
+- [x] P0-5: GOLF zero-row 404 처리 (`deleteGolfCourse`, `updateGolfCourse`)
+- [x] P0-6: Restaurant atomic repository (`admin_create_restaurant_full`, `admin_update_restaurant_full` RPC)
+- [x] P0-7: `field-definitions.ts` — collision handler에 `idx_fd_key_entity_type` 인덱스 메시지 추가
+- [x] P0-8: API 404 contract — hotel/golf/restaurant route PUT/DELETE에서 `notFound()` 반환
+- [x] P0-9: Restaurant near-options parser — `data.hotels` → `json.data?.hotels ?? []`
+
+### DB 검증 결과
+
+| 항목                                         | 결과                                                                          |
+| -------------------------------------------- | ----------------------------------------------------------------------------- |
+| `hotels.address_jp` 컬럼                     | ✅ text, nullable                                                             |
+| 3 unique indexes (field_definitions)         | ✅ idx_fd_key_global, idx_fd_key_entity_type, idx_fd_key_per_entity           |
+| Restaurant field_definitions (19행)          | ✅ basic_info, address, distance, nearby_restaurants 등 모든 section_key 정상 |
+| RPC `admin_create_restaurant_full`           | ✅ SECURITY DEFINER, EXECUTE: postgres + service_role                         |
+| RPC `admin_update_restaurant_full`           | ✅ SECURITY DEFINER, EXECUTE: postgres + service_role                         |
+| Atomic rollback test (NEAR_ENTITY_NOT_FOUND) | ✅ entity_count = 0                                                           |
+
+### 로컬 검증 결과
+
+| 항목                        | 결과                                                                                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`         | ✅ exit 0                                                                                                                                 |
+| `npm run lint`              | ⚠️ exit 1 — 13개 에러 모두 P0 변경 전(HEAD `41c6444`)부터 존재하던 `react-hooks/set-state-in-effect`. P0 변경으로 인한 신규 lint 에러 0건 |
+| `npm run build`             | ✅ exit 0                                                                                                                                 |
+| `npm run verify:cms-schema` | ✅ exit 0                                                                                                                                 |
+| `git diff --check`          | ✅ exit 0                                                                                                                                 |
+
+### Production CRUD QA (deploy 후 검증)
+
+| 항목                                                                  | 상태                        |
+| --------------------------------------------------------------------- | --------------------------- |
+| HOTEL `name_jp/address_jp` CREATE → READ → UPDATE → reload round-trip | ⏳ PENDING (deploy 후 검증) |
+| Restaurant `recommended=false` DB 직접 확인                           | ⏳ PENDING (deploy 후 검증) |
+| Restaurant primary location UPDATE + secondary relation 보존          | ⏳ PENDING (deploy 후 검증) |
+| nonexistent UPDATE/DELETE HTTP 404 검증                               | ⏳ PENDING (deploy 후 검증) |
+| QA test data cleanup                                                  | ⏳ PENDING (deploy 후 검증) |
