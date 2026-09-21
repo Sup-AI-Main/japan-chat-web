@@ -1451,8 +1451,8 @@ RESTAURANT 추가:
 - [x] CRUD contract code inspection
 - [x] cache/revalidation code inspection
 - [x] hardcoded required 제거
-- [x] dynamic labels 적용 (commit `52915ad`)
-- [x] typed payload 적용 (commit `52915ad`)
+- [x] dynamic labels 적용 (commit `6d21193`)
+- [x] typed payload 적용 (commit `6d21193`)
 
 ## DB_CONNECTION_VERIFIED
 
@@ -1476,7 +1476,7 @@ RESTAURANT 추가:
 - [x] UPDATE 직후 즉시 반영 (API 200)
 - [x] DELETE 직후 detail 404
 - [x] 수동 F5 필요 없음 (API 기준)
-- [x] label 변경 즉시 반영 (commit `52915ad`)
+- [x] label 변경 즉시 반영 (commit `6d21193`)
 - [x] 로그인/로그아웃 모두 public detail 정상
 
 ## DEPLOY_VERIFIED
@@ -1578,7 +1578,7 @@ RESTAURANT 추가:
 
 ---
 
-# 30. P1/P2 수정 결과 (2026-09-20, commit `003979e`)
+# 30. P1/P2 수정 결과 (2026-09-20, commit `6d21193`)
 
 ## 수정 요약
 
@@ -1622,14 +1622,14 @@ RESTAURANT 추가:
 
 ## 현재 상태
 
-- commit SHA: `ad584c3`
-- **push BLOCKED**: Git Credential Manager 인증 다이얼로그 대기 중
-- 사용자 수동 push 필요: `git push origin main`
+- commit SHA: `6d21193`
+- origin/main push: `ad584c3..6d21193 main -> main` ✅
+- Vercel 자동 배포 대기 중
 - Push 후: Vercel 자동 배포 → Production SHA 확인 → Production QA 수행
 
 ## Production QA 대기 항목
 
-- [ ] Production SHA = `52915ad` 확인
+- [ ] Production SHA = `6d21193` 확인
 - [ ] label_ko 변경 → Modal 즉시 반영
 - [ ] label_ko 변경 → 공개 상세 즉시 반영
 - [ ] field `active=false` → Modal 숨김
