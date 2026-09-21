@@ -60,7 +60,8 @@ export async function PUT(req: NextRequest) {
   const { id, updated_at, area, ...restData } = body;
   if (!id) return badRequest("Missing id");
   try {
-    const success = await updateRestaurant(id as string, restData as Record<string, string>, updated_at as string | undefined);
+    const success = await updateRestaurant(id as string, restData, updated_at as string | undefined);
+    if (!success) return notFound("Restaurant not found");
     if (area) {
       revalidatePath(`/${(area as string).toLowerCase()}/restaurant`);
       revalidatePath("/[area]/restaurant/[id]", "page");

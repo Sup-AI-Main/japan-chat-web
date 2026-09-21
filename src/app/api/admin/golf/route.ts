@@ -66,6 +66,7 @@ export async function PUT(req: NextRequest) {
       revalidatePath(`/${area.toLowerCase()}/golf`);
       revalidatePath("/[area]/golf/[id]", "page");
     }
+    if (!success) return notFound("Golf course not found");
     // Return canonical persisted row from DB (resolve slug from entity UUID)
     let canonicalCourse = null;
     try {
