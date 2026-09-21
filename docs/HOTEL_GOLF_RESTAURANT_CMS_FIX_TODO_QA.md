@@ -1781,3 +1781,75 @@ MANUAL_QA_REQUIRED: 3
 | Restaurant primary location UPDATE + secondary relation 보존 | ✅ primary distance_km: 1.50→2.00, secondary unchanged (3.00)                                                  |
 | nonexistent DELETE                                           | ✅ `count = 0` (API route에서 `notFound()` 반환 — 코드 검증 완료)                                              |
 | QA test data cleanup                                         | ✅ `remaining = 0`                                                                                             |
+
+---
+
+## P0 POST-DEPLOY FINAL CLOSURE (SHA `fc9e77b` → `8a92c7e`)
+
+### Production HTTP 404 검증 (6개 요청, 인증 필수)
+
+| #   | Method | Entity                 | URL Pattern                    | HTTP Status | Response                            |
+| --- | ------ | ---------------------- | ------------------------------ | ----------- | ----------------------------------- |
+| 1   | PUT    | HOTEL nonexistent      | `/api/admin/hotel`             | ✅ 404      | `{success:false, code:"NOT_FOUND"}` |
+| 2   | DELETE | HOTEL nonexistent      | `/api/admin/hotel?id=...`      | ✅ 404      | `{success:false, code:"NOT_FOUND"}` |
+| 3   | PUT    | GOLF nonexistent       | `/api/admin/golf`              | ✅ 404      | `{success:false, code:"NOT_FOUND"}` |
+| 4   | DELETE | GOLF nonexistent       | `/api/admin/golf?id=...`       | ✅ 404      | `{success:false, code:"NOT_FOUND"}` |
+| 5   | PUT    | RESTAURANT nonexistent | `/api/admin/restaurant`        | ✅ 404      | `{success:false, code:"NOT_FOUND"}` |
+| 6   | DELETE | RESTAURANT nonexistent | `/api/admin/restaurant?id=...` | ✅ 404      | `{success:false, code:"NOT_FOUND"}` |
+
+> GOLF PUT, RESTAURANT PUT: 코드 수정 전200으로 응답했으나, `if (!success) return notFound(...)` 추가 후404 정상 반환.
+
+### Browser Manual QA (3건)
+
+| #   | 항목                            | 결과       | 비고                                                                                                                                                    |
+| --- | ------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | 비로그인 공개 detail 페이지 200 | ✅ PASS    | 기존 entity `dos_hotel_holiday` — 정상 렌더링 확인                                                                                                      |
+| B   | CREATE 후 navigation/refresh    | ⚠️ PARTIAL | 로컬(dev)200 정상. Production ISR 캐시에서 `generateStaticParams` 미포함 새 slug404. 코드 자체는 correct. Vercel ISR on-demand rendering 동작 확인 필요 |
+| C   | DELETE 후 back/forward          | ✅ PASS    | QA entity `dos_hotel_9497dd79` 삭제 후 DB 잔존0. Admin API DELETE 정상 동작 확인                                                                        |
+
+> B 비고: `getHotelById` 쿼리가 anon key로 Supabase REST API 직접 호출 시 정상 응답. 로컬 dev server에서200. Production만404. `revalidatePath` 호출 후에도 Vercel ISR 캐시가 갱신되지 않는 현상. `generateStaticParams`에 포함되지 않은 경로의 on-demand ISR 렌더링이 Vercel에서 실패하는 것으로 추정.
+
+### QA Entity Cleanup
+
+- **대상**: `dos_hotel_9497dd79` (UUID `e6c3aa88-72b6-4b8a-8bf5-74253bfc5e01`, entity_type `HOTEL`)
+- **삭제 방법**: Admin API `DELETE /api/admin/hotel?id=e6c3aa88-72b6-4b8a-8bf5-74253bfc5e01` (Playwright admin 세션)
+- **결과**: `{"success":true,"data":{"success":true}}`
+- **DB 잔존 검증**:
+  - `entities` (해당 UUID): 0
+  - `hotels` (해당 entity_id): 0
+  - `restaurant_locations`: 0
+  - `entity_field_values`: 0
+  - `entities WHERE slug LIKE 'p0_%'`: **0**
+
+### P0 POST-DEPLOY 코드 변경 (1건)
+
+- [x] `restaurant/route.ts` PUT: `restData as Record<string, string>` cast 제거
+- [x] `restaurant/route.ts` PUT: `if (!success) return notFound("Restaurant not found")` 추가
+- [x] `golf/route.ts` PUT: `if (!success) return notFound("Golf course not found")` 추가
+
+### P0 DB 상태 재확인
+
+| 항목                                             | 결과                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------- |
+| `hotels.address_jp` 컬럼                         | ✅ text, nullable                                                   |
+| 3 unique indexes                                 | ✅ idx_fd_key_global, idx_fd_key_entity_type, idx_fd_key_per_entity |
+| RPC privileges (anon/authenticated/service_role) | ✅ anon=false, authenticated=false, service_role=true               |
+| P0 garbage count                                 | ✅ 0                                                                |
+
+### ADMIN_SUBPAGE_404_UNRESOLVED
+
+| 항목                        | 값                                                          |
+| --------------------------- | ----------------------------------------------------------- |
+| Failing URL                 | `https://japan-chat-web.vercel.app/admin/dos`               |
+| isAuthenticated             | `{"isAdmin":true}` — `/api/admin/check`에서 확인            |
+| area param                  | `dos`                                                       |
+| resolveAreaFromAdmin 결과   | `null` → `notFound()` 호출                                  |
+| 401 URL                     | Console log에 존재 (정확한 URL 미확인)                      |
+| notFound() 발생 위치        | `admin/[area]/page.tsx:21` (`if (!currentArea) notFound()`) |
+| 공개 페이지 `/dos`          | ✅ 정상 렌더링 (200)                                        |
+| Admin dashboard `/admin`    | ✅ 정상 렌더링 (200, `isAdmin:true`)                        |
+| Admin `/admin/dos`          | ❌ 404                                                      |
+| Admin `/admin/dos/manage`   | ❌ 404                                                      |
+| Admin `/admin/dos/entities` | ❌ 404                                                      |
+
+> 원인 미확정. `getActiveAreas()`는 DOS를 정상 반환하나, `resolveAreaFromAdmin("dos")` → `resolveAreaBySlug("dos")` → `fetchAreas()` 경로에서 null 반환. 서버리스 함수 인스턴스 간 캐시 차이 또는 Supabase anon key 세션 상태 차이가 원인일 수 있음.
