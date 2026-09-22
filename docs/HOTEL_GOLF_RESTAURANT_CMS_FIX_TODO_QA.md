@@ -2846,12 +2846,12 @@ PHASE_2_RESULT: COMPLETE
 
 ### SHA 기록
 
-| Item                     | SHA              |
-| ------------------------ | ---------------- |
-| STARTING_SHA             | `be52859`        |
-| IMPLEMENTATION_FINAL_SHA | `11b4e90`        |
-| PREVIOUS_REPORT_SHA      | `be52859`        |
-| FINAL_REPORT_SHA         | (commit 후 기록) |
+| Item                     | SHA       |
+| ------------------------ | --------- |
+| STARTING_SHA             | `be52859` |
+| IMPLEMENTATION_FINAL_SHA | `11b4e90` |
+| PREVIOUS_REPORT_SHA      | `be52859` |
+| FINAL_REPORT_SHA         | `4235d1a` |
 
 ### Screenshots
 
