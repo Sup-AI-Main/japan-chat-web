@@ -329,7 +329,7 @@ export function GolfDetailsEditor({ entityId, onClose }: GolfDetailsEditorProps)
     return (
       <div className="p-6">
         <div className="text-red-600 mb-4">{error}</div>
-        <button onClick={loadEntity} className="text-primary underline">
+        <button onClick={() => void loadEntity()} className="text-primary underline">
           다시 시도
         </button>
       </div>
