@@ -1,3 +1,32 @@
+// Entity details_json document (CMS V2)
+export interface EntityDetailsDocumentV1 {
+  version: 1;
+  sections: EntityDetailsSection[];
+}
+
+export interface EntityDetailsSection {
+  id: string;
+  key: string;
+  title_ko: string;
+  emoji?: string | null;
+  sort: number;
+  is_visible: boolean;
+  source?: string;
+  source_table?: string;
+  source_column?: string;
+  legacy_id?: string;
+  items: EntityDetailsItem[];
+}
+
+export interface EntityDetailsItem {
+  id: string;
+  type: string;
+  value: string;
+  value_jp?: string | null;
+  legacy_id?: string;
+  is_visible?: boolean;
+}
+
 // Golf Course
 export interface GolfCourse {
   id: string;
@@ -20,6 +49,7 @@ export interface GolfCourse {
   sort: number;
   last_verified: string;
   updated_at: string;
+  details_json?: EntityDetailsDocumentV1 | null;
 }
 
 // Hotel

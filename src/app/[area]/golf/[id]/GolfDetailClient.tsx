@@ -15,6 +15,7 @@ import {
   ContentSectionsRenderer,
   GolfEditModal,
 } from "@/components/inline-cms";
+import { GolfDetailsEditor } from "@/components/admin/GolfDetailsEditor";
 
 interface GolfDetailClientProps {
   course: GolfCourse;
@@ -35,6 +36,7 @@ export function GolfDetailClient({
 }: GolfDetailClientProps) {
   const [course, setCourse] = useState(initialCourse);
   const [editGolfOpen, setEditGolfOpen] = useState(false);
+  const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
   const router = useRouter();
@@ -116,45 +118,78 @@ export function GolfDetailClient({
 
           {/* Golf Detail Fields */}
           <div className="space-y-3 mb-6">
-            {course.course_summary && sectionVisible("description") && (
-              <div>
-                <h3 className="text-[15px] font-bold text-text">{sectionLabel("description", "골프장 설명")}</h3>
-                <p className="text-[15px] text-text leading-relaxed">{course.course_summary}</p>
-              </div>
-            )}
-            {course.play_cart && sectionVisible("play_cart") && (
-              <div>
-                <h3 className="text-[15px] font-bold text-text">{sectionLabel("play_cart", "플레이/카트")}</h3>
-                <p className="text-[15px] text-text leading-relaxed">{course.play_cart}</p>
-              </div>
-            )}
-            {course.clubhouse_dining && sectionVisible("clubhouse") && (
-              <div>
-                <h3 className="text-[15px] font-bold text-text">{sectionLabel("clubhouse", "클럽하우스 식사")}</h3>
-                <p className="text-[15px] text-text leading-relaxed">{course.clubhouse_dining}</p>
-              </div>
-            )}
-            {course.bath_shower && sectionVisible("bath_shower") && (
-              <div>
-                <h3 className="text-[15px] font-bold text-text">{sectionLabel("bath_shower", "목욕/샤워")}</h3>
-                <p className="text-[15px] text-text leading-relaxed">{course.bath_shower}</p>
-              </div>
-            )}
-            {course.rental && sectionVisible("rental") && (
-              <div>
-                <h3 className="text-[15px] font-bold text-text">{sectionLabel("rental", "렌탈 골프채")}</h3>
-                <p className="text-[15px] text-text leading-relaxed">{course.rental}</p>
-              </div>
-            )}
-            {course.dress_code && sectionVisible("dress_code") && (
-              <div>
-                <h3 className="text-[15px] font-bold text-text">{sectionLabel("dress_code", "복장")}</h3>
-                <p className="text-[15px] text-text leading-relaxed">{course.dress_code}</p>
-              </div>
+            {course.details_json?.sections?.length ? (
+              // CMS V2: render from details_json when available
+              course.details_json.sections
+                .filter(s => s.is_visible)
+                .sort((a, b) => a.sort - b.sort)
+                .map(s => {
+                  const content = s.items.map(i => i.value).filter(Boolean).join('\n');
+                  if (!content) return null;
+                  if (!sectionVisible(s.key)) return null;
+                  return (
+                    <div key={s.id}>
+                      <h3 className="text-[15px] font-bold text-text">
+                        {s.emoji ? `${s.emoji} ` : ''}{sectionLabel(s.key, s.title_ko)}
+                      </h3>
+                      <p className="text-[15px] text-text leading-relaxed whitespace-pre-line">{content}</p>
+                    </div>
+                  );
+                })
+            ) : (
+              // Legacy fallback: render from relational columns
+              <>
+                {course.course_summary && sectionVisible("description") && (
+                  <div>
+                    <h3 className="text-[15px] font-bold text-text">{sectionLabel("description", "골프장 설명")}</h3>
+                    <p className="text-[15px] text-text leading-relaxed">{course.course_summary}</p>
+                  </div>
+                )}
+                {course.play_cart && sectionVisible("play_cart") && (
+                  <div>
+                    <h3 className="text-[15px] font-bold text-text">{sectionLabel("play_cart", "플레이/카트")}</h3>
+                    <p className="text-[15px] text-text leading-relaxed">{course.play_cart}</p>
+                  </div>
+                )}
+                {course.clubhouse_dining && sectionVisible("clubhouse") && (
+                  <div>
+                    <h3 className="text-[15px] font-bold text-text">{sectionLabel("clubhouse", "클럽하우스 식사")}</h3>
+                    <p className="text-[15px] text-text leading-relaxed">{course.clubhouse_dining}</p>
+                  </div>
+                )}
+                {course.bath_shower && sectionVisible("bath_shower") && (
+                  <div>
+                    <h3 className="text-[15px] font-bold text-text">{sectionLabel("bath_shower", "목욕/샤워")}</h3>
+                    <p className="text-[15px] text-text leading-relaxed">{course.bath_shower}</p>
+                  </div>
+                )}
+                {course.rental && sectionVisible("rental") && (
+                  <div>
+                    <h3 className="text-[15px] font-bold text-text">{sectionLabel("rental", "렌탈 골프채")}</h3>
+                    <p className="text-[15px] text-text leading-relaxed">{course.rental}</p>
+                  </div>
+                )}
+                {course.dress_code && sectionVisible("dress_code") && (
+                  <div>
+                    <h3 className="text-[15px] font-bold text-text">{sectionLabel("dress_code", "복장")}</h3>
+                    <p className="text-[15px] text-text leading-relaxed">{course.dress_code}</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
         </EditableContainer>
+
+        {/* JSON Editor button (admin only) */}
+        {isAdmin && (
+          <button
+            onClick={() => setJsonEditorOpen(true)}
+            className="mb-4 border border-border px-4 py-2 rounded text-[13px] text-text hover:bg-surface min-h-[44px]"
+          >
+            📝 JSON 편집
+          </button>
+        )}
 
         {/* 포함/불포함 사항 */}
         <IncludeExcludeSection parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
@@ -218,6 +253,23 @@ export function GolfDetailClient({
       />
 
       <Toast message={message} visible={visible} />
+
+      {/* JSON Editor Modal */}
+      {jsonEditorOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setJsonEditorOpen(false);
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-[900px] max-h-[90vh] flex flex-col mx-4">
+            <GolfDetailsEditor
+              entityId={course.id}
+              onClose={() => setJsonEditorOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </main>
   );
 }

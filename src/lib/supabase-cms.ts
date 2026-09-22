@@ -15,6 +15,7 @@ import type {
   AdminOption,
   IncludeExclude,
   ContentSection,
+  EntityDetailsDocumentV1,
 } from './types';
 import { ConflictError } from './types';
 import { randomBytes } from 'node:crypto';
@@ -295,6 +296,7 @@ interface EntityRow {
   active: boolean;
   sort: number;
   updated_at: string;
+  details_json?: EntityDetailsDocumentV1 | null;
 }
 
 function entitySlugToId(slug: string): string {
@@ -566,6 +568,7 @@ function mapGolfCourse(
     active: entity.active ? 'TRUE' : 'FALSE',
     sort: entity.sort,
     updated_at: entity.updated_at,
+    details_json: entity.details_json ?? null,
   };
 }
 
@@ -605,7 +608,7 @@ export async function getGolfCourseById(id: string): Promise<GolfCourse | null> 
   const { data, error } = await db()
     .from('golf_courses')
     .select(
-      'entity_id, official_name, address, phone, course_summary, play_cart, clubhouse_dining, bath_shower, rental, dress_code, google_maps_url, source_url, status, last_verified, product_reference_minutes, travel_time_note, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+      'entity_id, official_name, address, phone, course_summary, play_cart, clubhouse_dining, bath_shower, rental, dress_code, google_maps_url, source_url, status, last_verified, product_reference_minutes, travel_time_note, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code))'
     )
     .eq('entities.slug', id)
     .eq('entities.active', true) // A09: 비활성 entity 제외
@@ -1660,7 +1663,7 @@ export async function getGolfCourseByEntityIdAdmin(entityId: string): Promise<Go
   const { data, error } = await adminDb()
     .from('golf_courses')
     .select(
-      'entity_id, official_name, address, phone, course_summary, play_cart, clubhouse_dining, bath_shower, rental, dress_code, google_maps_url, source_url, status, last_verified, product_reference_minutes, travel_time_note, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+      'entity_id, official_name, address, phone, course_summary, play_cart, clubhouse_dining, bath_shower, rental, dress_code, google_maps_url, source_url, status, last_verified, product_reference_minutes, travel_time_note, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code))'
     )
     .eq('entity_id', entityId)
     .maybeSingle();
