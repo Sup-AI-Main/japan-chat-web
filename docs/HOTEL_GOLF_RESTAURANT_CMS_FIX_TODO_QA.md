@@ -2862,3 +2862,52 @@ PHASE_2_RESULT: COMPLETE
 | Normal save success | `Downloads/normal_save_success-2026-09-22T09-08-07-462Z.png` |
 | Conflict warning UI | `Downloads/conflict_warning_ui-2026-09-22T09-14-14-628Z.png` |
 | Public restored     | `Downloads/public_restored-2026-09-22T09-17-43-980Z.png`     |
+
+---
+
+## Phase 2.5 — 공통 CMS V2 Foundation + Golf Refactor
+
+### 상태: 구현 완료, Production E2E 대기
+
+### 변경 요약
+
+**새 파일:**
+
+- `src/lib/entity-details/` — types, constants, validate, normalize, diff, is-empty-value
+- `src/components/entity-details/` — Renderer, Editor, EditorModal, SectionEditor, ItemEditor, SaveProgress
+- `src/lib/revalidate-entity.ts` — targeted revalidation helper
+- `scripts/enrich-golf-details-json.mjs` — Golf JSON enrichment script
+
+**수정 파일:**
+
+- `src/app/[area]/golf/[id]/GolfDetailClient.tsx` — shared renderer/editor 통합
+- `src/app/api/admin/entity-editor/route.ts` — runtime validation, normalization, targeted revalidation
+
+### Golf DB 상태 (enrichment 후)
+
+| entity                 | sections | items |
+| ---------------------- | -------- | ----- |
+| beppu_golf_amagase     | 6        | 6     |
+| beppu_golf_beppu_club  | 6        | 6     |
+| beppu_golf_beppu_mori  | 6        | 6     |
+| beppu_golf_sunnyhill   | 6        | 6     |
+| dos_golf_amagase       | 6        | 6     |
+| dos_golf_forest_nankan | 6        | 6     |
+| dos_golf_greenland     | 6        | 6     |
+| dos_golf_kaho          | 10       | 21    |
+| dos_golf_winners       | 8        | 11    |
+
+- active=9, details_json=9, version=1
+- item metadata (key/label_ko/sort/is_visible) = 0 missing
+- section metadata (title_jp/sort/is_visible) = 0 missing
+- QA markers = 0
+
+### Static Verification
+
+| check                         | result |
+| ----------------------------- | ------ |
+| typecheck                     | PASS   |
+| lint (pre-existing 13, new 0) | PASS   |
+| build                         | PASS   |
+| verify:cms-schema             | PASS   |
+| git diff --check              | PASS   |

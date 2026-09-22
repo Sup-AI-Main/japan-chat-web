@@ -2337,3 +2337,96 @@ Core relational data
 호텔/식당/볼거리도 같은 editor/renderer 기반으로 확장한다.
 
 그리고 공개 상세에는 더 이상 예약 사이트처럼 보이는 `예약 전 확인`을 표시하지 않는다.
+
+---
+
+# 23. Phase 2.5 구현 상태 (공통 CMS V2 Foundation + Golf Refactor)
+
+## 구현된 공통 모듈
+
+| 모듈 | 경로 | 역할 |
+|------|------|------|
+| types.ts | `src/lib/entity-details/types.ts` | EntityDetailsDocumentV1, section/item 타입 계약 |
+| constants.ts | `src/lib/entity-details/constants.ts` | MAX_SECTIONS, ALLOWED_ITEM_TYPES, ENTITY_TYPE_WHITELIST 등 |
+| validate.ts | `src/lib/entity-details/validate.ts` | API boundary 런타임 JSON 검증 (유효하지 않으면 DB write 전 reject) |
+| normalize.ts | `src/lib/entity-details/normalize.ts` | 기존 Golf JSON item에 누락된 key/label_ko/sort/is_visible을 메모리에서 보강 |
+| diff.ts | `src/lib/entity-details/diff.ts` | 필드 단위 dirty diff 카운팅 (false vs null, 0 vs empty 구분) |
+| is-empty-value.ts | `src/lib/entity-details/is-empty-value.ts` | 타입별 빈 값 판정 (false/0은 비어있지 않음, null/""/[]는 비어있음) |
+| revalidate-entity.ts | `src/lib/revalidate-entity.ts` | 변경된 entity 1개의 detail + list path만 revalidate |
+
+## 구현된 공통 컴포넌트
+
+| 컴포넌트 | 경로 | 역할 |
+|----------|------|------|
+| EntityDetailsRenderer | `src/components/entity-details/` | 공개 렌더러 — JSON section/item 라벨 직접 사용, 글로벌 override 없음 |
+| EntityDetailsEditor | `src/components/entity-details/` | 공유 에디터 — draft-only, section/item CRUD, label 편집, sort reorder |
+| EntityDetailsEditorModal | `src/components/entity-details/` | 모달 래퍼 — dirty guard, 저장 잠금 |
+| EntityDetailsSectionEditor | `src/components/entity-details/` | 섹션 에디터 — emoji, title_ko/jp, visibility, sort |
+| EntityDetailsItemEditor | `src/components/entity-details/` | 항목 에디터 — label_ko/jp, type select, typed value editors |
+| EntitySaveProgress | `src/components/entity-details/` | 저장 파이프라인 UI — 실제 이벤트 기반 단계 진행 |
+
+## Core vs Details 소유권
+
+| 구분 | 저장 위치 | 편집 UI |
+|------|----------|---------|
+| Core relational (display_name, address, phone, google_maps_url) | `entities` + `golf_courses` 테이블 | GolfEditModal (기본정보 수정) |
+| Variable details (course_summary, play_cart, rental, dress_code 등) | `entities.details_json` (JSONB) | EntityDetailsEditor (세부사항 수정) |
+
+- Core 저장은 details_json을 변경하지 않음
+- Details 저장은 core 필드를 변경하지 않음
+- 동일 논리 필드가 두 곳에서 편집 불가
+
+## 글로벌 정의 역할
+
+- `section_definitions`, `field_definitions` 테이블은 Phase 2.5에서 삭제하지 않음
+- 역할: 새 entity 생성 시 템플릿/기본값 제공, 레거시 fallback
+- migrated JSON entity에서는 per-entity JSON 라벨이 canonical
+- 글로벌 라벨이 JSON section/item 라벨을 override하지 않음
+
+## Per-entity 라벨 우선순위
+
+```
+1. entities.details_json.sections[].title_ko  ← canonical (migrated entity)
+2. section_definitions fallback               ← 레거시 entity만
+```
+
+```
+1. entities.details_json.sections[].items[].label_ko  ← canonical
+2. field_definitions fallback                          ← 레거시 entity만
+```
+
+## 저장 파이프라인
+
+7단계 실제 이벤트 기반 (fake timer 없음):
+
+1. **validate** — 런타임 JSON 검증
+2. **prepare** — 변경사항 정규화
+3. **save** — RPC `admin_save_entity_editor_v1` 호출
+4. **conflict** — 충돌 확인 (optimistic concurrency)
+5. **canonical** — DB에서 canonical 재-read
+6. **revalidate** — 변경된 entity만 targeted revalidation
+7. **done** — 완료
+
+## Golf JSON Enrichment
+
+- `scripts/enrich-golf-details-json.mjs` — 누락 메타데이터 보강 스크립트
+- Production에서 이미 실행 완료 (9/9 Golf entity)
+- Idempotent — 두 번 실행해도 변경 없음
+- Optimistic concurrency 사용 — 동시성 충돌 시 blind overwrite 없음
+
+## 런타임 검증
+
+- API boundary에서 `validateEntityDetailsDocument()` 실행
+- 검증 항목: version, sections array, unique IDs/keys, label 길이, type whitelist, URL protocol, list members, payload size, NaN/Infinity 금지
+- 검증 실패 시 DB write 전 safe 4xx 반환
+
+## 롤백
+
+- Golf enrichment는 additive metadata만 추가 (값/ID 변경 없음)
+- 롤백 시: enrichment 전 JSON snapshot으로 복원 가능
+- 코드 롤백: `git revert` 커밋 단위로 가능
+
+## 남은 작업
+
+- Phase 3: Hotel/Restaurant/Attraction에 동일 editor/renderer 적용
+- Phase 6: 레거시 admin 컴포넌트 정리 (ContentSectionsEditor, IncludesExcludesEditor 등)
