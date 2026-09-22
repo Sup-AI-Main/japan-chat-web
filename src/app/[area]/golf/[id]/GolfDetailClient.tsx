@@ -191,8 +191,10 @@ export function GolfDetailClient({
           </button>
         )}
 
-        {/* 포함/불포함 사항 */}
-        <IncludeExcludeSection parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
+        {/* 포함/불포함 사항 — skip when details_json already renders them */}
+        {!course.details_json?.sections?.length && (
+          <IncludeExcludeSection parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
+        )}
 
         {/* FAQs */}
         {faqs.length > 0 && (
