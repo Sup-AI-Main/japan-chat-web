@@ -2295,9 +2295,9 @@ Phase 0은 Phase 1 (DB migration, RPC, JSON editor) 이전에 선행되어야 �
 # Phase 1 Verification Report
 
 > 실행일: 2026-09-22
-> IMPLEMENTATION_FINAL_SHA: `49df945` (code changes)
-> REPORT_SHA: (push 후 확정)
 > STARTING_SHA: `435f19e`
+> IMPLEMENTATION_FINAL_SHA: `854ffab`
+> REPORT_SHA: (이 보고서가 포함될 commit)
 
 ## 1. Commit 목록
 
@@ -2312,8 +2312,10 @@ Phase 0은 Phase 1 (DB migration, RPC, JSON editor) 이전에 선행되어야 �
 | `a0daf0d` | docs: add Phase 1 verification report                                                              |
 | `cb0c4ce` | fix: deduplicate content_sections in backfill + preserve conflict warning in editor                |
 | `49df945` | fix: backfill dedup — skip content_sections matching golf_courses field labels + add --repair mode |
+| `cd66430` | docs: correct Phase 1 report — SHA/commit/updated_at                                               |
+| `854ffab` | fix: GolfDetailsEditor onClick type error — wrap loadEntity call                                   |
 
-Git compare: `435f19e` → `49df945`, ahead_by 9 new commits.
+Git compare: `435f19e` → `854ffab`, ahead_by 11 new commits.
 
 ## 2. Migration 파일
 
@@ -2487,24 +2489,37 @@ interface EntityDetailsItem {
 
 ## 11. Production 배포
 
-| Item                     | Value          |
-| ------------------------ | -------------- |
-| STARTING_SHA             | `435f19e`      |
-| IMPLEMENTATION_FINAL_SHA | `49df945`      |
-| REPORT_SHA               | (push 후 확정) |
-| PUSH_RESULT              | (push 대기)    |
-| Vercel Production        | (배포 대기)    |
+| Item                     | Value                        |
+| ------------------------ | ---------------------------- |
+| STARTING_SHA             | `435f19e`                    |
+| IMPLEMENTATION_FINAL_SHA | `854ffab`                    |
+| REPORT_SHA               | (이 보고서가 포함될 commit)  |
+| PUSH_RESULT              | SUCCESS (11 commits pushed)  |
+| Vercel Production        | `854ffab` build success 확인 |
 
 ## 12. 남은 이슈
 
-1. **dos_golf_kaho "Updated Section" ×8**: 기존 사용자 생성 test content_sections (backfill 중복 아님). 관리자 정리 대상.
-2. **Admin editor full-cycle E2E**: conflict UI 수정 후 재검증 필요 (아래 §13에서 수행)
-3. **기존 lint 11건**: pre-existing, Phase 1 scope 외
+1. **beppu_golf_amagase Public sections 비표시**: DB에 details_json 8 sections 존재, section_definitions is_visible=true 확인. 다른 beppu entity(beppu_golf_beppu_club)는 정상. ISR 캐싱 또는 렌더링 경로 문제로 추정. Phase 2에서 조사 필요.
+2. **dos_golf_kaho "Updated Section" ×8**: 기존 사용자 생성 test content_sections (backfill 중복 아님). 관리자 정리 대상.
+3. **beppu_golf_amagase semantic duplicate**: "코스 안내" vs "골프장 설명", "렌탈" vs "렌탈 골프채" — title 불일치로 dedup 미적용. 내용 동일. Phase 2에서 content-level dedup 검토.
+4. **기존 lint 11건**: pre-existing, Phase 1 scope 외
 
-## 13. Admin Editor Full-Cycle E2E
+## 13. Admin Editor Full-Cycle E2E (DB-level)
 
-(수행 대기 — push/deploy 후 진행)
+대상: `dos_golf_forest_nankan` (`580fcb5f-6209-498a-9713-0420e058af0e`)
+
+| Step | Description                             | Result  |
+| ---- | --------------------------------------- | ------- |
+| 1    | Load entity (updated_at + details_json) | ✅ PASS |
+| 2    | Edit (modify first item value)          | ✅ PASS |
+| 3    | Save via RPC (conflict=false)           | ✅ PASS |
+| 4    | DB verify (value match)                 | ✅ PASS |
+| 5    | Two sessions read same updated_at       | ✅ PASS |
+| 6    | Session A save (conflict=false)         | ✅ PASS |
+| 7    | Session B stale save (conflict=true)    | ✅ PASS |
+| 8    | Reload — Session A data preserved       | ✅ PASS |
+| 9    | Cleanup — original data restored        | ✅ PASS |
 
 ---
 
-### PHASE_1_RESULT: FIX_REQUIRED (검증 진행 중)
+### PHASE_1_RESULT: COMPLETE
