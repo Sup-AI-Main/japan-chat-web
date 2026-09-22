@@ -48,8 +48,8 @@ const failures = [];
 // Canonical golf_courses field labels — content_sections with these titles are
 // considered duplicates and will be skipped during backfill.
 const GOLF_FIELD_TITLES = new Set([
-  '골프장 설명', '플레이/카트', '클럽하우스 식사',
-  '목욕/샤워', '렌탈 골프채', '렌탈 안내', '복장',
+  '골프장 설명', '코스 안내', '플레이/카트', '클럽하우스 식사',
+  '목욕/샤워', '렌탈 골프채', '렌탈 안내', '렌탈', '복장',
 ]);
 
 try {
