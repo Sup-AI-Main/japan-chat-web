@@ -2295,18 +2295,25 @@ Phase 0은 Phase 1 (DB migration, RPC, JSON editor) 이전에 선행되어야 �
 # Phase 1 Verification Report
 
 > 실행일: 2026-09-22
-> 실행 SHA 범위: `435f19e` → `33fb80d`
+> IMPLEMENTATION_FINAL_SHA: `49df945` (code changes)
+> REPORT_SHA: (push 후 확정)
+> STARTING_SHA: `435f19e`
 
 ## 1. Commit 목록
 
-| SHA       | Message                                                                      |
-| --------- | ---------------------------------------------------------------------------- |
-| `d0d0842` | feat: add entities.details_json column and admin_save_entity_editor_v1 RPC   |
-| `e4e0ed7` | feat: Golf details_json backfill script                                      |
-| `d2665f8` | feat: Golf pilot editor with optimistic concurrency                          |
-| `a26a8e1` | feat: Golf pilot renderer with details_json priority and relational fallback |
-| `4248277` | fix: skip ContentSectionsRenderer when details_json already renders sections |
-| `33fb80d` | fix: skip IncludeExcludeSection when details_json already renders sections   |
+| SHA       | Message                                                                                            |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| `d0d0842` | feat: add entities.details_json column and admin_save_entity_editor_v1 RPC                         |
+| `e4e0ed7` | feat: Golf details_json backfill script                                                            |
+| `d2665f8` | feat: Golf pilot editor with optimistic concurrency                                                |
+| `a26a8e1` | feat: Golf pilot renderer with details_json priority and relational fallback                       |
+| `4248277` | fix: skip ContentSectionsRenderer when details_json already renders sections                       |
+| `33fb80d` | fix: skip IncludeExcludeSection when details_json already renders sections                         |
+| `a0daf0d` | docs: add Phase 1 verification report                                                              |
+| `cb0c4ce` | fix: deduplicate content_sections in backfill + preserve conflict warning in editor                |
+| `49df945` | fix: backfill dedup — skip content_sections matching golf_courses field labels + add --repair mode |
+
+Git compare: `435f19e` → `49df945`, ahead_by 9 new commits.
 
 ## 2. Migration 파일
 
@@ -2330,6 +2337,7 @@ admin_save_entity_editor_v1(
 - 성공 시: `{conflict: false, id, slug, display_name, updated_at, details_json}`
 - 충돌 시: `{conflict: true, current_updated_at, id, slug, display_name, details_json}`
 - Entity 미존재 시: `RAISE EXCEPTION 'ENTITY_NOT_FOUND'`
+- `updated_at` 갱신: RPC 내에서 직접 `SET updated_at = now()`하지 않음. Production의 `set_entities_updated_at BEFORE UPDATE ON entities` trigger가 `updated_at`을 자동 갱신.
 
 ## 4. details_json Schema
 
@@ -2365,38 +2373,57 @@ interface EntityDetailsItem {
 
 ## 5. Golf Backfill 결과
 
-| Metric          | Value                   |
-| --------------- | ----------------------- |
-| 대상 row 수     | 9                       |
-| 성공 row 수     | 9                       |
-| 누락 row        | 0                       |
-| Idempotent 확인 | ✅ (재실행 시 9건 skip) |
+### 최초 backfill (`e4e0ed7`)
+
+| Metric          | Value                              |
+| --------------- | ---------------------------------- |
+| 대상 row 수     | 9 (active Golf, 전체 Golf 10건 중) |
+| 성공 row 수     | 9                                  |
+| 누락 row        | 0                                  |
+| Idempotent 확인 | ✅ (재실행 시9건 skip)             |
+
+### Repair backfill (`49df945`)
+
+| Metric                  | Value                                              |
+| ----------------------- | -------------------------------------------------- |
+| 대상 row 수             | 9 (active Golf)                                    |
+| 성공 row 수             | 9                                                  |
+| Duplicate CS 제거       | 32개 → 0 (golf_courses field label과 중복 CS skip) |
+| beppu_golf_amagase 복구 | ✅ QA test data → relational 원본으로 재생성       |
+| QA test data 잔존       | ✅ 0건 확인                                        |
 
 ### Field mapping
 
-| Source (relational)             | details_json section key                    |
-| ------------------------------- | ------------------------------------------- |
-| `golf_courses.course_summary`   | `description`                               |
-| `golf_courses.play_cart`        | `play_cart`                                 |
-| `golf_courses.clubhouse_dining` | `clubhouse`                                 |
-| `golf_courses.bath_shower`      | `bath_shower`                               |
-| `golf_courses.rental`           | `rental`                                    |
-| `golf_courses.dress_code`       | `dress_code`                                |
-| `includes_excludes` (INCLUDED)  | `includes`                                  |
-| `includes_excludes` (EXCLUDED)  | `excludes`                                  |
-| `content_sections`              | custom sections with `source: 'relational'` |
+| Source (relational)             | details_json section key                                 |
+| ------------------------------- | -------------------------------------------------------- |
+| `golf_courses.course_summary`   | `description`                                            |
+| `golf_courses.play_cart`        | `play_cart`                                              |
+| `golf_courses.clubhouse_dining` | `clubhouse`                                              |
+| `golf_courses.bath_shower`      | `bath_shower`                                            |
+| `golf_courses.rental`           | `rental`                                                 |
+| `golf_courses.dress_code`       | `dress_code`                                             |
+| `includes_excludes` (INCLUDED)  | `includes`                                               |
+| `includes_excludes` (EXCLUDED)  | `excludes`                                               |
+| `content_sections`              | 고유 title만 추가 (golf_courses field label과 중복 skip) |
+
+### Dedup 규칙
+
+`content_sections.title`이 다음 golf_courses field label 중 하나와 일치하면 skip:
+`골프장 설명`, `플레이/카트`, `클럽하우스 식사`, `목욕/샤워`, `렌탈 골프채`, `렌탈 안내`, `복장`
+
+사용자 생성 custom section (예: `캐디안내`, `Updated Section` 등)은 보존.
 
 ## 6. 수정 파일 목록
 
-| File                                                             | Change                                                                                                 |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `supabase/migrations/20260922120000_phase1_details_json_rpc.sql` | NEW — migration                                                                                        |
-| `golf-backfill.mjs`                                              | NEW — backfill script                                                                                  |
-| `src/app/api/admin/entity-editor/route.ts`                       | NEW — admin API (GET/PUT)                                                                              |
-| `src/components/admin/GolfDetailsEditor.tsx`                     | NEW — client editor component                                                                          |
-| `src/lib/types.ts`                                               | MODIFIED — added EntityDetailsDocumentV1 types, GolfCourse.details_json                                |
-| `src/lib/supabase-cms.ts`                                        | MODIFIED — mapGolfCourse includes details_json, SELECT adds column                                     |
-| `src/app/[area]/golf/[id]/GolfDetailClient.tsx`                  | MODIFIED — details_json priority renderer, JSON editor button, skip legacy components when JSON exists |
+| File                                                             | Change                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `supabase/migrations/20260922120000_phase1_details_json_rpc.sql` | NEW — migration                                                                            |
+| `golf-backfill.mjs`                                              | NEW — backfill script (dedup, --repair mode, .env.local loading)                           |
+| `src/app/api/admin/entity-editor/route.ts`                       | NEW — admin API (GET/PUT)                                                                  |
+| `src/components/admin/GolfDetailsEditor.tsx`                     | MODIFIED — conflict UI: loadEntity preserves conflictWarning when called after stale write |
+| `src/lib/types.ts`                                               | MODIFIED — added EntityDetailsDocumentV1 types, GolfCourse.details_json                    |
+| `src/lib/supabase-cms.ts`                                        | MODIFIED — mapGolfCourse includes details_json, SELECT adds column                         |
+| `src/app/[area]/golf/[id]/GolfDetailClient.tsx`                  | MODIFIED — details_json priority renderer, skip legacy components when JSON exists         |
 
 ## 7. Optimistic Concurrency 테스트 결과
 
@@ -2412,32 +2439,34 @@ interface EntityDetailsItem {
 
 - stale `updated_at`으로 저장 시도 → `conflict: true` 반환, 데이터 미변경 ✅
 - 동시 수정 시나리오: Session A 성공 → Session B 차단 → A 데이터 보존 ✅
-- `updated_at`은 저장 성공 시 명시적으로 갱신 ✅
+- `updated_at` 갱신: `set_entities_updated_at` BEFORE UPDATE trigger에 의해 갱신 ✅
 - Microsecond precision 보존 (`updated_at::text` cast) ✅
 
 ## 8. DB/API/CMS/Public E2E 결과
 
 ### DB
 
-| Check                 | Result                                                     |
-| --------------------- | ---------------------------------------------------------- |
-| migration 적용        | ✅ `details_json jsonb` 컬럼 존재                          |
-| RPC 존재/signature    | ✅ `admin_save_entity_editor_v1(uuid, timestamptz, jsonb)` |
-| 정상 updated_at 저장  | ✅ conflict: false                                         |
-| stale updated_at 거부 | ✅ conflict: true                                          |
-| Golf backfill 9/9     | ✅                                                         |
+| Check                                | Result                                                     |
+| ------------------------------------ | ---------------------------------------------------------- |
+| migration 적용                       | ✅ `details_json jsonb` 컬럼 존재                          |
+| RPC 존재/signature                   | ✅ `admin_save_entity_editor_v1(uuid, timestamptz, jsonb)` |
+| 정상 updated_at 저장                 | ✅ conflict: false                                         |
+| stale updated_at 거부                | ✅ conflict: true                                          |
+| active Golf backfill 9/9             | ✅                                                         |
+| Duplicate sections (golf/CS overlap) | ✅ 0                                                       |
+| QA test data                         | ✅ 0건 잔존                                                |
 
 ### Public E2E (Playwright)
 
-| Page                           | Result                                                          |
-| ------------------------------ | --------------------------------------------------------------- |
-| `/dos/golf/dos_golf_kaho`      | ✅ details_json에서 렌더링 (6 sections + include/exclude + FAQ) |
-| `/dos/golf/dos_golf_winners`   | ✅ details_json에서 렌더링                                      |
-| `/dos/hotel/dos_hotel_holiday` | ✅ 정상 (regression PASS)                                       |
-| `/dos/restaurant`              | ✅ 목록 정상 (regression PASS)                                  |
-| Section labels                 | ✅ `⛳ 골프장 설명`, `🏌️ 플레이/카트` 등 DB label과 일치        |
-| Slug 변경                      | ✅ 변경 없음 (`dos_golf_kaho`, `dos_golf_winners` 등)           |
-| "예약 전 확인" 미발견          | ✅                                                              |
+| Page                           | Result                                                   |
+| ------------------------------ | -------------------------------------------------------- |
+| `/dos/golf/dos_golf_kaho`      | ✅ details_json에서 렌더링                               |
+| `/dos/golf/dos_golf_winners`   | ✅ details_json에서 렌더링                               |
+| `/dos/hotel/dos_hotel_holiday` | ✅ 정상 (regression PASS)                                |
+| `/dos/restaurant`              | ✅ 목록 정상 (regression PASS)                           |
+| Section labels                 | ✅ `⛳ 골프장 설명`, `🏌️ 플레이/카트` 등 DB label과 일치 |
+| Slug 변경                      | ✅ 변경 없음                                             |
+| "예약 전 확인" 미발견          | ✅                                                       |
 
 ## 9. HOTEL/RESTAURANT Regression
 
@@ -2458,21 +2487,24 @@ interface EntityDetailsItem {
 
 ## 11. Production 배포
 
-| Item              | Value                                    |
-| ----------------- | ---------------------------------------- |
-| STARTING_SHA      | `435f19e`                                |
-| FINAL_SHA         | `33fb80d`                                |
-| PUSH_RESULT       | SUCCESS (6 commits)                      |
-| Vercel Production | `4248277` 배포 확인, `33fb80d` push 완료 |
+| Item                     | Value          |
+| ------------------------ | -------------- |
+| STARTING_SHA             | `435f19e`      |
+| IMPLEMENTATION_FINAL_SHA | `49df945`      |
+| REPORT_SHA               | (push 후 확정) |
+| PUSH_RESULT              | (push 대기)    |
+| Vercel Production        | (배포 대기)    |
 
 ## 12. 남은 이슈
 
-1. **포함/불포함 중복**: `33fb80d` 배포 후 해결 예정 — IncludeExcludeSection이 details_json 존재 시 skip
-2. **ContentSectionsRenderer 중복**: `4248277` 배포 완료 — 이미 해결
-3. **LabelManager Playwright 모달 빈 결과**: Playwright 세션의 API 호출 문제로 추정. DB에는 52건 존재. 수동 브라우저 확인 필요.
-4. **Admin editor E2E full cycle**: Playwright에서 admin 인증 세션 확보 후 UI 테스트 필요 (수동 QA 권장)
-5. **기존 lint 11건**: pre-existing, Phase 1 scope 외
+1. **dos_golf_kaho "Updated Section" ×8**: 기존 사용자 생성 test content_sections (backfill 중복 아님). 관리자 정리 대상.
+2. **Admin editor full-cycle E2E**: conflict UI 수정 후 재검증 필요 (아래 §13에서 수행)
+3. **기존 lint 11건**: pre-existing, Phase 1 scope 외
+
+## 13. Admin Editor Full-Cycle E2E
+
+(수행 대기 — push/deploy 후 진행)
 
 ---
 
-### PHASE_1_RESULT: COMPLETE
+### PHASE_1_RESULT: FIX_REQUIRED (검증 진행 중)
