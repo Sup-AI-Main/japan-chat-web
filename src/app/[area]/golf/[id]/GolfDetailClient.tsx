@@ -15,7 +15,9 @@ import {
   ContentSectionsRenderer,
   GolfEditModal,
 } from "@/components/inline-cms";
-import { GolfDetailsEditor } from "@/components/admin/GolfDetailsEditor";
+import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEditor";
+import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
+import { isValidV1Document } from "@/lib/entity-details/validate";
 
 interface GolfDetailClientProps {
   course: GolfCourse;
@@ -36,16 +38,18 @@ export function GolfDetailClient({
 }: GolfDetailClientProps) {
   const [course, setCourse] = useState(initialCourse);
   const [editGolfOpen, setEditGolfOpen] = useState(false);
-  const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
+  const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
   const router = useRouter();
 
-  // Dynamic label helpers with fallback
+  // Dynamic label helpers with fallback — used ONLY for legacy fallback path
   const L = dynamicLabels || { sections: [], fieldMap: {} };
   const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
   const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
   const sectionVisible = (key: string) => isSectionVisible(L, key);
+
+  const hasJsonDetails = isValidV1Document(course.details_json);
 
   const closeGolfModal = useCallback(() => {
     setEditGolfOpen(false);
@@ -55,6 +59,12 @@ export function GolfDetailClient({
     setCourse(saved as unknown as GolfCourse);
     showToast("수정 완료");
     setTimeout(closeGolfModal, 500);
+    router.refresh();
+  };
+
+  const handleDetailsSaved = () => {
+    showToast("세부사항 저장 완료");
+    setDetailsEditorOpen(false);
     router.refresh();
   };
 
@@ -118,26 +128,12 @@ export function GolfDetailClient({
 
           {/* Golf Detail Fields */}
           <div className="space-y-3 mb-6">
-            {course.details_json?.sections?.length ? (
-              // CMS V2: render from details_json when available
-              course.details_json.sections
-                .filter(s => s.is_visible)
-                .sort((a, b) => a.sort - b.sort)
-                .map(s => {
-                  const content = s.items.map(i => i.value).filter(Boolean).join('\n');
-                  if (!content) return null;
-                  if (!sectionVisible(s.key)) return null;
-                  return (
-                    <div key={s.id}>
-                      <h3 className="text-[15px] font-bold text-text">
-                        {s.emoji ? `${s.emoji} ` : ''}{sectionLabel(s.key, s.title_ko)}
-                      </h3>
-                      <p className="text-[15px] text-text leading-relaxed whitespace-pre-line">{content}</p>
-                    </div>
-                  );
-                })
+            {hasJsonDetails ? (
+              // CMS V2: use shared renderer — JSON labels are canonical
+              // No global sectionLabel() override for migrated JSON
+              <EntityDetailsRenderer details={course.details_json!} />
             ) : (
-              // Legacy fallback: render from relational columns
+              // Legacy fallback: render from relational columns with dynamic labels
               <>
                 {course.course_summary && sectionVisible("description") && (
                   <div>
@@ -181,18 +177,18 @@ export function GolfDetailClient({
 
         </EditableContainer>
 
-        {/* JSON Editor button (admin only) */}
+        {/* Details editor button (admin only) */}
         {isAdmin && (
           <button
-            onClick={() => setJsonEditorOpen(true)}
+            onClick={() => setDetailsEditorOpen(true)}
             className="mb-4 border border-border px-4 py-2 rounded text-[13px] text-text hover:bg-surface min-h-[44px]"
           >
-            📝 JSON 편집
+            📝 세부사항 수정
           </button>
         )}
 
         {/* 포함/불포함 사항 — skip when details_json already renders them */}
-        {!course.details_json?.sections?.length && (
+        {!hasJsonDetails && (
           <IncludeExcludeSection parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
         )}
 
@@ -224,7 +220,7 @@ export function GolfDetailClient({
         )}
 
         {/* Content Sections (dynamic) — skip when details_json already renders them */}
-        {!course.details_json?.sections?.length && (
+        {!hasJsonDetails && (
           <ContentSectionsRenderer
             parentType="GOLF"
             parentId={course.id}
@@ -233,7 +229,7 @@ export function GolfDetailClient({
         )}
       </div>
 
-      {/* Golf Edit Modal */}
+      {/* Golf Core Edit Modal — relational core fields only */}
       <GolfEditModal
         golf={isAdmin ? {
           id: course.id,
@@ -258,22 +254,14 @@ export function GolfDetailClient({
 
       <Toast message={message} visible={visible} />
 
-      {/* JSON Editor Modal */}
-      {jsonEditorOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setJsonEditorOpen(false);
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-[900px] max-h-[90vh] flex flex-col mx-4">
-            <GolfDetailsEditor
-              entityId={course.id}
-              onClose={() => setJsonEditorOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      {/* Shared EntityDetailsEditor — for variable details */}
+      <EntityDetailsEditor
+        entityId={course.id}
+        entityType="GOLF"
+        open={detailsEditorOpen}
+        onClose={() => setDetailsEditorOpen(false)}
+        onSaved={handleDetailsSaved}
+      />
     </main>
   );
 }
