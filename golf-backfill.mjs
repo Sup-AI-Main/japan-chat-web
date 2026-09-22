@@ -5,16 +5,23 @@
  * Core fields (address, phone, google_maps_url, official_name) stay relational.
  * Only variable content sections go into details_json.
  *
- * Idempotent: skips entities that already have details_json set.
+ * Modes:
+ *   node golf-backfill.mjs              — skip entities that already have details_json
+ *   node golf-backfill.mjs --repair     — force re-backfill all active Golf entities
  *
- * Usage: node golf-backfill.mjs <connection-string>
+ * Deduplication: content_sections whose title matches a golf_courses field label
+ * are skipped to avoid duplicate sections in details_json.
+ *
+ * Usage: node golf-backfill.mjs [--repair] [connection-string]
  */
 
 import pg from 'pg';
 
-const connectionString = process.argv[2] || process.env.DATABASE_URL;
+const args = process.argv.slice(2);
+const repair = args.includes('--repair');
+const connectionString = args.find(a => !a.startsWith('--')) || process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error('Usage: node golf-backfill.mjs <connection-string>');
+  console.error('Usage: node golf-backfill.mjs [--repair] [connection-string]');
   process.exit(1);
 }
 
@@ -27,6 +34,13 @@ let skippedRows = 0;
 let failedRows = 0;
 const failures = [];
 
+// Canonical golf_courses field labels — content_sections with these titles are
+// considered duplicates and will be skipped during backfill.
+const GOLF_FIELD_TITLES = new Set([
+  '골프장 설명', '플레이/카트', '클럽하우스 식사',
+  '목욕/샤워', '렌탈 골프채', '렌탈 안내', '복장',
+]);
+
 try {
   // Get all active Golf entities — cast updated_at to text to preserve microsecond precision
   const { rows: golfEntities } = await client.query(`
@@ -37,20 +51,22 @@ try {
   `);
 
   totalRows = golfEntities.length;
-  console.log(`Found ${totalRows} active Golf entities`);
+  console.log(`Found ${totalRows} active Golf entities (repair=${repair})`);
 
   for (const entity of golfEntities) {
     try {
-      // Skip if already backfilled
-      const { rows: [current] } = await client.query(
-        'SELECT details_json FROM public.entities WHERE id = $1',
-        [entity.id]
-      );
+      // Skip if already backfilled (unless --repair)
+      if (!repair) {
+        const { rows: [current] } = await client.query(
+          'SELECT details_json FROM public.entities WHERE id = $1',
+          [entity.id]
+        );
 
-      if (current.details_json !== null) {
-        console.log(`  SKIP ${entity.slug} (already has details_json)`);
-        skippedRows++;
-        continue;
+        if (current.details_json !== null) {
+          console.log(`  SKIP ${entity.slug} (already has details_json)`);
+          skippedRows++;
+          continue;
+        }
       }
 
       // Read golf_courses data
@@ -154,8 +170,13 @@ try {
         });
       }
 
-      // Map content_sections (추가 안내)
+      // Map content_sections (추가 안내) — skip those whose title duplicates a golf_courses field
+      let csSkipped = 0;
       for (const cs of contentSections) {
+        if (GOLF_FIELD_TITLES.has(cs.title)) {
+          csSkipped++;
+          continue;
+        }
         sections.push({
           id: cs.id,
           key: `cs_${cs.legacy_id || cs.id}`,
@@ -192,7 +213,7 @@ try {
         failedRows++;
         failures.push({ slug: entity.slug, error: 'conflict' });
       } else {
-        console.log(`  OK ${entity.slug} (${sections.length} sections)`);
+        console.log(`  OK ${entity.slug} (${sections.length} sections, ${csSkipped} dup CS skipped)`);
         successRows++;
       }
     } catch (err) {

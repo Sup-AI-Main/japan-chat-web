@@ -174,10 +174,12 @@ export function GolfDetailsEditor({ entityId, onClose }: GolfDetailsEditorProps)
 
   const dirtyCount = countDifferences(serverDoc, doc);
 
-  const loadEntity = useCallback(async () => {
+  const loadEntity = useCallback(async (opts?: { preserveConflict?: boolean }) => {
     setLoading(true);
     setError(null);
-    setConflictWarning(false);
+    if (!opts?.preserveConflict) {
+      setConflictWarning(false);
+    }
     setSuccessMessage(false);
     try {
       const res = await adminFetchJson<GetResponse>(
@@ -289,8 +291,8 @@ export function GolfDetailsEditor({ entityId, onClose }: GolfDetailsEditorProps)
       const result = res.data;
       if (result.conflict) {
         setConflictWarning(true);
-        // Reload server data
-        await loadEntity();
+        // Reload server data — preserve conflict warning so user sees it
+        await loadEntity({ preserveConflict: true });
         return;
       }
       // Success
