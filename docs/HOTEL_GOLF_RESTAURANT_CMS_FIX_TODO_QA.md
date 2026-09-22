@@ -2690,9 +2690,175 @@ ISR (Incremental Static Regeneration) 캐시가 repair backfill 이전 payload�
 
 1. **dos_golf_kaho/includes_excludes test data**: 포함사항/불포함사항에 "test", "수정된 항목" 등 test data 잔존. scope 외.
 2. **dos_golf_winners/includes_excludes test data**: 포함사항에 "test", "test1", "test2" 잔존. scope 외.
-3. **Admin Production UI E2E**: 수동 테스트 필요 (인증 required).
+3. **Admin Production UI E2E**: ✅ COMPLETE (Section 15 참조, 15/15 PASS)
 4. **기존 lint 12건**: pre-existing, scope 외.
 
 ---
 
 ### PHASE_2_RESULT: COMPLETE
+
+---
+
+## 15. Admin Production UI E2E — Full-Cycle Optimistic Concurrency
+
+> 실행일: 2026-09-22
+> STARTING_SHA: `be52859`
+
+### 테스트 대상
+
+| Item           | Value                                  |
+| -------------- | -------------------------------------- |
+| slug           | `dos_golf_forest_nankan`               |
+| entity_id      | `580fcb5f-6209-498a-9713-0420e058af0e` |
+| entity_type    | GOLF                                   |
+| Production URL | `https://japan-chat-web.vercel.app`    |
+
+### 1. 사전 백업 (BEFORE)
+
+| Field                 | Value                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| id                    | `580fcb5f-6209-498a-9713-0420e058af0e`                                                  |
+| slug                  | `dos_golf_forest_nankan`                                                                |
+| updated_at            | `2026-09-22T08:24:51.089193+00`                                                         |
+| details_json sections | 6 (description, play_cart, clubhouse, bath_shower, rental, dress_code)                  |
+| description value     | `구 중규슈 컨트리클럽, 2024년 포레스트南関으로 리뉴얼. 자연 지형을 활용한 전략적 코스.` |
+
+### 2. Production 관리자 로그인
+
+| Check                       | Result  |
+| --------------------------- | ------- |
+| 로그인 성공                 | ✅ PASS |
+| `/admin/home` 진입          | ✅ PASS |
+| Golf detail page 접근       | ✅ PASS |
+| JSON 편집 버튼 표시 (admin) | ✅ PASS |
+
+### 3. JSON Editor Load (T0)
+
+| Check                              | Result                             |
+| ---------------------------------- | ---------------------------------- |
+| Modal 정상 오픈                    | ✅ PASS                            |
+| Sections 6개 로드                  | ✅ PASS                            |
+| 빈 화면/에러 없음                  | ✅ PASS                            |
+| GET `/api/admin/entity-editor` 200 | ✅ PASS                            |
+| T0 (initial updated_at)            | `2026-09-22T08:24:51.089193+00:00` |
+
+### 4. 정상 저장 (T1)
+
+| Check                                          | Result                             |
+| ---------------------------------------------- | ---------------------------------- |
+| `[PHASE2_UI_E2E_TEMP_A]` 저장                  | ✅ PASS                            |
+| PUT 200, conflict: false                       | ✅ PASS                            |
+| T1 (updated_at after save)                     | `2026-09-22T09:07:59.756599+00:00` |
+| DB updated_at = T1                             | ✅ PASS                            |
+| DB first_item_value = `[PHASE2_UI_E2E_TEMP_A]` | ✅ PASS                            |
+
+### 5. Session A/B Concurrency 준비
+
+| Check                             | Result  |
+| --------------------------------- | ------- |
+| Session A initial updated_at = T1 | ✅ PASS |
+| Session B initial updated_at = T1 | ✅ PASS |
+| 동일 timestamp 확인               | ✅ PASS |
+
+### 6. Session A 저장 (T2)
+
+| Check                                             | Result                             |
+| ------------------------------------------------- | ---------------------------------- |
+| `[PHASE2_UI_E2E_SESSION_A]` 저장                  | ✅ PASS                            |
+| PUT 200, conflict: false                          | ✅ PASS                            |
+| T2 (updated_at after Session A)                   | `2026-09-22T09:10:35.002796+00:00` |
+| DB updated_at = T2                                | ✅ PASS                            |
+| DB first_item_value = `[PHASE2_UI_E2E_SESSION_A]` | ✅ PASS                            |
+
+### 7. Session B Stale Save
+
+| Check                            | Result                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| expected_updated_at = T1 (stale) | ✅ PASS                                                                         |
+| PUT 200, conflict: **true**      | ✅ PASS                                                                         |
+| current_updated_at = T2          | ✅ PASS                                                                         |
+| **conflict warning UI 표시**     | ✅ PASS                                                                         |
+| Warning text                     | `⚠️ 다른 사용자가 이 데이터를 수정했습니다. 현재 서버 데이터를 새로고침합니다.` |
+| Screenshot                       | `Downloads/conflict_warning_ui-2026-09-22T09-14-14-628Z.png`                    |
+
+### 8. Session A 데이터 보존 확인
+
+| Check                                             | Result  |
+| ------------------------------------------------- | ------- |
+| DB updated_at = T2                                | ✅ PASS |
+| DB first_item_value = `[PHASE2_UI_E2E_SESSION_A]` | ✅ PASS |
+| SESSION_B 값 없음                                 | ✅ PASS |
+| Session B editor reload 후 SESSION_A 값 표시      | ✅ PASS |
+
+### 9. Canonical State 갱신 확인
+
+| Check                                     | Result  |
+| ----------------------------------------- | ------- |
+| conflict 후 editor가 서버 최신값으로 갱신 | ✅ PASS |
+| editor 내 SESSION_A 값 표시               | ✅ PASS |
+
+### 10. Cleanup
+
+| Check                            | Result                          |
+| -------------------------------- | ------------------------------- |
+| 원래 details_json으로 복구       | ✅ PASS                         |
+| DB updated_at (post-cleanup)     | `2026-09-22T09:15:35.769639+00` |
+| `[PHASE2_UI_E2E_TEMP_A]` 없음    | ✅ PASS                         |
+| `[PHASE2_UI_E2E_SESSION_A]` 없음 | ✅ PASS                         |
+| `[PHASE2_UI_E2E_SESSION_B]` 없음 | ✅ PASS                         |
+| 원래 데이터 복원                 | ✅ PASS                         |
+| Public 페이지 원래 콘텐츠 표시   | ✅ PASS                         |
+| Test marker count = 0            | ✅ PASS                         |
+
+### 11. 최종 PASS 기준
+
+| Criteria                               | Result  |
+| -------------------------------------- | ------- |
+| Production admin login 성공            | ✅ PASS |
+| JSON editor open 성공                  | ✅ PASS |
+| GET load 성공                          | ✅ PASS |
+| 정상 save conflict=false               | ✅ PASS |
+| updated_at 변경 확인                   | ✅ PASS |
+| Session A/B 동일 timestamp로 시작      | ✅ PASS |
+| Session A save 성공                    | ✅ PASS |
+| Session B stale save conflict=true     | ✅ PASS |
+| conflict warning 실제 UI 표시          | ✅ PASS |
+| Session A 데이터 DB에서 보존           | ✅ PASS |
+| Session B overwrite 차단               | ✅ PASS |
+| stale 후 canonical server state reload | ✅ PASS |
+| cleanup 성공                           | ✅ PASS |
+| test marker 0                          | ✅ PASS |
+| Public 원복 확인                       | ✅ PASS |
+
+### 최종 결과
+
+```
+ADMIN_PRODUCTION_UI_E2E: PASS
+NORMAL_SAVE: PASS
+STALE_WRITE_BLOCK: PASS
+CONFLICT_UI_VISIBLE: PASS
+SESSION_A_PRESERVED: PASS
+CLEANUP: PASS
+PUBLIC_RESTORED: PASS
+VERCEL_STATUS: SUCCESS
+PHASE_2_RESULT: COMPLETE
+```
+
+### SHA 기록
+
+| Item                     | SHA              |
+| ------------------------ | ---------------- |
+| STARTING_SHA             | `be52859`        |
+| IMPLEMENTATION_FINAL_SHA | `11b4e90`        |
+| PREVIOUS_REPORT_SHA      | `be52859`        |
+| FINAL_REPORT_SHA         | (commit 후 기록) |
+
+### Screenshots
+
+| Step                | Path                                                         |
+| ------------------- | ------------------------------------------------------------ |
+| Admin login result  | `Downloads/admin_login_result-2026-09-22T08-57-26-852Z.png`  |
+| Golf detail page    | `Downloads/golf_detail_page-2026-09-22T09-03-21-796Z.png`    |
+| Normal save success | `Downloads/normal_save_success-2026-09-22T09-08-07-462Z.png` |
+| Conflict warning UI | `Downloads/conflict_warning_ui-2026-09-22T09-14-14-628Z.png` |
+| Public restored     | `Downloads/public_restored-2026-09-22T09-17-43-980Z.png`     |
