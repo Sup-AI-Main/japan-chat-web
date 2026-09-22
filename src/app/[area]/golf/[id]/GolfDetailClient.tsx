@@ -221,12 +221,14 @@ export function GolfDetailClient({
           </div>
         )}
 
-        {/* Content Sections (dynamic) */}
-        <ContentSectionsRenderer
-          parentType="GOLF"
-          parentId={course.id}
-          initialSections={contentSections}
-        />
+        {/* Content Sections (dynamic) — skip when details_json already renders them */}
+        {!course.details_json?.sections?.length && (
+          <ContentSectionsRenderer
+            parentType="GOLF"
+            parentId={course.id}
+            initialSections={contentSections}
+          />
+        )}
       </div>
 
       {/* Golf Edit Modal */}
