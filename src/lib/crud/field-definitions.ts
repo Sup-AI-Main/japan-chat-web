@@ -289,6 +289,9 @@ export async function updateFieldDefinition(
     return existing as FieldDefinitionRow;
   }
 
+  // field_definitions has no DB trigger for updated_at — set explicitly
+  updates.updated_at = new Date().toISOString();
+
   const { data: updated, error: updateError } = await db
     .from("field_definitions")
     .update(updates)

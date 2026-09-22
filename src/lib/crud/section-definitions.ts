@@ -144,6 +144,9 @@ export async function updateSectionDefinition(
     return existing as SectionDefinitionRow;
   }
 
+  // section_definitions has no DB trigger for updated_at — set explicitly
+  updates.updated_at = new Date().toISOString();
+
   const { data: updated, error: updateError } = await db
     .from("section_definitions")
     .update(updates)
