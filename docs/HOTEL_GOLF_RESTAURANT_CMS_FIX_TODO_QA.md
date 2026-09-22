@@ -2030,3 +2030,89 @@ fc9e77b docs: update P0 QA verification results - all checks passed
 - (uncommitted) `supabase-cms.ts` — fix: handle restaurant_locations read failures in public+admin helpers
 
 ### P1 RESULT: COMPLETE
+
+---
+
+## Phase 0 — CMS V2 per-entity JSON editor 전 단계 (2026-09-22)
+
+### Commits
+
+| SHA       | Message                                                                             |
+| --------- | ----------------------------------------------------------------------------------- |
+| `04f3bd9` | fix: correct CMS label persistence and remove booking summary                       |
+| `95d3a2d` | docs: correct CMS V2 storage model                                                  |
+| `886b659` | fix: set updated_at explicitly on section_definitions and field_definitions updates |
+
+### Code Changes
+
+| Fix                                         | File                                     | Detail                                                                        |
+| ------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| Remove IncludeExcludeSummary (Golf)         | `GolfDetailClient.tsx`                   | Import/render 제거, section headings → `getSectionLabel()`                    |
+| Remove IncludeExcludeSummary (Hotel)        | `HotelDetailClient.tsx`                  | Import/render 제거                                                            |
+| Remove IncludeExcludeSummary (Restaurant)   | `RestaurantDetailClient.tsx`             | Import/render 제거, section headings → `getSectionLabel()`                    |
+| Delete IncludeExcludeSummary implementation | `IncludeExcludeSection.tsx`              | `IncludeExcludeSummary` 컴포넌트 전체 삭제                                    |
+| Remove IncludeExcludeSummary export         | `inline-cms/index.ts`                    | Export에서 제거                                                               |
+| field-definitions scope_entity_type filter  | `field-definitions.ts`                   | `FieldDefinitionFilters` 인터페이스 + `listFieldDefinitions()` 필터 로직 추가 |
+| API route scope_entity_type param           | `api/admin/field-definitions/route.ts`   | GET에서 `scope_entity_type` 파라미터 읽기                                     |
+| LabelManager canonical state                | `LabelManager.tsx`                       | PUT 성공 후 server response `data`로 state 갱신 (section + field)             |
+| section_definitions updated_at              | `section-definitions.ts`                 | `updates.updated_at = new Date().toISOString()` (DB trigger 없음)             |
+| field_definitions updated_at                | `field-definitions.ts`                   | `updates.updated_at = new Date().toISOString()` (DB trigger 없음)             |
+| Golf section label source                   | `GolfDetailClient.tsx`                   | 6개 section heading: `fieldLabel()` → `sectionLabel()`                        |
+| Restaurant section label source             | `RestaurantDetailClient.tsx`             | 7개 section heading: `fieldLabel()` → `sectionLabel()`                        |
+| CMS V2 doc schema correction                | `AGENT_CMS_V2_PER_ENTITY_JSON_EDITOR.md` | coreFields 제거, actual DB 컬럼 기준 정정, atomic RPC 설계                    |
+
+### Production QA (Playwright + Admin API on Vercel)
+
+| #   | Test                                  | Method                                             | Result                                           |
+| --- | ------------------------------------- | -------------------------------------------------- | ------------------------------------------------ |
+| 8   | "예약 전 확인" Golf detail            | Playwright `page.textContent`                      | ✅ 미발견                                        |
+| 8   | "예약 전 확인" Hotel detail           | Playwright `page.textContent`                      | ✅ 미발견                                        |
+| 8   | "예약 전 확인" Restaurant detail      | Playwright `page.textContent`                      | ✅ 미발견                                        |
+| 8   | 포함사항/불포함사항 유지              | Playwright `page.textContent`                      | ✅ "포함사항", "불포함사항" 표시                 |
+| 2   | GOLF scope filter                     | Admin API `fetch` → `scope_entity_type=GOLF`       | ✅ 11 fields (display_name, address, phone, ...) |
+| 2   | HOTEL scope filter                    | Admin API `fetch` → `scope_entity_type=HOTEL`      | ✅ 21 fields (checkin_time, checkout_time, ...)  |
+| 2   | RESTAURANT scope filter               | Admin API `fetch` → `scope_entity_type=RESTAURANT` | ✅ 19 fields (hours, menu_kr, ...)               |
+| 2   | Case-insensitive filter               | Admin API `fetch` → `scope_entity_type=golf`       | ✅ 11 fields (same as GOLF)                      |
+| 3   | Section canonical state               | Admin PUT → DB 확인 → `updated_at` 변경 확인       | ✅ server response로 state 갱신                  |
+| 3   | Consecutive section update            | Admin PUT A → PUT B (같은 modal)                   | ✅ 두 번 모두 200, 409 미발생                    |
+| 6   | Section label DB persist (dress_code) | Admin PUT "복장 QA 테스트" → DB 확인               | ✅ `label_ko` 변경, `updated_at` 변경            |
+| 6   | Section label reopen persist          | Modal 닫기 → 다시 열기                             | ✅ "복장 QA 테스트" 유지                         |
+| 6   | Section label public display          | Public golf detail 페이지                          | ✅ "복장 QA 테스트" 표시                         |
+| 6   | Section label consecutive update      | "복장 QA 테스트" → "복장 QA 테스트2"               | ✅ `updated_at` 변경 (05:04:28 → 05:05:08)       |
+| 6   | Section label restore                 | "복장 QA 테스트2" → "복장"                         | ✅ DB 확인, public 확인                          |
+| 6   | Logout persistence                    | Admin logout → public 페이지                       | ✅ "복장" 표시                                   |
+| 7   | Field label DB persist (address)      | Admin PUT "주소 QA 테스트" → DB 확인               | ✅ `label_ko` 변경, `updated_at` 변경            |
+| 7   | Field label public display            | Public golf detail 페이지                          | ✅ "주소 QA 테스트" 표시                         |
+| 7   | Field label restore                   | "주소 QA 테스트" → "주소"                          | ✅ DB 확인, public 확인                          |
+| 9   | P1 regression: restaurant_locations   | Code review                                        | ✅ `throw locationsError` 유지                   |
+| 9   | P1 regression: entity_field_values    | Code review                                        | ✅ `throw fvError` 유지                          |
+| 9   | P1 regression: restaurants!inner      | Code review                                        | ✅ 유지                                          |
+| 9   | P1 regression: slug collision retry   | Code review                                        | ✅ 유지                                          |
+
+### Static Verification
+
+| Check               | Result                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck` | ✅ exit 0                                                                                               |
+| `npm run lint`      | ⚠️ 11 errors, 1 warning — 모두 pre-existing `react-hooks/set-state-in-effect` debt. 신규 lint error 0건 |
+| `npm run build`     | ✅ exit 0                                                                                               |
+| `git diff --check`  | ✅ exit 0                                                                                               |
+
+### Deployment
+
+| Item          | Value                                      |
+| ------------- | ------------------------------------------ |
+| STARTING_SHA  | `b468b1d238ec0bb3c4254dc53b51ab381ee3e612` |
+| FINAL_SHA     | `886b659`                                  |
+| PUSH_RESULT   | SUCCESS                                    |
+| VERCEL_STATUS | SUCCESS                                    |
+
+### PHASE 0 RESULT: COMPLETE
+
+### Phase 1 (미실행 — 승인 대기)
+
+- `entities` 테이블에 `details_json jsonb` 컬럼 추가
+- `admin_save_entity_editor_v1` RPC 생성 (atomic `UPDATE ... WHERE updated_at = p_expected_updated_at RETURNING`)
+- Golf backfill
+- Pilot JSON editor/renderer
+- Legacy data/EAV/includes/content sections 이동
