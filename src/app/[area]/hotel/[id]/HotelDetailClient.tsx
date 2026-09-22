@@ -13,7 +13,6 @@ import { toBool } from "@/lib/restaurant-utils";
 import {
   EditableContainer,
   IncludeExcludeSection,
-  IncludeExcludeSummary,
   ContentSectionsRenderer,
   HotelEditModal,
 } from "@/components/inline-cms";
@@ -338,9 +337,6 @@ export function HotelDetailClient({
             </div>
           </div>
         )}
-
-        {/* 예약 전 확인 요약 */}
-        <IncludeExcludeSummary parentType="HOTEL" parentId={hotel.id} initialItems={initialIncludes} />
 
         {/* Content Sections (dynamic) */}
         <ContentSectionsRenderer

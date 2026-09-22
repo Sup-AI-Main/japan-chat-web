@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
-import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection, IncludeExcludeSummary } from "@/components/inline-cms";
+import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection } from "@/components/inline-cms";
 import type { Restaurant, ContentSection, IncludeExclude, FaqItem } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getFieldLabel, getSectionLabel, isSectionVisible } from "@/lib/dynamic-labels";
@@ -44,6 +44,7 @@ export default function RestaurantDetailClient({
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
   const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
+  const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
   const sectionVisible = (key: string) => isSectionVisible(L, key);
 
   const closeEditModal = useCallback(() => {
@@ -170,7 +171,7 @@ export default function RestaurantDetailClient({
           {/* 대표 메뉴 */}
           {(restaurant.menu_kr || restaurant.menu_jp) && sectionVisible("menu") && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">{fieldLabel("menu_kr", "대표 메뉴")}</h3>
+              <h3 className="text-[15px] font-bold text-text">{sectionLabel("menu", "대표 메뉴")}</h3>
               <p className="text-[15px] text-text">
                 {restaurant.menu_kr}
                 {restaurant.menu_jp && (
@@ -186,7 +187,7 @@ export default function RestaurantDetailClient({
           {/* 주소 + Google Maps */}
           {restaurant.address && sectionVisible("address") && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">{fieldLabel("address", "주소")}</h3>
+              <h3 className="text-[15px] font-bold text-text">{sectionLabel("address", "주소")}</h3>
               <p className="text-[15px] text-text">{restaurant.address}</p>
               {restaurant.google_maps_url && (
                 <a
@@ -204,7 +205,7 @@ export default function RestaurantDetailClient({
           {/* 영업시간 */}
           {restaurant.hours && sectionVisible("hours") && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">{fieldLabel("hours", "영업시간")}</h3>
+              <h3 className="text-[15px] font-bold text-text">{sectionLabel("hours", "영업시간")}</h3>
               <p className="text-[15px] text-text">{restaurant.hours}</p>
             </div>
           )}
@@ -249,7 +250,7 @@ export default function RestaurantDetailClient({
           {/* 설명 */}
           {restaurant.description && sectionVisible("other_info") && (
             <div>
-              <h3 className="text-[15px] font-bold text-text">{fieldLabel("description", "설명")}</h3>
+              <h3 className="text-[15px] font-bold text-text">{sectionLabel("other_info", "기타 안내")}</h3>
               <p className="text-[15px] text-text leading-relaxed">
                 {restaurant.description}
               </p>
@@ -288,9 +289,6 @@ export default function RestaurantDetailClient({
           </div>
         </div>
       )}
-
-      {/* 예약 전 확인 요약 */}
-      <IncludeExcludeSummary parentType="RESTAURANT" parentId={restaurant.id} initialItems={initialIncludes} />
 
       {/* Content Sections (dynamic) */}
       <ContentSectionsRenderer

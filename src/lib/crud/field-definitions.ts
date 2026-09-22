@@ -60,6 +60,7 @@ export interface FieldDefinitionWithScopes extends FieldDefinitionRow {
 
 export interface FieldDefinitionFilters {
   scope_type?: string;
+  scope_entity_type?: string;
   scope_entity_id?: string;
   active_only?: boolean;
 }
@@ -81,6 +82,10 @@ export async function listFieldDefinitions(
 
   if (filters?.scope_type) {
     query = query.eq("scope_type", filters.scope_type.toUpperCase());
+  }
+
+  if (filters?.scope_entity_type) {
+    query = query.eq("scope_entity_type", filters.scope_entity_type.toUpperCase());
   }
 
   if (filters?.scope_entity_id) {

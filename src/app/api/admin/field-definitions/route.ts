@@ -24,9 +24,10 @@ export async function GET(req: NextRequest) {
   try {
     const params = req.nextUrl.searchParams;
     const scope_type = params.get("scope_type") || undefined;
+    const scope_entity_type = params.get("scope_entity_type") || undefined;
     const scope_entity_id = params.get("scope_entity_id") || undefined;
 
-    const definitions = await listFieldDefinitions({ scope_type, scope_entity_id });
+    const definitions = await listFieldDefinitions({ scope_type, scope_entity_type, scope_entity_id });
     return ok(definitions);
   } catch (err) {
     return serverError(err);

@@ -62,16 +62,20 @@ export default function LabelManager({ entityType, onClose }: LabelManagerProps)
 
   async function handleSectionUpdate(section: SectionDef, updates: Partial<SectionDef>) {
     try {
-      await adminFetchJson("/api/admin/section-definitions", {
-        method: "PUT",
-        body: JSON.stringify({
-          id: section.id,
-          updated_at: section.updated_at,
-          ...updates,
-        }),
-      });
+      const response = await adminFetchJson<{ success: true; data: SectionDef }>(
+        "/api/admin/section-definitions",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            id: section.id,
+            updated_at: section.updated_at,
+            ...updates,
+          }),
+        }
+      );
+      const saved = response.data;
       setSections((prev) =>
-        prev.map((s) => (s.id === section.id ? { ...s, ...updates } : s))
+        prev.map((s) => (s.id === saved.id ? saved : s))
       );
       setEditingSection(null);
       showToast("저장되었습니다");
@@ -82,16 +86,20 @@ export default function LabelManager({ entityType, onClose }: LabelManagerProps)
 
   async function handleFieldUpdate(field: FieldDef, updates: Partial<FieldDef>) {
     try {
-      await adminFetchJson("/api/admin/field-definitions", {
-        method: "PUT",
-        body: JSON.stringify({
-          id: field.id,
-          updated_at: field.updated_at,
-          ...updates,
-        }),
-      });
+      const response = await adminFetchJson<{ success: true; data: FieldDef }>(
+        "/api/admin/field-definitions",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            id: field.id,
+            updated_at: field.updated_at,
+            ...updates,
+          }),
+        }
+      );
+      const saved = response.data;
       setFields((prev) =>
-        prev.map((f) => (f.id === field.id ? { ...f, ...updates } : f))
+        prev.map((f) => (f.id === saved.id ? saved : f))
       );
       setEditingField(null);
       showToast("저장되었습니다");
