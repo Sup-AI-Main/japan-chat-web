@@ -1986,7 +1986,7 @@ fc9e77b docs: update P0 QA verification results - all checks passed
 | `npm run verify:cms-schema` | ✅ exit 0                                                                                     |
 | `git diff --check`          | ✅ exit 0                                                                                     |
 
-### P1 FINAL CLOSURE VERIFICATION (2026-09-21)
+### P1 FINAL CLOSURE VERIFICATION (2026-09-22, corrected)
 
 **Code Fixes Applied:**
 | Fix | File | Detail |
@@ -1994,36 +1994,39 @@ fc9e77b docs: update P0 QA verification results - all checks passed
 | Golf google_maps_url basic_info visibility | `GolfDetailClient.tsx` | Moved inside `sectionVisible("basic_info")` gate |
 | Restaurant name_jp basic_info visibility | `RestaurantDetailClient.tsx` | Added `sectionVisible("basic_info")` gate |
 | Restaurant canonical child integrity | `supabase-cms.ts` | `restaurants!inner(...)` in both public and admin helpers |
-| restaurant_locations error handling | `supabase-cms.ts` | `throw locationsError` on query failure |
+| restaurant_locations error handling | `supabase-cms.ts` | `throw locationsError` on query failure (public `getRestaurantById` + admin `getRestaurantByEntityIdAdmin`) |
 | entity_field_values error handling | `supabase-cms.ts` | `throw fvError` on query failure |
 
 **Static Verification:**
 | Check | Result |
 |-------|--------|
 | `npm run typecheck` | ✅ exit 0 |
-| `npm run lint` | ✅ 13 pre-existing, 0 new |
-| `npm run build` | ✅ exit 0 |
-| `npm run verify:cms-schema` | ✅ PASS |
+| `npm run lint` | ✅ 13 pre-existing errors (react-hooks/set-state-in-effect), 0 new errors from P1 changes |
 | `git diff --check` | ✅ exit 0 |
 
-**Production QA (Vercel deploy 86400e2):**
+**Production QA (Playwright DOM verification on Vercel deploy):**
 | Test | Method | Result |
 |------|--------|--------|
-| 6A Golf dress*code visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
-| 6B Golf basic_info visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
-| 6C Restaurant price_range visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
-| 6D Restaurant basic_info visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
-| 6E Restaurant distance visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
-| 6F Restaurant nearby_restaurants visibility | DB→RSC payload | ✅ `is_visible:false` confirmed in payload |
-| 7 Field active toggle | DB→RSC payload | ✅ `active:false` confirmed in payload |
-| 8 Definition POST revalidation | Code verified | ✅ `revalidateEntityPaths` called in POST/PUT/DELETE |
-| 9 Canonical CRUD (Restaurant) | RPC create | ✅ `{id, slug}` returned |
-| 9 Canonical CRUD (Hotel/Golf) | SQL create+subtype | ✅ entity+subtype rows created |
-| 10 Inactive canonical | DB→public listing | ✅ inactive entity hidden from public |
-| 11 Slug format | Code verified | ✅ `generateUniqueSlug` uses `{area}*{type}_{8hex}` |
-| 11 Slug uniqueness | Code verified | ✅ UNIQUE constraint + retry logic |
-| 12 Cleanup | DB verification | ✅ p1_ entities=0, p0\_ entities=0, all is_visible=true, all active=true |
+| 4A Golf dress*code `is_visible=false` | Playwright: `page.textContent` | ✅ "복장" section absent from rendered DOM |
+| 4B Golf basic_info `is_visible=false` | Playwright: `page.textContent` | ✅ Address/phone/Google Maps link absent from rendered DOM |
+| 4C Restaurant price_range `is_visible=false` | Playwright: `page.textContent` | ✅ "가격대" section absent from rendered DOM |
+| 4D Restaurant basic_info `is_visible=false` | Playwright: `page.textContent` | ✅ category/name_jp absent from rendered DOM |
+| 4E Restaurant distance `is_visible=false` | Playwright admin modal DOM | ✅ "위치/거리" section absent from admin detail drawer |
+| 4F Restaurant nearby_restaurants `is_visible=false` | Playwright admin modal DOM | ✅ "연결 정보" section absent from admin detail drawer |
+| 4G Golf dress_code field `active=false` | Playwright admin modal DOM | ✅ "복장" input field absent from admin edit form |
+| 5 Section definition POST | Admin API `fetch` → 201 | ✅ Section created, `revalidateEntityPaths` triggered |
+| 5 Field definition POST | Admin API `fetch` → 201 | ✅ Field created with `scope_type:"ENTITY_TYPE"` |
+| 6A Hotel canonical CRUD | Admin API `fetch` POST(201)+PUT(200)+DELETE | ✅ Canonical response `{id, slug, hotel: {...}}` |
+| 6B Golf canonical CRUD | Admin API `fetch` POST(201)+PUT(200)+DELETE | ✅ Canonical response `{id, slug, course: {...}}` |
+| 6C Restaurant canonical CRUD | Admin API `fetch` POST(201)+PUT(200)+DELETE | ✅ Canonical response `{id, slug, restaurant: {...}}` |
+| 7 Inactive canonical object | Admin API `fetch` PUT(active=false) → 200 | ✅ Full canonical object returned with `active:false` |
+| 8 Slug format | Admin API POST response | ✅ `{area}*{type}_{randomBytes(4).toString("hex")}`(8 hex chars) |
+| 8 Slug uniqueness | DB UNIQUE constraint | ✅ UNIQUE constraint + retry loop in`generateUniqueSlug` |
+| 9 Cleanup | Direct DB query | ✅ p1_ entities=0, invisible_sections=0, inactive_fields=0 |
 
-**Commit:** `86400e2` — fix: close P1 visibility and canonical read gaps
+**Commits:**
+
+- `86400e2` — fix: close P1 visibility and canonical read gaps
+- (uncommitted) `supabase-cms.ts` — fix: handle restaurant_locations read failures in public+admin helpers
 
 ### P1 RESULT: COMPLETE

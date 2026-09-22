@@ -1557,13 +1557,17 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
     ((Array.isArray(rawRest) ? rawRest[0] : rawRest) as Record<string, unknown>) || {};
 
   // Get ALL near relationships with distance fields
-  const { data: rawLocations } = await db()
+  const { data: rawLocations, error: locationsError } = await db()
     .from('restaurant_locations')
     .select(
       'id, distance_text, distance_km, drive_minutes, walk_minutes, sort, near:entities!near_entity_id(id, slug, display_name, entity_type)'
     )
     .eq('restaurant_entity_id', entity.id)
     .order('sort');
+  if (locationsError) {
+    logError('READ', 'restaurant_locations', id, locationsError);
+    throw locationsError;
+  }
 
   const locRows = rawLocations || [];
   const firstLoc = locRows[0];
@@ -1692,13 +1696,17 @@ export async function getRestaurantByEntityIdAdmin(entityId: string): Promise<Re
     ((Array.isArray(rawRest) ? rawRest[0] : rawRest) as Record<string, unknown>) || {};
 
   // Get ALL near relationships
-  const { data: rawLocations } = await adminDb()
+  const { data: rawLocations, error: locationsError } = await adminDb()
     .from('restaurant_locations')
     .select(
       'id, distance_text, distance_km, drive_minutes, walk_minutes, sort, near:entities!near_entity_id(id, slug, display_name, entity_type)'
     )
     .eq('restaurant_entity_id', entity.id)
     .order('sort');
+  if (locationsError) {
+    logError('READ_ADMIN', 'restaurant_locations', entityId, locationsError);
+    throw locationsError;
+  }
 
   const locRows = rawLocations || [];
   const firstLoc = locRows[0];
