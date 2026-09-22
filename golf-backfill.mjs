@@ -16,6 +16,17 @@
  */
 
 import pg from 'pg';
+import { readFileSync } from 'fs';
+
+// Load .env.local if DATABASE_URL not set
+if (!process.env.DATABASE_URL) {
+  try {
+    for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
+      const m = line.match(/^([^#=]+)=(.*)$/);
+      if (m) process.env[m[1].trim()] = m[2].trim();
+    }
+  } catch { /* no .env.local */ }
+}
 
 const args = process.argv.slice(2);
 const repair = args.includes('--repair');
