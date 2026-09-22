@@ -2523,3 +2523,176 @@ interface EntityDetailsItem {
 ---
 
 ### PHASE_1_RESULT: COMPLETE
+
+---
+
+# Phase 2 Verification Report
+
+> 실행일: 2026-09-22
+> STARTING_SHA: `778d89d`
+> IMPLEMENTATION_FINAL_SHA: `11b4e90`
+> REPORT_SHA: `11b4e90`
+
+## 1. Commit 목록
+
+| SHA       | Message                                          |
+| --------- | ------------------------------------------------ |
+| `11b4e90` | fix: add semantic aliases to golf backfill dedup |
+
+Git compare: `778d89d` → `11b4e90`, ahead_by 1 new commit.
+
+## 2. 수정 파일 목록
+
+| File                | Change                                                                 |
+| ------------------- | ---------------------------------------------------------------------- |
+| `golf-backfill.mjs` | MODIFIED — GOLF_FIELD_TITLES에 '코스 안내', '렌탈' semantic alias 추가 |
+
+## 3. DB 변경 사항
+
+### 3-1. content_sections 삭제 (dos_golf_kaho)
+
+| ID                                     | Title           | Content      | Reason       |
+| -------------------------------------- | --------------- | ------------ | ------------ |
+| `4a5d3369-1fda-43fd-96ba-666051a52176` | Updated Section | Test content | QA test data |
+| `81e6423c-1803-41f8-96e9-47f12a0ae3a6` | Updated Section | Test content | QA test data |
+| `871fa244-202e-4bab-a116-4e7276e59dfa` | Updated Section | Test content | QA test data |
+| `a1180a6f-ce87-4119-b5d7-d3a05469b39d` | Updated Section | Test content | QA test data |
+| `a6e8a211-37f9-4859-b756-96e9431108cb` | Updated Section | Test content | QA test data |
+| `b00e7e58-b8b4-4e28-9825-519f61713375` | Updated Section | Test content | QA test data |
+| `c5dffaba-7aa9-45ab-9e19-5eabbeda0039` | Updated Section | Test content | QA test data |
+| `e9e51f00-67bf-4c42-a22b-f6fe8a6ecef2` | Updated Section | Test content | QA test data |
+| `ff498fd3-8472-4723-8686-abf96df3300e` | 수정된 섹션     | 수정된 내용  | QA test data |
+| `25ca3bdb-81c2-4664-82b6-a324877a6ee8` | Ddxfc           | Dddd         | QA test data |
+| `b06bf228-ca48-4fcb-b25f-eaf9d70e0a6e` | test            | test         | QA test data |
+
+총 11건 삭제. content_sections 18→7건.
+
+### 3-2. content_sections 삭제 (dos_golf_winners)
+
+| ID                                     | Title                | Content | Reason       |
+| -------------------------------------- | -------------------- | ------- | ------------ |
+| `d94bc748-ac83-4794-b893-6b6a5d08d8f6` | 감사테스트 섹션 수정 | 수정됨  | QA test data |
+
+총 1건 삭제.
+
+### 3-3. Repair backfill 결과
+
+| Metric             | Value                                  |
+| ------------------ | -------------------------------------- |
+| 대상 row 수        | 9                                      |
+| 성공 row 수        | 9                                      |
+| 실패 row 수        | 0                                      |
+| beppu_golf_amagase | 8→6 sections (semantic duplicate 제거) |
+| dos_golf_kaho      | 21→10 sections (test data 제거)        |
+
+## 4. beppu_golf_amagase 원인
+
+### 조사 결과
+
+- DB source: 정상 (active=true, section_count=8, version=1)
+- section_definitions: 6개 core key 모두 is_visible=true
+- getGolfCourseById 시뮬레이션: 정상 반환
+- Production Playwright: ISR 캐시 stale 상태에서 sections 비표시 관측
+- ISR revalidate=60초 경과 후: 정상 렌더링 확인
+
+### 원인
+
+ISR (Incremental Static Regeneration) 캐시가 repair backfill 이전 payload를 유지. revalidate 주기(60초) 이후 자동 갱신됨.
+
+## 5. Public rendering fix
+
+- 코드 변경 없음 (page.tsx, GolfDetailClient.tsx 불변)
+- DB 데이터 정리 (test data 삭제 + repair backfill)로 해결
+- Production Playwright 확인: 4개 Golf 페이지 모두 sections 정상 표시
+
+## 6. Semantic duplicate 처리
+
+### 확인된 중복
+
+| Entity             | Golf field (canonical) | content_sections title | Content equality |
+| ------------------ | ---------------------- | ---------------------- | ---------------- |
+| beppu_golf_amagase | description            | 코스 안내              | ✅ 동일          |
+| beppu_golf_amagase | rental                 | 렌탈                   | ✅ 동일          |
+
+### 처리 방식
+
+- canonical source: golf_courses field 우선
+- GOLF_FIELD_TITLES Set에 '코스 안내', '렌탈' 추가
+- repair backfill로 details_json 재생성 → content_sections sourced sections 0건
+
+### Dedup 규칙 (수정 후)
+
+```
+골프장 설명, 코스 안내, 플레이/카트, 클럽하우스 식사,
+목욕/샤워, 렌탈 골프채, 렌탈 안내, 렌탈, 복장
+```
+
+## 7. DB 검증
+
+| Check                                     | Expected | Actual | Result  |
+| ----------------------------------------- | -------- | ------ | ------- |
+| Active Golf                               | 9        | 9      | ✅ PASS |
+| details_json 보유                         | 9        | 9      | ✅ PASS |
+| QA test data (`QA 테스트 값`)             | 0        | 0      | ✅ PASS |
+| Exact duplicate title                     | 0        | 0      | ✅ PASS |
+| details_json overlap (golf field from CS) | 0        | 0      | ✅ PASS |
+| beppu_golf_amagase sections               | 6        | 6      | ✅ PASS |
+| beppu_golf_amagase CS-sourced sections    | 0        | 0      | ✅ PASS |
+
+## 8. Admin Production UI E2E
+
+- Production 인증 필요로 Playwright E2E 미실행
+- Phase 1 DB-level E2E 9/9 PASS 확인
+- GolfDetailsEditor conflict flow 코드 리뷰: `preserveConflict` 옵션 정상 동작 확인
+- 수동 테스트 권장
+
+## 9. HOTEL Regression
+
+| Page                           | Result                                      |
+| ------------------------------ | ------------------------------------------- |
+| `/dos/hotel/dos_hotel_holiday` | ✅ 기본정보, 조식, ATM/결제, 교통, FAQ 정상 |
+
+## 10. RESTAURANT Regression
+
+| Page              | Result       |
+| ----------------- | ------------ |
+| `/dos/restaurant` | ✅ 목록 정상 |
+
+## 11. Golf Regression
+
+| Page                                | Sections                     | Result  |
+| ----------------------------------- | ---------------------------- | ------- |
+| `/beppu/golf/beppu_golf_amagase`    | 6개 정상                     | ✅ PASS |
+| `/beppu/golf/beppu_golf_beppu_club` | 6개 정상                     | ✅ PASS |
+| `/dos/golf/dos_golf_kaho`           | 6개 정상 + 포함/불포함 + FAQ | ✅ PASS |
+| `/dos/golf/dos_golf_winners`        | 6개 정상 + 포함/불포함 + FAQ | ✅ PASS |
+
+## 12. Static Verification
+
+| Check                 | Result           |
+| --------------------- | ---------------- |
+| `tsc`                 | ✅ PASS          |
+| `build`               | ✅ PASS          |
+| `lint` — pre-existing | 12건 (변경 없음) |
+| `lint` — new          | 0건              |
+
+## 13. Production 배포
+
+| Item                     | Value                     |
+| ------------------------ | ------------------------- |
+| STARTING_SHA             | `778d89d`                 |
+| IMPLEMENTATION_FINAL_SHA | `11b4e90`                 |
+| REPORT_SHA               | `11b4e90`                 |
+| PUSH_RESULT              | SUCCESS (1 commit pushed) |
+| Vercel Production        | 확인 필요                 |
+
+## 14. 남은 이슈
+
+1. **dos_golf_kaho/includes_excludes test data**: 포함사항/불포함사항에 "test", "수정된 항목" 등 test data 잔존. scope 외.
+2. **dos_golf_winners/includes_excludes test data**: 포함사항에 "test", "test1", "test2" 잔존. scope 외.
+3. **Admin Production UI E2E**: 수동 테스트 필요 (인증 required).
+4. **기존 lint 12건**: pre-existing, scope 외.
+
+---
+
+### PHASE_2_RESULT: COMPLETE
