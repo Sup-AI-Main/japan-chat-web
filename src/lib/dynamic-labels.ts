@@ -191,7 +191,8 @@ export function isSectionVisible(
   sectionKey: string
 ): boolean {
   const section = labels.sections.find((s) => s.section_key === sectionKey);
-  return section?.is_visible === true;
+  // When no label config exists for this section, default to visible
+  return section ? section.is_visible === true : true;
 }
 
 /** Get field label by key, with fallback */
@@ -208,7 +209,9 @@ export function isFieldActive(
   labels: DynamicLabelsResult,
   fieldKey: string
 ): boolean {
-  return labels.fieldMap[fieldKey]?.active === true;
+  // When no label config exists for this field, default to active
+  const entry = labels.fieldMap[fieldKey];
+  return entry ? entry.active === true : true;
 }
 
 /** Check if a field is required by validation_json */
