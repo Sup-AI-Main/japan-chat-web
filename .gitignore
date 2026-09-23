@@ -37,6 +37,12 @@ env/
 # vercel
 .vercel
 
+# supabase CLI temp (generated metadata, not project config)
+/supabase/.temp/
+
+# database backup exports (local only, never commit)
+/scripts/backups/
+
 # background originals (PNG/SVG backup - too large for git)
 /background
 
