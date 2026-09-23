@@ -150,6 +150,7 @@ export async function PUT(req: NextRequest) {
       : areaRelation?.code;
     const slug = result.slug || entity.slug;
 
+    let revalidated = false;
     if (areaCode && slug) {
       try {
         revalidateEntityDetail({
@@ -157,9 +158,10 @@ export async function PUT(req: NextRequest) {
           area: areaCode,
           slug,
         });
+        revalidated = true;
       } catch (err) {
         console.error("[ENTITY_EDITOR_REVALIDATE]", err);
-        // Don't fail the save for revalidation errors
+        // revalidated stays false — client will see truthful status
       }
     }
 
@@ -170,6 +172,7 @@ export async function PUT(req: NextRequest) {
       slug: result.slug,
       updated_at: result.updated_at,
       details_json: result.details_json,
+      revalidated,
     });
   } catch (err) {
     return serverError(err);

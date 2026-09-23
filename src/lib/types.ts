@@ -1,31 +1,10 @@
-// Entity details_json document (CMS V2)
-export interface EntityDetailsDocumentV1 {
-  version: 1;
-  sections: EntityDetailsSection[];
-}
-
-export interface EntityDetailsSection {
-  id: string;
-  key: string;
-  title_ko: string;
-  emoji?: string | null;
-  sort: number;
-  is_visible: boolean;
-  source?: string;
-  source_table?: string;
-  source_column?: string;
-  legacy_id?: string;
-  items: EntityDetailsItem[];
-}
-
-export interface EntityDetailsItem {
-  id: string;
-  type: string;
-  value: string;
-  value_jp?: string | null;
-  legacy_id?: string;
-  is_visible?: boolean;
-}
+// Canonical CMS V2 types from shared source
+import type {
+  EntityDetailsDocumentV1,
+  EntityDetailsSection,
+  EntityDetailsItem,
+} from './entity-details/types';
+export type { EntityDetailsDocumentV1, EntityDetailsSection, EntityDetailsItem };
 
 // Golf Course
 export interface GolfCourse {
@@ -92,6 +71,7 @@ export interface Hotel {
   tattoo_policy: string;
   other_info: string;
   updated_at: string;
+  details_json?: EntityDetailsDocumentV1 | null;
 }
 
 // Travel Time
@@ -257,24 +237,8 @@ export interface HotelFormPayload {
   address_jp: string;
   phone: string;
   google_maps_url: string;
-  checkin_time: string;
-  checkout_time: string;
-  breakfast_place: string;
-  breakfast_time: string;
-  breakfast_last_entry: string;
-  dinner_place: string;
-  dinner_time: string;
-  dinner_last_entry: string;
-  has_public_bath: boolean;
-  has_outdoor_onsen: boolean;
-  has_sauna: boolean;
-  bath_spa_hours: string;
-  tattoo_policy: string;
-  other_info: string;
-  atm_payment: string;
-  transport: string;
-  transport_note: string;
   official_name: string;
+  transport_note: string;
   active?: string;
   sort?: string;
 }

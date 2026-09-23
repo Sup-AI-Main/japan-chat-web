@@ -1059,6 +1059,7 @@ function mapHotel(entity: EntityRow, hotel: Record<string, unknown>, areaCode: s
     tattoo_policy: (hotel.tattoo_policy as string) || '',
     other_info: (hotel.other_info as string) || '',
     updated_at: entity.updated_at,
+    details_json: (entity.details_json as EntityDetailsDocumentV1 | null) ?? null,
   };
 }
 
@@ -1098,7 +1099,7 @@ export async function getHotelById(id: string): Promise<Hotel | null> {
   const { data, error } = await db()
     .from('hotels')
     .select(
-      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code))'
     )
     .eq('entities.slug', id)
     .eq('entities.active', true) // A09: 비활성 entity 제외
@@ -1644,7 +1645,7 @@ export async function getHotelByEntityIdAdmin(entityId: string): Promise<Hotel |
   const { data, error } = await adminDb()
     .from('hotels')
     .select(
-      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code))'
+      'entity_id, official_name, address, address_jp, phone, checkin_time, checkout_time, breakfast_summary, bath_spa_summary, dinner_summary, atm_payment, transport_note, google_maps_url, source_url, status, last_verified, breakfast_place, breakfast_time, breakfast_last_entry, dinner_place, dinner_time, dinner_last_entry, has_public_bath, has_outdoor_onsen, has_sauna, bath_spa_hours, tattoo_policy, other_info, entities!inner(id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code))'
     )
     .eq('entity_id', entityId)
     .maybeSingle();

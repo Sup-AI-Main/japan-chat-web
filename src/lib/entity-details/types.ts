@@ -118,6 +118,7 @@ export interface EntityEditorRpcResult {
   updated_at?: string;
   details_json?: EntityDetailsDocumentV1;
   current_updated_at?: string;
+  revalidated?: boolean;
 }
 
 export interface EntityEditorPutResponse {

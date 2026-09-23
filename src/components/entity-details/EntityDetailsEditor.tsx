@@ -20,7 +20,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { adminFetchJson } from "@/lib/admin-fetch";
+import { adminFetchJson, StaleVersionError } from "@/lib/admin-fetch";
 import { normalizeEntityDetails } from "@/lib/entity-details/normalize";
 import { countDifferences } from "@/lib/entity-details/diff";
 import type {
@@ -127,6 +127,7 @@ export function EntityDetailsEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflictWarning, setConflictWarning] = useState(false);
+  const [revalidationWarning, setRevalidationWarning] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
   const [entityInfo, setEntityInfo] = useState<Omit<
     EntityEditorData,
@@ -303,6 +304,7 @@ export function EntityDetailsEditor({
     setSaving(true);
     setError(null);
     setConflictWarning(false);
+    setRevalidationWarning(false);
     setSuccessMessage(false);
     setShowPipeline(true);
     setSaveSteps(INITIAL_STEPS);
@@ -364,18 +366,13 @@ export function EntityDetailsEditor({
       );
       updateStep("save", "success");
 
-      // Step 4: Conflict check
+      // Step 4: Conflict check (HTTP 409 would have thrown StaleVersionError)
       updateStep("conflict", "running");
-      const result = res.data;
-      if (result.conflict) {
-        updateStep("conflict", "error");
-        setConflictWarning(true);
-        await loadEntity({ preserveConflict: true });
-        return;
-      }
+      // Reaching here means no conflict — server returned 200 with conflict:false
       updateStep("conflict", "success");
 
       // Step 5: Canonical re-read
+      const result = res.data;
       updateStep("canonical", "running");
       if (result.updated_at) setUpdatedAt(result.updated_at);
       if (result.details_json) {
@@ -387,14 +384,29 @@ export function EntityDetailsEditor({
       }
       updateStep("canonical", "success");
 
-      // Step 6: Revalidation (server-side, indicated by successful response)
-      updateStep("revalidate", "success");
-
-      // Step 7: Done
-      updateStep("done", "success");
-      setSuccessMessage(true);
-      onSaved?.();
+      // Step 6: Revalidation — use truthful server response
+      if (result.revalidated === false) {
+        updateStep("revalidate", "error");
+        updateStep("done", "success");
+        setSuccessMessage(true);
+        setRevalidationWarning(true);
+        onSaved?.();
+      } else {
+        updateStep("revalidate", "success");
+        updateStep("done", "success");
+        setSuccessMessage(true);
+        onSaved?.();
+      }
     } catch (err) {
+      // Explicit conflict handling — StaleVersionError from HTTP 409
+      if (err instanceof StaleVersionError) {
+        updateStep("save", "success");
+        updateStep("conflict", "error");
+        setConflictWarning(true);
+        setSaving(false);
+        await loadEntity({ preserveConflict: true });
+        return;
+      }
       // Mark current running step as error
       const runningStep = saveSteps.find((s) => s.status === "running");
       if (runningStep) updateStep(runningStep.id, "error");
@@ -413,6 +425,12 @@ export function EntityDetailsEditor({
       {conflictWarning && (
         <div className="mb-4 px-4 py-3 bg-yellow-50 border border-yellow-300 rounded text-[14px] text-yellow-800">
           다른 사용자가 이 데이터를 수정했습니다. 서버 데이터를 새로고침합니다.
+        </div>
+      )}
+
+      {revalidationWarning && (
+        <div className="mb-4 px-4 py-3 bg-orange-50 border border-orange-300 rounded text-[14px] text-orange-800">
+          DB 저장은 완료되었으나 공개 페이지 갱신에 실패했습니다. 공개 페이지는 다음 요청 시 자동 갱신됩니다.
         </div>
       )}
 

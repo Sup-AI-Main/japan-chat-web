@@ -374,7 +374,7 @@ export default function ManageEntitiesClient({
         </div>
       </div>
 
-      {/* Hotel Edit Modal */}
+      {/* Hotel Edit Modal — core fields only */}
       <HotelEditModal
         hotel={hotelTarget ? {
           id: hotelTarget.id,
@@ -384,22 +384,6 @@ export default function ManageEntitiesClient({
           address_jp: hotelTarget.address_jp || "",
           phone: hotelTarget.phone || "",
           google_maps_url: hotelTarget.google_maps_url || "",
-          checkin_time: hotelTarget.checkin_time || hotelTarget.check_in || "",
-          checkout_time: hotelTarget.checkout_time || hotelTarget.check_out || "",
-          breakfast_place: hotelTarget.breakfast_place || "",
-          breakfast_time: hotelTarget.breakfast_time || "",
-          breakfast_last_entry: hotelTarget.breakfast_last_entry || "",
-          dinner_place: hotelTarget.dinner_place || "",
-          dinner_time: hotelTarget.dinner_time || "",
-          dinner_last_entry: hotelTarget.dinner_last_entry || "",
-          has_public_bath: hotelTarget.has_public_bath === "true" || hotelTarget.has_public_bath === "TRUE",
-          has_outdoor_onsen: hotelTarget.has_outdoor_onsen === "true" || hotelTarget.has_outdoor_onsen === "TRUE",
-          has_sauna: hotelTarget.has_sauna === "true" || hotelTarget.has_sauna === "TRUE",
-          bath_spa_hours: hotelTarget.bath_spa_hours || "",
-          tattoo_policy: hotelTarget.tattoo_policy || "",
-          other_info: hotelTarget.other_info || "",
-          atm_payment: hotelTarget.atm_payment || "",
-          transport: hotelTarget.transport || "",
         } : null}
         area={area}
         open={hotelModal}
