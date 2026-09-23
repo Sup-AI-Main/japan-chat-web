@@ -117,7 +117,7 @@ export async function getEntity(id: string): Promise<EntityWithCategory | null> 
   const { data, error } = await db
     .from("entities")
     .select(
-      "id, slug, display_name, entity_type, area_id, category_id, active, sort, created_at, updated_at, category:categories(id, code, label), area:areas(id, code, name_kr)"
+      "id, slug, display_name, entity_type, area_id, category_id, active, sort, created_at, updated_at, category:categories!entities_category_id_fkey(id, code, label), area:areas(id, code, name_kr)"
     )
     .eq("id", id)
     .single();
