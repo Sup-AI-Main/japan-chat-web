@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getHotels, appendHotel, updateHotel, deleteHotel, validateRequiredFields, getHotelByEntityIdAdmin } from "@/lib/supabase-cms";
+import { getHotels, appendHotel, updateHotelCore, deleteHotel, validateRequiredFields, getHotelByEntityIdAdmin, MigratedDetailFieldError } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest) {
   const { id, updated_at, area, ...data } = body;
   if (!id) return badRequest("Missing id");
   try {
-    const success = await updateHotel(id, data, updated_at);
+    const success = await updateHotelCore(id, data, updated_at);
     if (!success) return notFound("Hotel not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/hotel`);
@@ -77,6 +77,9 @@ export async function PUT(req: NextRequest) {
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
+    }
+    if (err instanceof MigratedDetailFieldError) {
+      return badRequest(err.message);
     }
     return serverError(err);
   }

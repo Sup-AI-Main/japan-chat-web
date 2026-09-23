@@ -173,7 +173,6 @@ export function HotelEditModal({
         ...form,
         display_name: form.name_kr,
         address: form.address_kr,
-        transport_note: "",
         official_name: form.name_jp,
         id: hotel?.id,
         area: area.toUpperCase(),

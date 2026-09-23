@@ -238,9 +238,9 @@ export interface HotelFormPayload {
   phone: string;
   google_maps_url: string;
   official_name: string;
-  transport_note: string;
   active?: string;
   sort?: string;
+  updated_at?: string;
 }
 
 export interface GolfFormPayload {

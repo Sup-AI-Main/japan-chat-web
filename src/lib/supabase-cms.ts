@@ -1330,6 +1330,120 @@ export async function updateHotel(
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// updateHotelCore — core-only update for normal CMS path.
+// Only allows relational core fields. Migrated detail fields are rejected
+// to prevent two-writable-source conflicts with details_json.
+// ---------------------------------------------------------------------------
+
+const HOTEL_CORE_ENTITY_FIELDS = new Set(['display_name', 'active', 'sort', 'area']);
+const HOTEL_CORE_HOTEL_FIELDS = new Set(['official_name', 'address', 'address_jp', 'phone', 'google_maps_url']);
+const HOTEL_MIGRATED_DETAIL_FIELDS = new Set([
+  'checkin_time', 'checkout_time',
+  'breakfast_summary', 'breakfast_place', 'breakfast_time', 'breakfast_last_entry',
+  'dinner_summary', 'dinner_place', 'dinner_time', 'dinner_last_entry',
+  'bath_spa_summary', 'has_public_bath', 'has_outdoor_onsen', 'has_sauna',
+  'bath_spa_hours', 'tattoo_policy', 'atm_payment', 'transport_note', 'other_info',
+]);
+
+export class MigratedDetailFieldError extends Error {
+  fields: string[];
+  constructor(fields: string[]) {
+    super(`Migrated detail fields not allowed in core update: ${fields.join(', ')}`);
+    this.name = 'MigratedDetailFieldError';
+    this.fields = fields;
+  }
+}
+
+export async function updateHotelCore(
+  id: string,
+  data: Record<string, string>,
+  expectedUpdatedAt?: string
+): Promise<boolean> {
+  // Reject migrated detail fields
+  const rejected = Object.keys(data).filter((k) => HOTEL_MIGRATED_DETAIL_FIELDS.has(k));
+  if (rejected.length > 0) {
+    throw new MigratedDetailFieldError(rejected);
+  }
+
+  const { data: entity, error: findError } = await db()
+    .from('entities')
+    .select('id, updated_at')
+    .eq('id', id)
+    .single();
+  if (findError || !entity) {
+    logError('UPDATE', 'hotels', id, findError || { message: 'Not found' });
+    return false;
+  }
+
+  if (expectedUpdatedAt && entity.updated_at !== expectedUpdatedAt) {
+    throw new ConflictError();
+  }
+
+  // Verify hotel child exists
+  const { data: existingHotel, error: hotelFindError } = await db()
+    .from('hotels')
+    .select('entity_id')
+    .eq('entity_id', entity.id)
+    .maybeSingle();
+
+  if (hotelFindError) {
+    logError('READ', 'hotels', id, hotelFindError);
+    throw hotelFindError;
+  }
+  if (!existingHotel) return false;
+
+  // Entity updates — core only
+  const entityUpdates: Record<string, unknown> = {};
+  const displayName = data.name_kr ?? data.display_name;
+  if (displayName !== undefined) entityUpdates.display_name = displayName;
+  if (data.active !== undefined) entityUpdates.active = isActive(data.active);
+  if (data.sort !== undefined) entityUpdates.sort = parseInt(data.sort) || 0;
+  if (data.area !== undefined) {
+    const areaId = await resolveAreaId(data.area);
+    if (areaId) entityUpdates.area_id = areaId;
+  }
+
+  if (Object.keys(entityUpdates).length > 0) {
+    const { error } = await adminDb().from('entities').update(entityUpdates).eq('id', entity.id);
+    if (error) {
+      logError('UPDATE', 'entities', id, error);
+      throw error;
+    }
+  }
+
+  // Hotel updates — core only (whitelist)
+  const hotelUpdates: Record<string, unknown> = {};
+  const fieldMap: Record<string, string> = {
+    address_kr: 'address',
+  };
+  for (const f of HOTEL_CORE_HOTEL_FIELDS) {
+    if (data[f] !== undefined) hotelUpdates[f] = data[f];
+  }
+  for (const [clientKey, dbKey] of Object.entries(fieldMap)) {
+    if (data[clientKey] !== undefined && hotelUpdates[dbKey] === undefined) {
+      hotelUpdates[dbKey] = data[clientKey];
+    }
+  }
+
+  if (Object.keys(hotelUpdates).length > 0) {
+    const { data: updatedHotel, error } = await adminDb()
+      .from('hotels')
+      .update(hotelUpdates)
+      .eq('entity_id', entity.id)
+      .select('entity_id')
+      .maybeSingle();
+
+    if (error) {
+      logError('UPDATE', 'hotels', id, error);
+      throw error;
+    }
+    if (!updatedHotel) return false;
+  }
+
+  return true;
+}
+
 export async function deleteHotel(id: string): Promise<boolean> {
   const { data: hotel, error: findError } = await db()
     .from('hotels')
