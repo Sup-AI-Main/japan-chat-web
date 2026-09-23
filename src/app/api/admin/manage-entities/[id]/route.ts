@@ -89,8 +89,13 @@ export async function GET(
     });
   } catch (err) {
     // TEMP DEBUG - remove after diagnosis
-    const detail = err instanceof Error ? { message: err.message, stack: err.stack } : { raw: String(err) };
-    console.error("[MANAGE_ENTITIES_DEBUG] CAUGHT:", detail);
-    return NextResponse.json({ success: false, error: "DEBUG: " + (err instanceof Error ? err.message : String(err)), code: "SERVER_ERROR" }, { status: 500 });
+    let debugMsg: string;
+    try {
+      debugMsg = err instanceof Error ? `Error: ${err.message}\n${err.stack}` : JSON.stringify(err);
+    } catch {
+      debugMsg = String(err);
+    }
+    console.error("[MANAGE_ENTITIES_DEBUG] CAUGHT:", debugMsg);
+    return NextResponse.json({ success: false, error: "DEBUG: " + debugMsg, code: "SERVER_ERROR" }, { status: 500 });
   }
 }
