@@ -13,8 +13,31 @@
 import type {
   EntityDetailsDocumentV1,
   EntityDetailsItem,
+  EntityDetailsSection,
 } from "@/lib/entity-details/types";
 import { isEmptyValue } from "@/lib/entity-details/is-empty-value";
+
+// ---------------------------------------------------------------------------
+// Placeholder / duplicate label detection
+// ---------------------------------------------------------------------------
+
+/** "항목 1", "항목 23" — system-generated fallback labels that must never show publicly. */
+function isPlaceholderLabel(label: string | null | undefined): boolean {
+  if (!label) return true;
+  return /^항목\s+\d+$/.test(label.trim());
+}
+
+/** True when item label duplicates the section title — redundant in the UI. */
+function isDuplicateOfTitle(
+  label: string | null | undefined,
+  sectionTitle: string
+): boolean {
+  if (!label) return false;
+  return label.trim() === sectionTitle.trim();
+}
+
+/** Sections whose items are conceptually a flat list (no per-item labels). */
+const LIST_SECTION_KEYS = new Set(["includes", "excludes"]);
 
 // ---------------------------------------------------------------------------
 // Field value renderer
@@ -131,21 +154,44 @@ export function EntityDetailsRenderer({ details }: EntityDetailsRendererProps) {
               {section.title_ko}
             </h2>
 
-            <div className="space-y-3">
-              {items.map((item) => {
-                if (isItemEmpty(item)) return null;
-                return (
-                  <div key={item.id}>
-                    {item.label_ko && item.type !== "url" && (
-                      <div className="text-[13px] text-muted mb-1">
-                        {item.label_ko}
-                      </div>
-                    )}
-                    <FieldValue item={item} />
-                  </div>
-                );
-              })}
-            </div>
+            {LIST_SECTION_KEYS.has(section.key) ? (
+              /* List-style sections: render all values as a single bullet list */
+              <ul className="space-y-1.5 list-disc list-inside">
+                {items.map((item) => {
+                  if (isItemEmpty(item)) return null;
+                  const text =
+                    typeof item.value === "string"
+                      ? item.value
+                      : String(item.value ?? "");
+                  if (!text.trim()) return null;
+                  return (
+                    <li key={item.id} className="text-[15px] text-text">
+                      {text}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="space-y-3">
+                {items.map((item) => {
+                  if (isItemEmpty(item)) return null;
+                  const showLabel =
+                    item.type !== "url" &&
+                    !isPlaceholderLabel(item.label_ko) &&
+                    !isDuplicateOfTitle(item.label_ko, section.title_ko);
+                  return (
+                    <div key={item.id}>
+                      {showLabel && (
+                        <div className="text-[13px] text-muted mb-1">
+                          {item.label_ko}
+                        </div>
+                      )}
+                      <FieldValue item={item} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         );
       })}

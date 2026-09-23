@@ -23,10 +23,11 @@ function fallbackItemKey(item: EntityDetailsItem, sectionKey: string, idx: numbe
   return `${sectionKey}_item_${idx}`;
 }
 
-function fallbackItemLabel(item: EntityDetailsItem, idx: number): string {
+function fallbackItemLabel(item: EntityDetailsItem, _idx: number): string {
   if (item.label_ko) return item.label_ko;
   if (item.source_column) return item.source_column;
-  return `항목 ${idx + 1}`;
+  // Never generate "항목 N" placeholder — renderer handles empty labels gracefully
+  return "";
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +103,7 @@ export function isNormalized(doc: EntityDetailsDocumentV1): boolean {
     if (section.is_visible === undefined || section.is_visible === null) return false;
     for (const item of section.items) {
       if (!item.key) return false;
-      if (!item.label_ko) return false;
+      if (item.label_ko === undefined) return false;
       if (item.sort === undefined || item.sort === null) return false;
       if (item.is_visible === undefined || item.is_visible === null) return false;
     }
