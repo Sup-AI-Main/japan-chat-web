@@ -138,6 +138,7 @@ export function HotelEditModal({
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const initialRef = useRef<HotelData>(EMPTY_HOTEL);
+  const requestCloseRef = useRef<(() => void) | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
@@ -189,7 +190,7 @@ export function HotelEditModal({
         address: form.address_kr,
         official_name: form.name_jp,
         id: hotel?.id,
-        updated_at: hotel?.updated_at || undefined,
+        updated_at: form?.updated_at || undefined,
         area: area.toUpperCase(),
       };
       const res = await fetch("/api/admin/hotel", {
@@ -242,13 +243,13 @@ export function HotelEditModal({
       if (ent || h) {
         const canonical: HotelData = {
           id: hotel.id,
-          updated_at: ent?.updated_at || hotel.updated_at,
-          name_kr: ent?.display_name || hotel.name_kr,
-          name_jp: h?.official_name || hotel.name_jp,
-          address_kr: h?.address || hotel.address_kr,
-          address_jp: h?.address_jp || hotel.address_jp,
-          phone: h?.phone || hotel.phone,
-          google_maps_url: h?.google_maps_url || hotel.google_maps_url,
+          updated_at: ent?.updated_at ?? hotel.updated_at,
+          name_kr: ent?.display_name ?? hotel.name_kr,
+          name_jp: h?.official_name ?? hotel.name_jp,
+          address_kr: h?.address ?? hotel.address_kr,
+          address_jp: h?.address_jp ?? hotel.address_jp,
+          phone: h?.phone ?? hotel.phone,
+          google_maps_url: h?.google_maps_url ?? hotel.google_maps_url,
         };
         setForm(canonical);
         initialRef.current = { ...canonical };
@@ -269,6 +270,7 @@ export function HotelEditModal({
       saving={saving}
       error={error}
       isDirty={isDirty}
+      requestCloseRef={requestCloseRef}
     >
       {conflict && (
         <div className="bg-amber-50 border border-amber-300 rounded-[8px] p-4 mb-4">
@@ -288,7 +290,7 @@ export function HotelEditModal({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => requestCloseRef.current?.()}
               className="px-4 py-2 text-[13px] text-muted border border-border rounded-[8px] hover:bg-gray-50"
             >
               닫기

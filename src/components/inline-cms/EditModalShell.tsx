@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { ModalShell } from "./ModalShell";
 
 interface EditModalShellProps {
@@ -13,6 +13,8 @@ interface EditModalShellProps {
   savingLabel?: string;
   error?: string;
   isDirty?: boolean;
+  /** Ref whose .current is always the guarded close handler. */
+  requestCloseRef?: React.MutableRefObject<(() => void) | undefined>;
   children: React.ReactNode;
 }
 
@@ -26,6 +28,7 @@ export function EditModalShell({
   savingLabel = "저장 중...",
   error,
   isDirty = false,
+  requestCloseRef,
   children,
 }: EditModalShellProps) {
   const handleClose = useCallback(() => {
@@ -38,6 +41,12 @@ export function EditModalShell({
     }
     onClose();
   }, [saving, isDirty, onClose]);
+
+  useEffect(() => {
+    if (requestCloseRef) {
+      requestCloseRef.current = handleClose;
+    }
+  }, [requestCloseRef, handleClose]);
 
   return (
     <ModalShell
