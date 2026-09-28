@@ -20,6 +20,7 @@ import type { HotelFormPayload } from "@/lib/types";
 
 interface HotelData {
   id?: string;
+  updated_at?: string;
   name_kr: string;
   name_jp: string;
   address_kr: string;
@@ -135,6 +136,7 @@ export function HotelEditModal({
   const [form, setForm] = useState<HotelData>(EMPTY_HOTEL);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [conflict, setConflict] = useState(false);
   const initialRef = useRef<HotelData>(EMPTY_HOTEL);
 
   useEffect(() => {
@@ -143,6 +145,7 @@ export function HotelEditModal({
       setForm(initial);
       initialRef.current = initial;
       setError("");
+      setConflict(false);
       setSaving(false);
     }
   }, [open, hotel]);
@@ -161,6 +164,7 @@ export function HotelEditModal({
   const handleSave = async () => {
     setSaving(true);
     setError("");
+    setConflict(false);
 
     // Validate required fields
     for (const section of SECTIONS) {
@@ -185,6 +189,7 @@ export function HotelEditModal({
         address: form.address_kr,
         official_name: form.name_jp,
         id: hotel?.id,
+        updated_at: hotel?.updated_at || undefined,
         area: area.toUpperCase(),
       };
       const res = await fetch("/api/admin/hotel", {
@@ -192,6 +197,12 @@ export function HotelEditModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      if (res.status === 409) {
+        setConflict(true);
+        setSaving(false);
+        return;
+      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -220,6 +231,35 @@ export function HotelEditModal({
     }
   };
 
+  const handleReloadCanonical = async () => {
+    if (!hotel?.id) return;
+    try {
+      const res = await fetch(`/api/admin/manage-entities/${hotel.id}`);
+      if (!res.ok) throw new Error("Failed to reload");
+      const data = await res.json();
+      const ent = data.data?.entity;
+      const h = data.data?.hotel;
+      if (ent || h) {
+        const canonical: HotelData = {
+          id: hotel.id,
+          updated_at: ent?.updated_at || hotel.updated_at,
+          name_kr: ent?.display_name || hotel.name_kr,
+          name_jp: h?.official_name || hotel.name_jp,
+          address_kr: h?.address || hotel.address_kr,
+          address_jp: h?.address_jp || hotel.address_jp,
+          phone: h?.phone || hotel.phone,
+          google_maps_url: h?.google_maps_url || hotel.google_maps_url,
+        };
+        setForm(canonical);
+        initialRef.current = { ...canonical };
+        setConflict(false);
+        setError("");
+      }
+    } catch {
+      setError("최신 데이터를 불러오지 못했습니다. 페이지를 새로고침하세요.");
+    }
+  };
+
   return (
     <EditModalShell
       open={open}
@@ -230,6 +270,32 @@ export function HotelEditModal({
       error={error}
       isDirty={isDirty}
     >
+      {conflict && (
+        <div className="bg-amber-50 border border-amber-300 rounded-[8px] p-4 mb-4">
+          <p className="text-[14px] font-semibold text-amber-800 mb-2">
+            ⚠️ 데이터 충돌 감지
+          </p>
+          <p className="text-[13px] text-amber-700 mb-3">
+            다른 관리자가 이미 이 데이터를 수정했습니다. 최신 데이터를 불러온 후 다시 시도하세요.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleReloadCanonical}
+              className="px-4 py-2 text-[13px] text-white bg-amber-600 rounded-[8px] hover:bg-amber-700"
+            >
+              최신 데이터 불러오기
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-[13px] text-muted border border-border rounded-[8px] hover:bg-gray-50"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
       {SECTIONS.filter((s) => isSectionVisible(L, s.sectionKey)).map(
         (section) => {
           const visibleFields = section.fields.filter((f) =>

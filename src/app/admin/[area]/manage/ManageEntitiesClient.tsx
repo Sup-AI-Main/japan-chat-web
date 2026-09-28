@@ -384,6 +384,7 @@ export default function ManageEntitiesClient({
           address_jp: hotelTarget.address_jp || "",
           phone: hotelTarget.phone || "",
           google_maps_url: hotelTarget.google_maps_url || "",
+          updated_at: hotelTarget.updated_at || "",
         } : null}
         area={area}
         open={hotelModal}
