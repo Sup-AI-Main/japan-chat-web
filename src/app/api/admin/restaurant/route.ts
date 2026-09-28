@@ -9,6 +9,13 @@ export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   try {
+    // Single entity by id → canonical DTO with name_jp, near_type, locations
+    const id = req.nextUrl.searchParams.get("id");
+    if (id) {
+      const restaurant = await getRestaurantByEntityIdAdmin(id);
+      if (!restaurant) return notFound("Restaurant not found");
+      return ok({ restaurant });
+    }
     const area = req.nextUrl.searchParams.get("area") || undefined;
     const restaurants = await getRestaurants(area || undefined);
     return ok({ restaurants });

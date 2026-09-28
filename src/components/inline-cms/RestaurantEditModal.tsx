@@ -265,34 +265,32 @@ export function RestaurantEditModal({
   const handleReloadCanonical = async () => {
     if (!restaurant?.id) return;
     try {
-      const res = await fetch(`/api/admin/manage-entities/${restaurant.id}`);
+      const res = await fetch(`/api/admin/restaurant?id=${encodeURIComponent(restaurant.id)}`);
       if (!res.ok) throw new Error("Failed to reload");
       const data = await res.json();
-      const ent = data.data?.entity;
       const r = data.data?.restaurant;
-      if (ent || r) {
-        const canonical: RestaurantData = {
-          id: restaurant.id,
-          updated_at: ent?.updated_at ?? restaurant.updated_at,
-          name_kr: ent?.display_name ?? restaurant.name_kr,
-          name_jp: r?.name_jp ?? restaurant.name_jp,
-          category: r?.category ?? restaurant.category,
-          address: r?.address ?? restaurant.address,
-          hours: r?.hours ?? restaurant.hours,
-          distance_km: r?.distance_km ?? restaurant.distance_km,
-          drive_minutes: r?.drive_minutes ?? restaurant.drive_minutes,
-          walk_minutes: r?.walk_minutes ?? restaurant.walk_minutes,
-          phone: r?.phone ?? restaurant.phone,
-          price_range: r?.price_range ?? restaurant.price_range,
-          google_maps_url: r?.google_maps_url ?? restaurant.google_maps_url,
-          near_type: restaurant.near_type,
-          near_id: restaurant.near_id,
-        };
-        setForm(canonical);
-        initialRef.current = { ...canonical };
-        setConflict(false);
-        setError("");
-      }
+      if (!r) throw new Error("Canonical data missing");
+      const canonical: RestaurantData = {
+        id: restaurant.id,
+        updated_at: r.updated_at ?? restaurant.updated_at,
+        name_kr: r.name_kr ?? r.name ?? restaurant.name_kr,
+        name_jp: r.name_jp ?? restaurant.name_jp,
+        category: r.category ?? restaurant.category,
+        address: r.address ?? restaurant.address,
+        hours: r.hours ?? restaurant.hours,
+        distance_km: r.distance_km ?? restaurant.distance_km,
+        drive_minutes: r.drive_minutes ?? restaurant.drive_minutes,
+        walk_minutes: r.walk_minutes ?? restaurant.walk_minutes,
+        phone: r.phone ?? restaurant.phone,
+        price_range: r.price_range ?? restaurant.price_range,
+        google_maps_url: r.google_maps_url ?? restaurant.google_maps_url,
+        near_type: (r.near_type as RestaurantData["near_type"]) ?? restaurant.near_type,
+        near_id: r.near_id ?? restaurant.near_id,
+      };
+      setForm(canonical);
+      initialRef.current = { ...canonical };
+      setConflict(false);
+      setError("");
     } catch {
       setError("최신 데이터를 불러오지 못했습니다. 페이지를 새로고침하세요.");
     }
