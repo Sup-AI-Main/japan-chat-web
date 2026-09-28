@@ -6,6 +6,9 @@ import { useAdmin } from "@/hooks/use-admin";
 import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
 import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection } from "@/components/inline-cms";
+import { isValidV1Document } from "@/lib/entity-details/validate";
+import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
+import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEditor";
 import type { Restaurant, ContentSection, IncludeExclude, FaqItem } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getFieldLabel, getSectionLabel, isSectionVisible } from "@/lib/dynamic-labels";
@@ -37,6 +40,7 @@ export default function RestaurantDetailClient({
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [nearOptions, setNearOptions] = useState<NearOption[]>([]);
+  const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const router = useRouter();
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
@@ -46,6 +50,8 @@ export default function RestaurantDetailClient({
   const fieldLabel = (key: string, fb: string) => getFieldLabel(L, key, fb);
   const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
   const sectionVisible = (key: string) => isSectionVisible(L, key);
+
+  const hasJsonDetails = isValidV1Document(restaurant.details_json);
 
   const closeEditModal = useCallback(() => {
     setEditModal(false);
@@ -129,6 +135,12 @@ export default function RestaurantDetailClient({
     router.refresh();
   };
 
+  const handleDetailsSaved = () => {
+    showToast("세부사항 저장 완료");
+    setDetailsEditorOpen(false);
+    router.refresh();
+  };
+
   const displayName = restaurant.name_kr || restaurant.name;
   const displayDistance = restaurant.distance_km || restaurant.drive_minutes
     ? [
@@ -141,6 +153,11 @@ export default function RestaurantDetailClient({
     : restaurant.distance
       ? (restaurant.distance.startsWith("차량") ? restaurant.distance : `차량 약 ${restaurant.distance}`)
       : "";
+
+  // Legacy variable detail fields — only used when details_json is absent
+  const hasLegacyVariableDetails =
+    restaurant.menu_kr || restaurant.menu_jp || restaurant.closed_days ||
+    restaurant.description;
 
   return (
     <>
@@ -167,23 +184,8 @@ export default function RestaurantDetailClient({
           </span>
         )}
 
+        {/* Core info (always relational) */}
         <div className="space-y-3">
-          {/* 대표 메뉴 */}
-          {(restaurant.menu_kr || restaurant.menu_jp) && sectionVisible("menu") && (
-            <div>
-              <h3 className="text-[15px] font-bold text-text">{sectionLabel("menu", "대표 메뉴")}</h3>
-              <p className="text-[15px] text-text">
-                {restaurant.menu_kr}
-                {restaurant.menu_jp && (
-                  <span className="text-muted"> ({restaurant.menu_jp})</span>
-                )}
-              </p>
-              {restaurant.menu_price && (
-                <p className="text-[14px] text-muted">{restaurant.menu_price}</p>
-              )}
-            </div>
-          )}
-
           {/* 주소 + Google Maps */}
           {restaurant.address && sectionVisible("address") && (
             <div>
@@ -207,14 +209,6 @@ export default function RestaurantDetailClient({
             <div>
               <h3 className="text-[15px] font-bold text-text">{sectionLabel("hours", "영업시간")}</h3>
               <p className="text-[15px] text-text">{restaurant.hours}</p>
-            </div>
-          )}
-
-          {/* 휴무일 */}
-          {restaurant.closed_days && sectionVisible("closed_days") && (
-            <div>
-              <h3 className="text-[15px] font-bold text-text">{fieldLabel("closed_days", "휴무일")}</h3>
-              <p className="text-[15px] text-text">{restaurant.closed_days}</p>
             </div>
           )}
 
@@ -247,18 +241,59 @@ export default function RestaurantDetailClient({
             </div>
           )}
 
-          {/* 설명 */}
-          {restaurant.description && sectionVisible("other_info") && (
-            <div>
-              <h3 className="text-[15px] font-bold text-text">{sectionLabel("other_info", "기타 안내")}</h3>
-              <p className="text-[15px] text-text leading-relaxed">
-                {restaurant.description}
-              </p>
-            </div>
+          {/* Variable details: JSON → shared renderer, null → legacy fallback */}
+          {hasJsonDetails ? (
+            <EntityDetailsRenderer details={restaurant.details_json!} />
+          ) : (
+            <>
+              {/* Legacy fallback: menu */}
+              {(restaurant.menu_kr || restaurant.menu_jp) && sectionVisible("menu") && (
+                <div>
+                  <h3 className="text-[15px] font-bold text-text">{sectionLabel("menu", "대표 메뉴")}</h3>
+                  <p className="text-[15px] text-text">
+                    {restaurant.menu_kr}
+                    {restaurant.menu_jp && (
+                      <span className="text-muted"> ({restaurant.menu_jp})</span>
+                    )}
+                  </p>
+                  {restaurant.menu_price && (
+                    <p className="text-[14px] text-muted">{restaurant.menu_price}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Legacy fallback: closed_days */}
+              {restaurant.closed_days && sectionVisible("closed_days") && (
+                <div>
+                  <h3 className="text-[15px] font-bold text-text">{fieldLabel("closed_days", "휴무일")}</h3>
+                  <p className="text-[15px] text-text">{restaurant.closed_days}</p>
+                </div>
+              )}
+
+              {/* Legacy fallback: description */}
+              {restaurant.description && sectionVisible("other_info") && (
+                <div>
+                  <h3 className="text-[15px] font-bold text-text">{sectionLabel("other_info", "기타 안내")}</h3>
+                  <p className="text-[15px] text-text leading-relaxed">
+                    {restaurant.description}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
         </div>
       </EditableContainer>
+
+      {/* Details editor button (admin only) */}
+      {isAdmin && (
+        <button
+          onClick={() => setDetailsEditorOpen(true)}
+          className="mb-4 border border-border px-4 py-2 rounded text-[13px] text-text hover:bg-surface min-h-[44px]"
+        >
+          세부사항 수정
+        </button>
+      )}
 
       {/* 포함/불포함 사항 */}
       <IncludeExcludeSection parentType="RESTAURANT" parentId={restaurant.id} initialItems={initialIncludes} />
@@ -290,35 +325,33 @@ export default function RestaurantDetailClient({
         </div>
       )}
 
-      {/* Content Sections (dynamic) */}
-      <ContentSectionsRenderer
-        parentType="RESTAURANT"
-        parentId={restaurant.id}
-        initialSections={contentSections}
-      />
+      {/* Content Sections (dynamic) — skip when details_json already renders them */}
+      {!hasJsonDetails && (
+        <ContentSectionsRenderer
+          parentType="RESTAURANT"
+          parentId={restaurant.id}
+          initialSections={contentSections}
+        />
+      )}
 
+      {/* Core Edit Modal — relational core fields only */}
       {isAdmin && (
         <RestaurantEditModal
           key={restaurant.id || "edit-rest"}
           restaurant={{
             id: restaurant.id,
+            updated_at: restaurant.updated_at,
             name_kr: restaurant.name_kr || restaurant.name,
             name_jp: restaurant.name_jp || "",
             category: restaurant.category || "",
-            menu_kr: restaurant.menu_kr || "",
-            menu_jp: restaurant.menu_jp || "",
-            menu_price: restaurant.menu_price || "",
             address: restaurant.address || "",
             hours: restaurant.hours || "",
-            closed_days: restaurant.closed_days || "",
             distance_km: restaurant.distance_km || "",
             drive_minutes: restaurant.drive_minutes || "",
             walk_minutes: restaurant.walk_minutes || "",
             phone: restaurant.phone || "",
             price_range: restaurant.price_range || "",
             google_maps_url: restaurant.google_maps_url || "",
-            description: restaurant.description || "",
-            recommended: restaurant.recommended === "true" || restaurant.recommended === "Y",
             near_type: (restaurant.near_type as "HOTEL" | "GOLF" | "AREA") || "HOTEL",
             near_id: restaurant.near_id || "",
           }}
@@ -330,6 +363,15 @@ export default function RestaurantDetailClient({
           dynamicLabels={dynamicLabels}
         />
       )}
+
+      {/* Shared EntityDetailsEditor — for variable details */}
+      <EntityDetailsEditor
+        entityId={restaurant.id}
+        entityType="RESTAURANT"
+        open={detailsEditorOpen}
+        onClose={() => setDetailsEditorOpen(false)}
+        onSaved={handleDetailsSaved}
+      />
 
       <ConfirmModal
         open={deleteModal}

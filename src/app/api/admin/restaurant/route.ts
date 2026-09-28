@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getRestaurants, appendRestaurant, updateRestaurant, deleteRestaurantRow, validateRequiredFields, getRestaurantByEntityIdAdmin } from "@/lib/supabase-cms";
+import { getRestaurants, appendRestaurant, updateRestaurant, deleteRestaurantRow, validateRequiredFields, getRestaurantByEntityIdAdmin, MigratedDetailFieldError } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
 import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { revalidatePath } from "next/cache";
@@ -77,6 +77,9 @@ export async function PUT(req: NextRequest) {
   } catch (err) {
     if (err instanceof ConflictError) {
       return conflict(err.message);
+    }
+    if (err instanceof MigratedDetailFieldError) {
+      return badRequest(err.message);
     }
     return serverError(err);
   }

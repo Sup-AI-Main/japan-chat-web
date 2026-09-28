@@ -1337,13 +1337,43 @@ export async function updateHotel(
 // ---------------------------------------------------------------------------
 
 const HOTEL_CORE_ENTITY_FIELDS = new Set(['display_name', 'active', 'sort', 'area']);
-const HOTEL_CORE_HOTEL_FIELDS = new Set(['official_name', 'address', 'address_jp', 'phone', 'google_maps_url']);
+const HOTEL_CORE_HOTEL_FIELDS = new Set([
+  'official_name',
+  'address',
+  'address_jp',
+  'phone',
+  'google_maps_url',
+]);
 const HOTEL_MIGRATED_DETAIL_FIELDS = new Set([
-  'checkin_time', 'checkout_time',
-  'breakfast_summary', 'breakfast_place', 'breakfast_time', 'breakfast_last_entry',
-  'dinner_summary', 'dinner_place', 'dinner_time', 'dinner_last_entry',
-  'bath_spa_summary', 'has_public_bath', 'has_outdoor_onsen', 'has_sauna',
-  'bath_spa_hours', 'tattoo_policy', 'atm_payment', 'transport_note', 'other_info',
+  'checkin_time',
+  'checkout_time',
+  'breakfast_summary',
+  'breakfast_place',
+  'breakfast_time',
+  'breakfast_last_entry',
+  'dinner_summary',
+  'dinner_place',
+  'dinner_time',
+  'dinner_last_entry',
+  'bath_spa_summary',
+  'has_public_bath',
+  'has_outdoor_onsen',
+  'has_sauna',
+  'bath_spa_hours',
+  'tattoo_policy',
+  'atm_payment',
+  'transport_note',
+  'other_info',
+]);
+
+// Restaurant: variable detail fields migrated to entities.details_json.
+const RESTAURANT_MIGRATED_DETAIL_FIELDS = new Set([
+  'menu_kr',
+  'menu_jp',
+  'menu_price',
+  'closed_days',
+  'description',
+  'recommended',
 ]);
 
 export class MigratedDetailFieldError extends Error {
@@ -1528,6 +1558,11 @@ function mapRestaurant(
     active: entity.active ? 'TRUE' : 'FALSE',
     sort: entity.sort,
     updated_at: entity.updated_at,
+    details_json:
+      ((entity as unknown as { details_json?: unknown }).details_json as
+        | import('@/lib/entity-details/types').EntityDetailsDocumentV1
+        | null
+        | undefined) ?? null,
     locations: locations || [],
   };
 }
@@ -1538,7 +1573,7 @@ export async function getRestaurants(area?: string): Promise<Restaurant[]> {
     .from('entities')
     .select(
       `
-      id, slug, display_name, entity_type, area_id, active, sort, updated_at,
+      id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json,
       areas!inner(code),
       restaurants(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified),
       restaurant_locations!restaurant_entity_id(
@@ -1797,7 +1832,7 @@ export async function getRestaurantByEntityIdAdmin(entityId: string): Promise<Re
   const { data: entity, error: findError } = await adminDb()
     .from('entities')
     .select(
-      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants!inner(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code), restaurants!inner(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
     )
     .eq('id', entityId)
     .eq('entity_type', 'RESTAURANT')
@@ -1949,6 +1984,12 @@ export async function updateRestaurant(
   data: Record<string, unknown>,
   expectedUpdatedAt?: string
 ): Promise<boolean> {
+  // Reject migrated detail fields to prevent two-writable-source conflicts
+  const rejected = Object.keys(data).filter((k) => RESTAURANT_MIGRATED_DETAIL_FIELDS.has(k));
+  if (rejected.length > 0) {
+    throw new MigratedDetailFieldError(rejected);
+  }
+
   const payload: Record<string, unknown> = { ...data };
 
   if (Object.prototype.hasOwnProperty.call(data, 'recommended')) {

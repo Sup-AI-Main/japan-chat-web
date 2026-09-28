@@ -139,6 +139,7 @@ export interface Restaurant {
   description: string;
   recommended: string;
   updated_at: string;
+  details_json?: EntityDetailsDocumentV1 | null;
   locations: RestaurantLocation[];
 }
 

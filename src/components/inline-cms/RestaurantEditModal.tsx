@@ -13,23 +13,18 @@ import {
 
 interface RestaurantData {
   id?: string;
+  updated_at?: string;
   name_kr: string;
   name_jp: string;
   category: string;
-  menu_kr: string;
-  menu_jp: string;
-  menu_price: string;
   address: string;
   hours: string;
-  closed_days: string;
   distance_km: string;
   drive_minutes: string;
   walk_minutes: string;
   phone: string;
   price_range: string;
   google_maps_url: string;
-  description: string;
-  recommended: boolean;
   near_type: "HOTEL" | "GOLF" | "AREA";
   near_id: string;
 }
@@ -38,20 +33,14 @@ const EMPTY_RESTAURANT: RestaurantData = {
   name_kr: "",
   name_jp: "",
   category: "",
-  menu_kr: "",
-  menu_jp: "",
-  menu_price: "",
   address: "",
   hours: "",
-  closed_days: "",
   distance_km: "",
   drive_minutes: "",
   walk_minutes: "",
   phone: "",
   price_range: "",
   google_maps_url: "",
-  description: "",
-  recommended: false,
   near_type: "HOTEL",
   near_id: "",
 };
@@ -95,15 +84,6 @@ const SECTIONS = [
     ],
   },
   {
-    sectionKey: "menu",
-    fallbackTitle: "메뉴",
-    fields: [
-      { fieldKey: "menu_kr", formKey: "menu_kr" as const, fallback: "메뉴 (한국어)", placeholder: "추천 메뉴" },
-      { fieldKey: "menu_jp", formKey: "menu_jp" as const, fallback: "메뉴 (일본어)", placeholder: "メニュー" },
-      { fieldKey: "menu_price", formKey: "menu_price" as const, fallback: "메뉴 가격", placeholder: "1000엔~3000엔" },
-    ],
-  },
-  {
     sectionKey: "price_range",
     fallbackTitle: "가격대",
     fields: [
@@ -116,21 +96,6 @@ const SECTIONS = [
     fields: [
       { fieldKey: "hours", formKey: "hours" as const, fallback: "영업시간", placeholder: "11:00~22:00" },
     ],
-  },
-  {
-    sectionKey: "closed_days",
-    fallbackTitle: "휴무일",
-    fields: [
-      { fieldKey: "closed_days", formKey: "closed_days" as const, fallback: "정기휴일", placeholder: "매주 수요일" },
-    ],
-  },
-  {
-    sectionKey: "other_info",
-    fallbackTitle: "추가 정보",
-    fields: [
-      { fieldKey: "description", formKey: "description" as const, fallback: "설명", placeholder: "식당 설명", className: "md:col-span-2" },
-    ],
-    hasRecommended: true,
   },
 ] as const;
 
@@ -240,6 +205,7 @@ export function RestaurantEditModal({
         body: JSON.stringify({
           ...form,
           id: restaurant?.id,
+          updated_at: form?.updated_at || undefined,
           area: area.toUpperCase(),
         }),
       });
@@ -255,9 +221,6 @@ export function RestaurantEditModal({
       const saved = resBody.data?.restaurant;
       if (!saved?.id || !saved?.slug) {
         throw new Error("서버 응답이 올바르지 않습니다 (id/slug 누락).");
-      }
-      if (typeof saved.recommended === 'boolean') {
-        saved.recommended = saved.recommended ? 'TRUE' : 'FALSE';
       }
       if (!saved.name && saved.name_kr) saved.name = saved.name_kr;
       onSaved(saved);
@@ -282,11 +245,7 @@ export function RestaurantEditModal({
         if (!isSectionVisible(L, section.sectionKey)) return null;
 
         const visibleFields = section.fields.filter((f) => isFieldActive(L, f.fieldKey));
-        if (visibleFields.length === 0 && !("hasRecommended" in section && section.hasRecommended)) return null;
-
-        const recommendedActive = "hasRecommended" in section && section.hasRecommended
-          ? isFieldActive(L, "recommended")
-          : false;
+        if (visibleFields.length === 0) return null;
 
         return (
           <div key={section.sectionKey} className="mb-6">
@@ -297,31 +256,16 @@ export function RestaurantEditModal({
               {visibleFields.map((field) => (
                 <InputField
                   key={field.fieldKey}
-                  className={"className" in field ? (field as { className?: string }).className : undefined}
                   label={
                     getFieldLabel(L, field.fieldKey, field.fallback) +
                     (isFieldRequired(L, field.fieldKey) ? " *" : "")
                   }
-                  value={form[field.formKey as keyof RestaurantData] as string}
+                  value={(form[field.formKey as keyof RestaurantData] as string) ?? ""}
                   onChange={(v) => update(field.formKey as keyof RestaurantData, v)}
                   placeholder={field.placeholder}
                 />
               ))}
             </div>
-            {recommendedActive && (
-              <label className="flex items-center gap-2 cursor-pointer mt-4">
-                <input
-                  type="checkbox"
-                  checked={form.recommended}
-                  onChange={(e) => update("recommended", e.target.checked)}
-                  className="w-4 h-4 accent-primary"
-                />
-                <span className="text-[14px] text-text">
-                  {getFieldLabel(L, "recommended", "추천 식당")}
-                  {isFieldRequired(L, "recommended") ? " *" : ""}
-                </span>
-              </label>
-            )}
           </div>
         );
       })}
