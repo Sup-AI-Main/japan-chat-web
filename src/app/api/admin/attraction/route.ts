@@ -45,6 +45,9 @@ export async function POST(req: NextRequest) {
     }
     return created({ id, slug, attraction: canonicalAttraction });
   } catch (err) {
+    if (err instanceof MigratedDetailFieldError) {
+      return badRequest(err.message);
+    }
     return serverError(err);
   }
 }

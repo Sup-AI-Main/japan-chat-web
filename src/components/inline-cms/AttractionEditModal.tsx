@@ -26,6 +26,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const initialRef = useRef<CoreForm>(EMPTY_FORM);
+  const updatedAtRef = useRef<string | undefined>(undefined);
   const requestCloseRef = useRef<(() => void) | undefined>(undefined);
 
   const isEdit = !!attraction?.id;
@@ -36,6 +37,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
     };
     setForm(initial);
     initialRef.current = initial;
+    updatedAtRef.current = attraction?.updated_at;
     setError("");
     setConflict(false);
   }, [attraction, open]);
@@ -56,6 +58,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
       };
       setForm(reloaded);
       initialRef.current = reloaded;
+      updatedAtRef.current = fresh.updated_at;
       setConflict(false);
       setError("");
     } catch {
@@ -79,8 +82,8 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
         id: attraction?.id,
         area: area.toUpperCase(),
       };
-      if (isEdit && attraction?.updated_at) {
-        payload.updated_at = attraction.updated_at;
+      if (isEdit && updatedAtRef.current) {
+        payload.updated_at = updatedAtRef.current;
       }
       const res = await fetch(url, {
         method,

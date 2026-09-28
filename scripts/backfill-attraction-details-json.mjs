@@ -258,8 +258,13 @@ async function main() {
     process.exit(1);
   }
 
-  const targets = (rows || []).filter((r) => !r.details_json);
-  const alreadyMigrated = (rows || []).filter((r) => r.details_json);
+  // valid V1 = version === 1 AND sections is a non-empty array
+  function isValidV1(doc) {
+    return doc && typeof doc === "object" && doc.version === 1 && Array.isArray(doc.sections);
+  }
+
+  const targets = (rows || []).filter((r) => !isValidV1(r.details_json));
+  const alreadyMigrated = (rows || []).filter((r) => isValidV1(r.details_json));
 
   console.log(`Active Attractions total: ${rows?.length ?? 0}`);
   console.log(`Already migrated (details_json != null): ${alreadyMigrated.length}`);

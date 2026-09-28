@@ -2269,6 +2269,12 @@ export async function getAttractionByEntityIdAdmin(id: string): Promise<Attracti
 export async function appendAttraction(
   data: Record<string, string>
 ): Promise<{ id: string; slug: string }> {
+  // Reject migrated detail fields — they must go through EntityDetailsEditor
+  const rejected = Object.keys(data).filter((k) => ATTRACTION_MIGRATED_DETAIL_FIELDS.has(k));
+  if (rejected.length > 0) {
+    throw new MigratedDetailFieldError(rejected);
+  }
+
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
 
@@ -2321,25 +2327,41 @@ export async function updateAttraction(
     throw new MigratedDetailFieldError(rejected);
   }
 
-  const { data: entity, error: findError } = await adminDb()
-    .from('entities')
-    .select('id, updated_at')
-    .eq('id', id)
-    .single();
-
-  if (findError || !entity) throw new Error(`Attraction not found: ${id}`);
-
-  if (expectedUpdatedAt && entity.updated_at !== expectedUpdatedAt) {
-    throw new ConflictError('다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도하세요.');
-  }
-
-  // Update entity common fields
+  // Build entity updates
   const entityUpdates: Record<string, unknown> = {};
   if (data.name_kr !== undefined) entityUpdates.display_name = data.name_kr;
   if (data.active !== undefined) entityUpdates.active = isActive(data.active);
   if (data.sort !== undefined) entityUpdates.sort = parseInt(data.sort) || 1;
 
-  if (Object.keys(entityUpdates).length > 0) {
+  if (expectedUpdatedAt) {
+    // Atomic compare-and-update: WHERE id = ? AND updated_at = expected
+    if (Object.keys(entityUpdates).length > 0) {
+      const { data: updated, error } = await adminDb()
+        .from('entities')
+        .update(entityUpdates)
+        .eq('id', id)
+        .eq('updated_at', expectedUpdatedAt)
+        .select('id');
+
+      if (error) {
+        logError('UPDATE', 'entities', id, error);
+        throw error;
+      }
+
+      if (!updated || updated.length === 0) {
+        // Either entity doesn't exist or timestamp mismatch
+        const { data: exists } = await adminDb()
+          .from('entities')
+          .select('id')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (!exists) throw new Error(`Attraction not found: ${id}`);
+        throw new ConflictError('다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도하세요.');
+      }
+    }
+  } else if (Object.keys(entityUpdates).length > 0) {
+    // No concurrency check requested
     const { error } = await adminDb().from('entities').update(entityUpdates).eq('id', id);
     if (error) {
       logError('UPDATE', 'entities', id, error);
