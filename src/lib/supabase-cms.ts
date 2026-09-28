@@ -1692,7 +1692,7 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
   const { data: entity, error: findError } = await db()
     .from('entities')
     .select(
-      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code), restaurants!inner(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code), restaurants!inner(entity_id, category, address, hours, price_range, phone, menu_kr, menu_jp, menu_price, closed_days, description, recommended, google_maps_url, source_url, status, last_verified)'
     )
     .eq('slug', id)
     .eq('entity_type', 'RESTAURANT')
