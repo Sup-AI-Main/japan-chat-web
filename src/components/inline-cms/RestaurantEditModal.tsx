@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { EditModalShell } from "./EditModalShell";
 import {
-  DynamicLabelsResult,
+  type DynamicLabelsResult,
   getSectionLabel,
   getFieldLabel,
   isSectionVisible,
   isFieldActive,
   isFieldRequired,
 } from "@/lib/dynamic-labels";
+
+// ---------------------------------------------------------------------------
+// Core-only form state — relational core fields only.
+// Variable details (menu, closed_days, description, recommended, etc.) are
+// managed via EntityDetailsEditor (세부사항 수정).
+// ---------------------------------------------------------------------------
 
 interface RestaurantData {
   id?: string;
@@ -44,6 +50,10 @@ const EMPTY_RESTAURANT: RestaurantData = {
   near_type: "HOTEL",
   near_id: "",
 };
+
+const DIRTY_KEYS = (Object.keys(EMPTY_RESTAURANT) as (keyof RestaurantData)[]).filter(
+  (k) => k !== "near_type" || true, // include all keys for dirty check
+);
 
 interface NearOption {
   id: string;
@@ -165,21 +175,36 @@ export function RestaurantEditModal({
   const [form, setForm] = useState<RestaurantData>(EMPTY_RESTAURANT);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [conflict, setConflict] = useState(false);
+  const initialRef = useRef<RestaurantData>(EMPTY_RESTAURANT);
+  const requestCloseRef = useRef<(() => void) | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
-      setForm(restaurant ? { ...restaurant } : { ...EMPTY_RESTAURANT });
+      const initial = restaurant ? { ...restaurant } : { ...EMPTY_RESTAURANT };
+      setForm(initial);
+      initialRef.current = initial;
       setError("");
+      setConflict(false);
       setSaving(false);
     }
   }, [open, restaurant]);
+
+  const isDirty = useMemo(() => {
+    const initial = initialRef.current;
+    return DIRTY_KEYS.some(
+      (key) => (form[key] ?? "") !== (initial[key] ?? "")
+    );
+  }, [form]);
 
   const update = (key: keyof RestaurantData, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = async () => {
+    setSaving(true);
     setError("");
+    setConflict(false);
 
     // Validate required fields
     for (const section of SECTIONS) {
@@ -190,12 +215,11 @@ export function RestaurantEditModal({
         if (typeof val === "string" && val.trim() === "") {
           const label = getFieldLabel(L, field.fieldKey, field.fallback);
           setError(`"${label}" 항목은 필수입니다.`);
+          setSaving(false);
           return;
         }
       }
     }
-
-    setSaving(true);
 
     try {
       const isEdit = !!restaurant?.id;
@@ -209,6 +233,12 @@ export function RestaurantEditModal({
           area: area.toUpperCase(),
         }),
       });
+
+      if (res.status === 409) {
+        setConflict(true);
+        setSaving(false);
+        return;
+      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -224,6 +254,7 @@ export function RestaurantEditModal({
       }
       if (!saved.name && saved.name_kr) saved.name = saved.name_kr;
       onSaved(saved);
+      initialRef.current = { ...form };
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
     } finally {
@@ -231,15 +262,80 @@ export function RestaurantEditModal({
     }
   };
 
+  const handleReloadCanonical = async () => {
+    if (!restaurant?.id) return;
+    try {
+      const res = await fetch(`/api/admin/manage-entities/${restaurant.id}`);
+      if (!res.ok) throw new Error("Failed to reload");
+      const data = await res.json();
+      const ent = data.data?.entity;
+      const r = data.data?.restaurant;
+      if (ent || r) {
+        const canonical: RestaurantData = {
+          id: restaurant.id,
+          updated_at: ent?.updated_at ?? restaurant.updated_at,
+          name_kr: ent?.display_name ?? restaurant.name_kr,
+          name_jp: r?.name_jp ?? restaurant.name_jp,
+          category: r?.category ?? restaurant.category,
+          address: r?.address ?? restaurant.address,
+          hours: r?.hours ?? restaurant.hours,
+          distance_km: r?.distance_km ?? restaurant.distance_km,
+          drive_minutes: r?.drive_minutes ?? restaurant.drive_minutes,
+          walk_minutes: r?.walk_minutes ?? restaurant.walk_minutes,
+          phone: r?.phone ?? restaurant.phone,
+          price_range: r?.price_range ?? restaurant.price_range,
+          google_maps_url: r?.google_maps_url ?? restaurant.google_maps_url,
+          near_type: restaurant.near_type,
+          near_id: restaurant.near_id,
+        };
+        setForm(canonical);
+        initialRef.current = { ...canonical };
+        setConflict(false);
+        setError("");
+      }
+    } catch {
+      setError("최신 데이터를 불러오지 못했습니다. 페이지를 새로고침하세요.");
+    }
+  };
+
   return (
     <EditModalShell
       open={open}
-      title={restaurant ? "식당 수정" : "식당 추가"}
+      title={restaurant ? "기본정보 수정" : "식당 추가"}
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
       error={error}
+      isDirty={isDirty}
+      requestCloseRef={requestCloseRef}
     >
+      {conflict && (
+        <div className="bg-amber-50 border border-amber-300 rounded-[8px] p-4 mb-4">
+          <p className="text-[14px] font-semibold text-amber-800 mb-2">
+            ⚠️ 데이터 충돌 감지
+          </p>
+          <p className="text-[13px] text-amber-700 mb-3">
+            다른 관리자가 이미 이 데이터를 수정했습니다. 최신 데이터를 불러온 후 다시 시도하세요.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleReloadCanonical}
+              className="px-4 py-2 text-[13px] text-white bg-amber-600 rounded-[8px] hover:bg-amber-700"
+            >
+              최신 데이터 불러오기
+            </button>
+            <button
+              type="button"
+              onClick={() => requestCloseRef.current?.()}
+              className="px-4 py-2 text-[13px] text-muted border border-border rounded-[8px] hover:bg-gray-50"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Standard sections (dynamic labels, visibility, active filtering) */}
       {SECTIONS.map((section) => {
         if (!isSectionVisible(L, section.sectionKey)) return null;
