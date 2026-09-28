@@ -1,104 +1,67 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { EditModalShell } from "./EditModalShell";
+import type { Attraction } from "@/lib/types";
 
-interface AttractionData {
-  id?: string;
+interface CoreForm {
   name_kr: string;
-  name_jp: string;
-  address_kr: string;
-  address_jp: string;
-  phone: string;
-  google_maps_url: string;
-  hours: string;
-  closed_days: string;
-  admission_fee: string;
-  recommended_duration: string;
-  parking_info: string;
-  description: string;
-  other_info: string;
 }
 
-const EMPTY_ATTRACTION: AttractionData = {
+const EMPTY_FORM: CoreForm = {
   name_kr: "",
-  name_jp: "",
-  address_kr: "",
-  address_jp: "",
-  phone: "",
-  google_maps_url: "",
-  hours: "",
-  closed_days: "",
-  admission_fee: "",
-  recommended_duration: "",
-  parking_info: "",
-  description: "",
-  other_info: "",
 };
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  attraction?: AttractionData | null;
+  attraction?: Attraction | null;
   area: string;
-  onSaved: (attraction: Record<string, unknown>) => void;
-}
-
-function InputField({
-  label,
-  value,
-  onChange,
-  type = "text",
-  required = false,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  required?: boolean;
-  placeholder?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-[13px] font-medium text-text mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      {type === "textarea" ? (
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-[8px] border border-border bg-surface px-3 py-2 text-[14px] text-text min-h-[80px]"
-          placeholder={placeholder}
-        />
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-[8px] border border-border bg-surface px-3 py-2 text-[14px] text-text"
-          placeholder={placeholder}
-        />
-      )}
-    </div>
-  );
+  onSaved: (attraction: Attraction) => void;
 }
 
 export default function AttractionEditModal({ open, onClose, attraction, area, onSaved }: Props) {
-  const [form, setForm] = useState<AttractionData>(EMPTY_ATTRACTION);
+  const [form, setForm] = useState<CoreForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [conflict, setConflict] = useState(false);
+  const initialRef = useRef<CoreForm>(EMPTY_FORM);
+  const requestCloseRef = useRef<(() => void) | undefined>(undefined);
 
   const isEdit = !!attraction?.id;
 
   useEffect(() => {
-    setForm(attraction ? { ...attraction } : { ...EMPTY_ATTRACTION });
+    const initial: CoreForm = {
+      name_kr: attraction?.name_kr || "",
+    };
+    setForm(initial);
+    initialRef.current = initial;
     setError("");
+    setConflict(false);
   }, [attraction, open]);
 
-  function set<K extends keyof AttractionData>(key: K, value: AttractionData[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  const isDirty =
+    form.name_kr !== initialRef.current.name_kr;
+
+  const handleReload = useCallback(async () => {
+    if (!attraction?.id) return;
+    try {
+      const res = await fetch(`/api/admin/attraction?id=${attraction.id}`);
+      if (!res.ok) return;
+      const body = await res.json();
+      const fresh = body.data?.attraction as Attraction | undefined;
+      if (!fresh) return;
+      const reloaded: CoreForm = {
+        name_kr: fresh.name_kr || "",
+      };
+      setForm(reloaded);
+      initialRef.current = reloaded;
+      setConflict(false);
+      setError("");
+    } catch {
+      // silent — user can retry
+    }
+  }, [attraction?.id]);
 
   async function handleSave() {
     if (!form.name_kr.trim()) {
@@ -107,18 +70,29 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
     }
     setSaving(true);
     setError("");
+    setConflict(false);
     try {
       const url = "/api/admin/attraction";
       const method = isEdit ? "PUT" : "POST";
+      const payload: Record<string, unknown> = {
+        name_kr: form.name_kr,
+        id: attraction?.id,
+        area: area.toUpperCase(),
+      };
+      if (isEdit && attraction?.updated_at) {
+        payload.updated_at = attraction.updated_at;
+      }
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          id: attraction?.id,
-          area: area.toUpperCase(),
-        }),
+        body: JSON.stringify(payload),
       });
+
+      if (res.status === 409) {
+        setConflict(true);
+        setError("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도하세요.");
+        return;
+      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -128,11 +102,10 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
       }
 
       const resBody = await res.json();
-      const saved = resBody.data?.attraction;
+      const saved = resBody.data?.attraction as Attraction | undefined;
       if (!saved?.id) {
         throw new Error("서버 응답이 올바르지 않습니다 (id 누락).");
       }
-      if (!saved.name && saved.name_kr) saved.name = saved.name_kr;
       onSaved(saved);
       onClose();
     } catch (err) {
@@ -150,21 +123,38 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
       onSave={handleSave}
       saving={saving}
       error={error}
+      isDirty={isDirty}
+      requestCloseRef={requestCloseRef}
     >
       <div className="space-y-4">
-        <InputField label="이름 (한국어)" value={form.name_kr} onChange={(v) => set("name_kr", v)} required />
-        <InputField label="이름 (일본어)" value={form.name_jp} onChange={(v) => set("name_jp", v)} />
-        <InputField label="주소 (한국어)" value={form.address_kr} onChange={(v) => set("address_kr", v)} />
-        <InputField label="주소 (일본어)" value={form.address_jp} onChange={(v) => set("address_jp", v)} />
-        <InputField label="전화번호" value={form.phone} onChange={(v) => set("phone", v)} />
-        <InputField label="Google Maps URL" value={form.google_maps_url} onChange={(v) => set("google_maps_url", v)} placeholder="https://maps.google.com/..." />
-        <InputField label="운영시간" value={form.hours} onChange={(v) => set("hours", v)} placeholder="09:00~17:00" />
-        <InputField label="휴무일" value={form.closed_days} onChange={(v) => set("closed_days", v)} placeholder="매주 월요일" />
-        <InputField label="입장료" value={form.admission_fee} onChange={(v) => set("admission_fee", v)} placeholder="무료 / 성인 1000엔" />
-        <InputField label="추천 체류시간" value={form.recommended_duration} onChange={(v) => set("recommended_duration", v)} placeholder="1~2시간" />
-        <InputField label="주차 정보" value={form.parking_info} onChange={(v) => set("parking_info", v)} type="textarea" />
-        <InputField label="설명" value={form.description} onChange={(v) => set("description", v)} type="textarea" />
-        <InputField label="기타 안내" value={form.other_info} onChange={(v) => set("other_info", v)} type="textarea" />
+        {conflict && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-[8px] p-3 text-[13px] text-yellow-800">
+            <p className="font-medium mb-2">다른 사용자가 이미 수정했습니다.</p>
+            <button
+              type="button"
+              onClick={handleReload}
+              className="text-primary underline text-[13px] min-h-[44px]"
+            >
+              최신 데이터 불러오기
+            </button>
+          </div>
+        )}
+        <div>
+          <label className="block text-[13px] font-medium text-text mb-1">
+            이름 (한국어) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={form.name_kr}
+            onChange={(e) => setForm((prev) => ({ ...prev, name_kr: e.target.value }))}
+            className="w-full rounded-[8px] border border-border bg-surface px-3 py-2 text-[14px] text-text"
+          />
+        </div>
+        {isEdit && (
+          <p className="text-[12px] text-muted">
+            세부사항(주소, 전화번호, 운영시간 등)은 상세 페이지에서 &quot;세부사항 수정&quot; 버튼으로 관리하세요.
+          </p>
+        )}
       </div>
     </EditModalShell>
   );

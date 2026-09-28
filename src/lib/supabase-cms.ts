@@ -2074,6 +2074,22 @@ const ATTRACTION_FIELD_KEYS = [
   'other_info',
 ] as const;
 
+// Attraction: variable detail fields migrated to entities.details_json.
+const ATTRACTION_MIGRATED_DETAIL_FIELDS = new Set([
+  'name_jp',
+  'address_kr',
+  'address_jp',
+  'phone',
+  'google_maps_url',
+  'hours',
+  'closed_days',
+  'admission_fee',
+  'recommended_duration',
+  'parking_info',
+  'description',
+  'other_info',
+]);
+
 function mapAttractionFieldValues(
   entity: {
     id: string;
@@ -2083,6 +2099,7 @@ function mapAttractionFieldValues(
     active: boolean;
     sort: number;
     updated_at: string;
+    details_json?: unknown;
   },
   areaCode: string,
   fieldValues: Record<string, string>
@@ -2107,6 +2124,11 @@ function mapAttractionFieldValues(
     active: entity.active ? 'TRUE' : 'FALSE',
     sort: entity.sort,
     updated_at: entity.updated_at,
+    details_json:
+      (entity.details_json as
+        | import('@/lib/entity-details/types').EntityDetailsDocumentV1
+        | null
+        | undefined) ?? null,
   };
 }
 
@@ -2137,7 +2159,7 @@ export async function getAttractions(area?: string): Promise<Attraction[]> {
   let query = db()
     .from('entities')
     .select(
-      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code)'
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code)'
     )
     .eq('entity_type', 'ATTRACTION');
 
@@ -2166,6 +2188,7 @@ export async function getAttractions(area?: string): Promise<Attraction[]> {
         active: e.active,
         sort: e.sort,
         updated_at: e.updated_at,
+        details_json: (e as unknown as { details_json?: unknown }).details_json,
       },
       areaCode,
       fieldMap.get(e.id) || {}
@@ -2177,7 +2200,7 @@ export async function getAttractionById(slug: string): Promise<Attraction | null
   const { data: entity, error } = await db()
     .from('entities')
     .select(
-      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, areas!inner(code)'
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code)'
     )
     .eq('slug', slug)
     .eq('entity_type', 'ATTRACTION')
@@ -2201,6 +2224,42 @@ export async function getAttractionById(slug: string): Promise<Attraction | null
       active: entity.active,
       sort: entity.sort,
       updated_at: entity.updated_at,
+      details_json: (entity as unknown as { details_json?: unknown }).details_json,
+    },
+    areaCode,
+    fieldMap.get(entity.id) || {}
+  );
+}
+
+export async function getAttractionByEntityIdAdmin(id: string): Promise<Attraction | null> {
+  const { data: entity, error } = await adminDb()
+    .from('entities')
+    .select(
+      'id, slug, display_name, entity_type, area_id, active, sort, updated_at, details_json, areas!inner(code)'
+    )
+    .eq('id', id)
+    .eq('entity_type', 'ATTRACTION')
+    .maybeSingle();
+
+  if (error) {
+    logError('READ', 'entities', id, error);
+    throw error;
+  }
+  if (!entity) return null;
+
+  const areaCode = (entity.areas as unknown as { code: string })?.code || '';
+  const fieldMap = await fetchFieldValuesMap([entity.id]);
+
+  return mapAttractionFieldValues(
+    {
+      id: entity.id,
+      slug: entity.slug,
+      display_name: entity.display_name,
+      area_id: entity.area_id,
+      active: entity.active,
+      sort: entity.sort,
+      updated_at: entity.updated_at,
+      details_json: (entity as unknown as { details_json?: unknown }).details_json,
     },
     areaCode,
     fieldMap.get(entity.id) || {}
@@ -2256,6 +2315,12 @@ export async function updateAttraction(
   data: Record<string, string>,
   expectedUpdatedAt?: string
 ): Promise<boolean> {
+  // Reject migrated detail fields — they must go through EntityDetailsEditor
+  const rejected = Object.keys(data).filter((k) => ATTRACTION_MIGRATED_DETAIL_FIELDS.has(k));
+  if (rejected.length > 0) {
+    throw new MigratedDetailFieldError(rejected);
+  }
+
   const { data: entity, error: findError } = await adminDb()
     .from('entities')
     .select('id, updated_at')

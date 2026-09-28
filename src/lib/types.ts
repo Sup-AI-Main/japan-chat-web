@@ -164,6 +164,7 @@ export interface Attraction {
   active: string;
   sort: number;
   updated_at: string;
+  details_json?: EntityDetailsDocumentV1 | null;
 }
 
 // FAQ

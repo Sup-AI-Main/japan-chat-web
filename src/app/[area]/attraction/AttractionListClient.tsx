@@ -2,10 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Attraction } from "@/lib/types";
+import type { Attraction, EntityDetailsDocumentV1 } from "@/lib/types";
+import { isValidV1Document } from "@/lib/entity-details/validate";
 import { EditToolbar, AddButton, ConfirmModal } from "@/components/inline-cms";
 import { useAdmin } from "@/hooks/use-admin";
 import AttractionEditModal from "@/components/inline-cms/AttractionEditModal";
+
+/** Extract a text value from details_json by section key + item key, for list card preview. */
+function jsonTextValue(doc: EntityDetailsDocumentV1 | null | undefined, sectionKey: string, itemKey: string): string | undefined {
+  if (!doc) return undefined;
+  const section = doc.sections?.find((s) => s.key === sectionKey);
+  if (!section) return undefined;
+  const item = section.items?.find((i) => i.key === itemKey);
+  if (!item) return undefined;
+  const v = item.value;
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
 
 interface Props {
   attractions: Attraction[];
@@ -21,14 +33,14 @@ export default function AttractionListClient({ attractions: initial, area, areaL
   const [deleting, setDeleting] = useState(false);
   const isAdmin = useAdmin();
 
-  const handleSaved = (saved: Record<string, unknown>) => {
+  const handleSaved = (saved: Attraction) => {
     setAttractions((prev) => {
-      const sid = saved.id as string;
+      const sid = saved.id;
       const exists = prev.find((a) => a.id === sid);
       if (exists) {
-        return prev.map((a) => (a.id === sid ? { ...a, ...saved } as Attraction : a));
+        return prev.map((a) => (a.id === sid ? saved : a));
       }
-      return [...prev, saved as unknown as Attraction];
+      return [...prev, saved];
     });
   };
 
@@ -65,7 +77,11 @@ export default function AttractionListClient({ attractions: initial, area, areaL
         </div>
       ) : (
         <div className="space-y-3">
-          {attractions.map((a) => (
+          {attractions.map((a) => {
+            const doc = isValidV1Document(a.details_json) ? a.details_json : null;
+            const displayAddress = doc ? (jsonTextValue(doc, 'address', 'address_kr') || a.address_kr) : a.address_kr;
+            const displayHours = doc ? (jsonTextValue(doc, 'hours', 'hours') || a.hours) : a.hours;
+            return (
             <div key={a.id} className="bg-surface border border-border rounded-[12px] p-4">
               <div className="flex items-start justify-between gap-3">
                 <Link
@@ -73,11 +89,11 @@ export default function AttractionListClient({ attractions: initial, area, areaL
                   className="flex-1 min-w-0"
                 >
                   <h3 className="text-[16px] font-bold text-text truncate">{a.name_kr}</h3>
-                  {a.address_kr && (
-                    <p className="text-[13px] text-muted mt-1 truncate">{a.address_kr}</p>
+                  {displayAddress && (
+                    <p className="text-[13px] text-muted mt-1 truncate">{displayAddress}</p>
                   )}
-                  {a.hours && (
-                    <p className="text-[12px] text-muted mt-1">{a.hours}</p>
+                  {displayHours && (
+                    <p className="text-[12px] text-muted mt-1">{displayHours}</p>
                   )}
                 </Link>
                 {isAdmin && (
@@ -88,7 +104,8 @@ export default function AttractionListClient({ attractions: initial, area, areaL
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
