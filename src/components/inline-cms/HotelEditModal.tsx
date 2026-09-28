@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { EditModalShell } from "./EditModalShell";
 import {
   type DynamicLabelsResult,
@@ -135,14 +135,24 @@ export function HotelEditModal({
   const [form, setForm] = useState<HotelData>(EMPTY_HOTEL);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const initialRef = useRef<HotelData>(EMPTY_HOTEL);
 
   useEffect(() => {
     if (open) {
-      setForm(hotel ? { ...hotel } : { ...EMPTY_HOTEL });
+      const initial = hotel ? { ...hotel } : { ...EMPTY_HOTEL };
+      setForm(initial);
+      initialRef.current = initial;
       setError("");
       setSaving(false);
     }
   }, [open, hotel]);
+
+  const isDirty = useMemo(() => {
+    const initial = initialRef.current;
+    return (Object.keys(EMPTY_HOTEL) as (keyof HotelData)[]).some(
+      (key) => (form[key] ?? "") !== (initial[key] ?? "")
+    );
+  }, [form]);
 
   const update = (key: keyof HotelData, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -200,6 +210,7 @@ export function HotelEditModal({
         throw new Error("서버 응답이 올바르지 않습니다 (id 누락).");
       }
       onSaved(saved);
+      initialRef.current = { ...form };
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "저장 중 문제가 발생했습니다."
@@ -217,6 +228,7 @@ export function HotelEditModal({
       onSave={handleSave}
       saving={saving}
       error={error}
+      isDirty={isDirty}
     >
       {SECTIONS.filter((s) => isSectionVisible(L, s.sectionKey)).map(
         (section) => {

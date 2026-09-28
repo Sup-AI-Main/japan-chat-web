@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { ModalShell } from "./ModalShell";
 
 interface EditModalShellProps {
@@ -11,6 +12,7 @@ interface EditModalShellProps {
   saveLabel?: string;
   savingLabel?: string;
   error?: string;
+  isDirty?: boolean;
   children: React.ReactNode;
 }
 
@@ -23,19 +25,31 @@ export function EditModalShell({
   saveLabel = "저장",
   savingLabel = "저장 중...",
   error,
+  isDirty = false,
   children,
 }: EditModalShellProps) {
+  const handleClose = useCallback(() => {
+    if (saving) return;
+    if (isDirty) {
+      const ok = window.confirm(
+        "저장하지 않은 변경사항이 있습니다. 변경사항을 버리고 닫으시겠습니까?"
+      );
+      if (!ok) return;
+    }
+    onClose();
+  }, [saving, isDirty, onClose]);
+
   return (
     <ModalShell
       open={open}
       title={title}
-      onClose={onClose}
+      onClose={handleClose}
       error={error}
       footer={
         <>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={saving}
             className="px-4 py-2 text-[14px] text-muted border border-border rounded-[8px] hover:bg-gray-50 min-h-[40px]"
           >
