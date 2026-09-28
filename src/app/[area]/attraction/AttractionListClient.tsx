@@ -8,13 +8,13 @@ import { EditToolbar, AddButton, ConfirmModal } from "@/components/inline-cms";
 import { useAdmin } from "@/hooks/use-admin";
 import AttractionEditModal from "@/components/inline-cms/AttractionEditModal";
 
-/** Extract a text value from details_json by section key + item key, for list card preview. */
+/** Extract a text value from details_json by section key + item key, respecting visibility. */
 function jsonTextValue(doc: EntityDetailsDocumentV1 | null | undefined, sectionKey: string, itemKey: string): string | undefined {
   if (!doc) return undefined;
   const section = doc.sections?.find((s) => s.key === sectionKey);
-  if (!section) return undefined;
+  if (!section || section.is_visible === false) return undefined;
   const item = section.items?.find((i) => i.key === itemKey);
-  if (!item) return undefined;
+  if (!item || item.is_visible === false) return undefined;
   const v = item.value;
   return typeof v === 'string' && v.trim() ? v : undefined;
 }
@@ -79,8 +79,8 @@ export default function AttractionListClient({ attractions: initial, area, areaL
         <div className="space-y-3">
           {attractions.map((a) => {
             const doc = isValidV1Document(a.details_json) ? a.details_json : null;
-            const displayAddress = doc ? (jsonTextValue(doc, 'address', 'address_kr') || a.address_kr) : a.address_kr;
-            const displayHours = doc ? (jsonTextValue(doc, 'hours', 'hours') || a.hours) : a.hours;
+            const displayAddress = doc ? jsonTextValue(doc, 'address', 'address_kr') : a.address_kr;
+            const displayHours = doc ? jsonTextValue(doc, 'hours', 'hours') : a.hours;
             return (
             <div key={a.id} className="bg-surface border border-border rounded-[12px] p-4">
               <div className="flex items-start justify-between gap-3">

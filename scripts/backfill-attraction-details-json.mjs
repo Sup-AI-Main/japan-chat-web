@@ -11,29 +11,29 @@
  *   node scripts/backfill-attraction-details-json.mjs --verify
  *
  * Safety:
- * - Only targets active Attractions with details_json = null
- * - Skips inactive Attractions and Attractions that already have details_json
+ * - Only targets active Attractions without valid V1 details_json
+ * - Skips inactive Attractions and Attractions that already have valid V1 details_json
  * - Uses optimistic concurrency (expected_updated_at) — no blind overwrite
  * - Creates local backup before any write
  * - Idempotent: second run produces 0 writes
  */
 
-import { createClient } from "@supabase/supabase-js";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { createClient } from '@supabase/supabase-js';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Load .env.local if env vars are missing
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  const envPath = join(__dirname, "..", ".env.local");
+  const envPath = join(__dirname, '..', '.env.local');
   if (existsSync(envPath)) {
-    const lines = readFileSync(envPath, "utf-8").split("\n");
+    const lines = readFileSync(envPath, 'utf-8').split('\n');
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eqIdx = trimmed.indexOf("=");
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
       if (eqIdx === -1) continue;
       const key = trimmed.slice(0, eqIdx).trim();
       const val = trimmed.slice(eqIdx + 1).trim();
@@ -46,17 +46,19 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
 if (!SUPABASE_URL || !SERVICE_ROLE) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 
 const mode = process.argv[2];
-const isDryRun = mode === "--dry-run" || !mode;
-const isWrite = mode === "--write";
-const isVerify = mode === "--verify";
+const isDryRun = mode === '--dry-run' || !mode;
+const isWrite = mode === '--write';
+const isVerify = mode === '--verify';
 
 if (!isDryRun && !isWrite && !isVerify) {
-  console.error("Usage: node scripts/backfill-attraction-details-json.mjs [--dry-run|--write|--verify]");
+  console.error(
+    'Usage: node scripts/backfill-attraction-details-json.mjs [--dry-run|--write|--verify]'
+  );
   process.exit(1);
 }
 
@@ -77,78 +79,138 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 const SECTION_DEFS = [
   {
-    key: "basic_info",
-    title_ko: "기본 정보",
-    title_ja: "基本情報",
-    emoji: "📍",
+    key: 'basic_info',
+    title_ko: '기본 정보',
+    title_ja: '基本情報',
+    emoji: '📍',
     sort: 1,
     fields: [
-      { key: "name_jp", label_ko: "이름 (일본어)", label_ja: "名前（日本語）", type: "text", eavKey: "name_jp" },
-      { key: "phone", label_ko: "전화번호", label_ja: "電話番号", type: "text", eavKey: "phone" },
-      { key: "google_maps_url", label_ko: "Google Maps", label_ja: "Google Maps", type: "url", eavKey: "google_maps_url" },
+      {
+        key: 'name_jp',
+        label_ko: '이름 (일본어)',
+        label_ja: '名前（日本語）',
+        type: 'text',
+        eavKey: 'name_jp',
+      },
+      { key: 'phone', label_ko: '전화번호', label_ja: '電話番号', type: 'text', eavKey: 'phone' },
+      {
+        key: 'google_maps_url',
+        label_ko: 'Google Maps',
+        label_ja: 'Google Maps',
+        type: 'url',
+        eavKey: 'google_maps_url',
+      },
     ],
   },
   {
-    key: "address",
-    title_ko: "주소",
-    title_ja: "住所",
-    emoji: "🗺️",
+    key: 'address',
+    title_ko: '주소',
+    title_ja: '住所',
+    emoji: '🗺️',
     sort: 2,
     fields: [
-      { key: "address_kr", label_ko: "주소 (한국어)", label_ja: "住所（韓国語）", type: "text", eavKey: "address_kr" },
-      { key: "address_jp", label_ko: "주소 (일본어)", label_ja: "住所（日本語）", type: "text", eavKey: "address_jp" },
+      {
+        key: 'address_kr',
+        label_ko: '주소 (한국어)',
+        label_ja: '住所（韓国語）',
+        type: 'text',
+        eavKey: 'address_kr',
+      },
+      {
+        key: 'address_jp',
+        label_ko: '주소 (일본어)',
+        label_ja: '住所（日本語）',
+        type: 'text',
+        eavKey: 'address_jp',
+      },
     ],
   },
   {
-    key: "hours",
-    title_ko: "운영시간",
-    title_ja: "営業時間",
-    emoji: "🕐",
+    key: 'hours',
+    title_ko: '운영시간',
+    title_ja: '営業時間',
+    emoji: '🕐',
     sort: 3,
     fields: [
-      { key: "hours", label_ko: "운영시간", label_ja: "営業時間", type: "text", eavKey: "hours" },
-      { key: "closed_days", label_ko: "휴무일", label_ja: "定休日", type: "text", eavKey: "closed_days" },
+      { key: 'hours', label_ko: '운영시간', label_ja: '営業時間', type: 'text', eavKey: 'hours' },
+      {
+        key: 'closed_days',
+        label_ko: '휴무일',
+        label_ja: '定休日',
+        type: 'text',
+        eavKey: 'closed_days',
+      },
     ],
   },
   {
-    key: "admission",
-    title_ko: "입장 정보",
-    title_ja: "入場情報",
-    emoji: "🎫",
+    key: 'admission',
+    title_ko: '입장 정보',
+    title_ja: '入場情報',
+    emoji: '🎫',
     sort: 4,
     fields: [
-      { key: "admission_fee", label_ko: "입장료", label_ja: "入場料", type: "text", eavKey: "admission_fee" },
-      { key: "recommended_duration", label_ko: "추천 체류시간", label_ja: "推奨滞在時間", type: "text", eavKey: "recommended_duration" },
+      {
+        key: 'admission_fee',
+        label_ko: '입장료',
+        label_ja: '入場料',
+        type: 'text',
+        eavKey: 'admission_fee',
+      },
+      {
+        key: 'recommended_duration',
+        label_ko: '추천 체류시간',
+        label_ja: '推奨滞在時間',
+        type: 'text',
+        eavKey: 'recommended_duration',
+      },
     ],
   },
   {
-    key: "parking",
-    title_ko: "주차",
-    title_ja: "駐車場",
-    emoji: "🅿️",
+    key: 'parking',
+    title_ko: '주차',
+    title_ja: '駐車場',
+    emoji: '🅿️',
     sort: 5,
     fields: [
-      { key: "parking_info", label_ko: "주차 정보", label_ja: "駐車場情報", type: "textarea", eavKey: "parking_info" },
+      {
+        key: 'parking_info',
+        label_ko: '주차 정보',
+        label_ja: '駐車場情報',
+        type: 'textarea',
+        eavKey: 'parking_info',
+      },
     ],
   },
   {
-    key: "description",
-    title_ko: "설명",
-    title_ja: "説明",
-    emoji: "📝",
+    key: 'description',
+    title_ko: '설명',
+    title_ja: '説明',
+    emoji: '📝',
     sort: 6,
     fields: [
-      { key: "description", label_ko: "설명", label_ja: "説明", type: "textarea", eavKey: "description" },
+      {
+        key: 'description',
+        label_ko: '설명',
+        label_ja: '説明',
+        type: 'textarea',
+        eavKey: 'description',
+      },
     ],
   },
   {
-    key: "other_info",
-    title_ko: "기타 안내",
-    title_ja: "その他案内",
-    emoji: "ℹ️",
+    key: 'other_info',
+    title_ko: '기타 안내',
+    title_ja: 'その他案内',
+    emoji: 'ℹ️',
     sort: 7,
     fields: [
-      { key: "other_info", label_ko: "기타 안내", label_ja: "その他案内", type: "textarea", eavKey: "other_info" },
+      {
+        key: 'other_info',
+        label_ko: '기타 안내',
+        label_ja: 'その他案内',
+        type: 'textarea',
+        eavKey: 'other_info',
+      },
     ],
   },
 ];
@@ -165,7 +227,7 @@ function buildDocument(fieldValues, entityId) {
 
     for (const fieldDef of secDef.fields) {
       const rawValue = fieldValues[fieldDef.eavKey];
-      const value = rawValue ?? "";
+      const value = rawValue ?? '';
 
       // Skip items with empty text values
       if (!value) continue;
@@ -179,8 +241,8 @@ function buildDocument(fieldValues, entityId) {
         value,
         sort: items.length,
         is_visible: true,
-        source: "backfill",
-        source_table: "entity_field_values",
+        source: 'backfill',
+        source_table: 'entity_field_values',
         source_column: fieldDef.eavKey,
       });
     }
@@ -195,8 +257,8 @@ function buildDocument(fieldValues, entityId) {
       emoji: secDef.emoji ?? null,
       sort: secDef.sort,
       is_visible: true,
-      source: "backfill",
-      source_table: "entity_field_values",
+      source: 'backfill',
+      source_table: 'entity_field_values',
       items,
     });
   }
@@ -213,19 +275,28 @@ async function fetchEavFieldValues(entityIds) {
   if (entityIds.length === 0) return map;
 
   const allKeys = [
-    "name_jp", "address_kr", "address_jp", "phone", "google_maps_url",
-    "hours", "closed_days", "admission_fee", "recommended_duration",
-    "parking_info", "description", "other_info",
+    'name_jp',
+    'address_kr',
+    'address_jp',
+    'phone',
+    'google_maps_url',
+    'hours',
+    'closed_days',
+    'admission_fee',
+    'recommended_duration',
+    'parking_info',
+    'description',
+    'other_info',
   ];
 
   const { data, error } = await db
-    .from("entity_field_values")
-    .select("entity_id, value_text, field_definition:field_definitions!inner(field_key)")
-    .in("entity_id", entityIds)
-    .in("field_definitions.field_key", allKeys);
+    .from('entity_field_values')
+    .select('entity_id, value_text, field_definition:field_definitions!inner(field_key)')
+    .in('entity_id', entityIds)
+    .in('field_definitions.field_key', allKeys);
 
   if (error) {
-    console.error("Failed to fetch EAV field values:", error.message);
+    console.error('Failed to fetch EAV field values:', error.message);
     process.exit(1);
   }
 
@@ -234,7 +305,7 @@ async function fetchEavFieldValues(entityIds) {
     const fdef = row.field_definition;
     if (!fdef) continue;
     if (!map.has(eid)) map.set(eid, {});
-    map.get(eid)[fdef.field_key] = row.value_text || "";
+    map.get(eid)[fdef.field_key] = row.value_text || '';
   }
   return map;
 }
@@ -244,23 +315,23 @@ async function fetchEavFieldValues(entityIds) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log(`\n=== Attraction details_json backfill (${mode || "--dry-run"}) ===\n`);
+  console.log(`\n=== Attraction details_json backfill (${mode || '--dry-run'}) ===\n`);
 
   // 1. Fetch active Attractions with details_json
   const { data: rows, error } = await db
-    .from("entities")
-    .select("id, slug, display_name, updated_at, details_json")
-    .eq("entity_type", "ATTRACTION")
-    .eq("active", true);
+    .from('entities')
+    .select('id, slug, display_name, updated_at, details_json')
+    .eq('entity_type', 'ATTRACTION')
+    .eq('active', true);
 
   if (error) {
-    console.error("Failed to fetch Attractions:", error.message);
+    console.error('Failed to fetch Attractions:', error.message);
     process.exit(1);
   }
 
-  // valid V1 = version === 1 AND sections is a non-empty array
+  // valid V1 = version === 1 AND sections is an array (empty allowed)
   function isValidV1(doc) {
-    return doc && typeof doc === "object" && doc.version === 1 && Array.isArray(doc.sections);
+    return doc && typeof doc === 'object' && doc.version === 1 && Array.isArray(doc.sections);
   }
 
   const targets = (rows || []).filter((r) => !isValidV1(r.details_json));
@@ -272,18 +343,18 @@ async function main() {
 
   if (isVerify) {
     if (targets.length > 0) {
-      console.log("VERIFY: Some active Attractions still have details_json = null:");
+      console.log('VERIFY: Some active Attractions still have details_json = null:');
       for (const t of targets) {
         console.log(`  - ${t.slug} (${t.display_name})`);
       }
       process.exit(1);
     }
-    console.log("VERIFY: All active Attractions have details_json. PASS.");
+    console.log('VERIFY: All active Attractions have details_json. PASS.');
     process.exit(0);
   }
 
   if (targets.length === 0) {
-    console.log("Nothing to backfill.");
+    console.log('Nothing to backfill.');
     process.exit(0);
   }
 
@@ -307,8 +378,8 @@ async function main() {
       totalItems += sec.items.length;
       console.log(`  [${sec.key}] "${sec.title_ko}" — ${sec.items.length} items`);
       for (const item of sec.items) {
-        const vis = item.is_visible ? "visible" : "hidden";
-        const valStr = `"${String(item.value).slice(0, 60)}${String(item.value).length > 60 ? "..." : ""}"`;
+        const vis = item.is_visible ? 'visible' : 'hidden';
+        const valStr = `"${String(item.value).slice(0, 60)}${String(item.value).length > 60 ? '...' : ''}"`;
         console.log(`    ${item.key} (${item.type}) = ${valStr} [${vis}]`);
       }
     }
@@ -321,7 +392,7 @@ async function main() {
   }
 
   // 3. Write mode — backup first
-  const backupDir = join(__dirname, "backups");
+  const backupDir = join(__dirname, 'backups');
   if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true });
   const backupPath = join(backupDir, `attraction-backfill-before-${Date.now()}.json`);
   const backupData = targets.map((r) => ({
@@ -340,7 +411,7 @@ async function main() {
   let failures = 0;
 
   for (const { row, doc } of plans) {
-    const { data: rpcResult, error: rpcError } = await db.rpc("admin_save_entity_editor_v1", {
+    const { data: rpcResult, error: rpcError } = await db.rpc('admin_save_entity_editor_v1', {
       p_entity_id: row.id,
       p_expected_updated_at: row.updated_at,
       p_details: doc,
@@ -377,6 +448,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal:", err);
+  console.error('Fatal:', err);
   process.exit(1);
 });

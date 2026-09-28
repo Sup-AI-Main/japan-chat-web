@@ -59,8 +59,9 @@ export async function PUT(req: NextRequest) {
   if (!body) return badRequest("Empty request body");
   const { id, updated_at, area, ...restData } = body;
   if (!id) return badRequest("Missing id");
+  if (!updated_at) return badRequest("Missing updated_at");
   try {
-    const success = await updateAttraction(id as string, restData as Record<string, string>, updated_at as string | undefined);
+    const success = await updateAttraction(id as string, restData as Record<string, string>, updated_at as string);
     if (area) {
       revalidatePath(`/${(area as string).toLowerCase()}/attraction`);
     }

@@ -92,7 +92,7 @@ export default function AttractionDetailClient({ attraction: initial, area, cont
             <h1 className="text-[24px] font-bold text-text">
               {getCategoryEmoji("ATTRACTION")} {attraction.name_kr}
             </h1>
-            {attraction.name_jp && (
+            {!hasJsonDetails && attraction.name_jp && (
               <p className="text-[14px] text-muted mt-1">{attraction.name_jp}</p>
             )}
           </div>
