@@ -20,9 +20,9 @@ export default function LabelsPage() {
           ← 관리자 대시보드
         </Link>
 
-        <h1 className="text-[24px] font-bold text-text mb-2">라벨 관리</h1>
+        <h1 className="text-[24px] font-bold text-text mb-2">Legacy 라벨 / 섹션 관리</h1>
         <p className="text-[16px] text-muted mb-6">
-          각 엔티티 유형의 섹션/필드 라벨과 표시 여부를 관리합니다.
+          이 화면은 기존 데이터 호환용입니다. CMS V2 콘텐츠는 각 엔티티의 "세부사항 수정"에서 관리하세요.
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

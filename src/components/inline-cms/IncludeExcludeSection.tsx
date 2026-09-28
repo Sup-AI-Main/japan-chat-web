@@ -1,10 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import type { IncludeExclude } from "@/lib/types";
-import { useAdmin } from "@/hooks/use-admin";
-import { useToast, Toast } from "@/components/Toast";
-import { AddButton } from "./EditToolbar";
 
 interface IncludeExcludeSectionProps {
   parentType: "HOTEL" | "GOLF" | "RESTAURANT";
@@ -12,408 +9,57 @@ interface IncludeExcludeSectionProps {
   initialItems?: IncludeExclude[];
 }
 
-interface ItemFormData {
-  type: "INCLUDED" | "EXCLUDED";
-  text_kr: string;
-  text_jp: string;
-  sort: string;
-  is_visible: string;
-}
-
-const emptyForm: ItemFormData = {
-  type: "INCLUDED",
-  text_kr: "",
-  text_jp: "",
-  sort: "99",
-  is_visible: "TRUE",
-};
-
-export function IncludeExcludeSection({ parentType, parentId, initialItems }: IncludeExcludeSectionProps) {
-  const isAdmin = useAdmin();
-  const [items, setItems] = useState<IncludeExclude[]>(initialItems || []);
-  const [loaded, setLoaded] = useState(!!initialItems);
-  const [editItem, setEditItem] = useState<IncludeExclude | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<ItemFormData>(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<IncludeExclude | null>(null);
-  const { message, visible, showToast } = useToast();
-
-  const fetchItems = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/admin/includes?parent_type=${parentType}&parent_id=${parentId}`,
-        { cache: "no-store" }
-      );
-      const text = await res.text();
-      if (res.ok && text) {
-        try {
-          const data = JSON.parse(text);
-          setItems(data.items || []);
-        } catch { /* ignore parse error */ }
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoaded(true);
-    }
-  }, [parentType, parentId]);
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchItems();
-    } else if (initialItems) {
-      setItems(initialItems);
-      setLoaded(true);
-    }
-  }, [isAdmin, fetchItems, initialItems]);
+export function IncludeExcludeSection({ parentType: _parentType, parentId: _parentId, initialItems }: IncludeExcludeSectionProps) {
+  const [items] = useState<IncludeExclude[]>(initialItems || []);
 
   const included = items.filter((i) => i.type === "INCLUDED" && i.is_visible === "TRUE");
   const excluded = items.filter((i) => i.type === "EXCLUDED" && i.is_visible === "TRUE");
 
-  const handleAdd = (type: "INCLUDED" | "EXCLUDED") => {
-    setEditItem(null);
-    setFormData({ ...emptyForm, type });
-    setShowForm(true);
-  };
-
-  const handleEdit = (item: IncludeExclude) => {
-    setEditItem(item);
-    setFormData({
-      type: item.type as "INCLUDED" | "EXCLUDED",
-      text_kr: item.text_kr,
-      text_jp: item.text_jp,
-      sort: String(item.sort),
-      is_visible: item.is_visible,
-    });
-    setShowForm(true);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const body = {
-        parent_type: parentType,
-        parent_id: parentId,
-        type: formData.type,
-        text_kr: formData.text_kr,
-        text_jp: formData.text_jp,
-        sort: formData.sort,
-        is_visible: formData.is_visible,
-      };
-
-      let res: Response;
-      if (editItem) {
-        res = await fetch("/api/admin/includes", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: editItem.id, ...body }),
-        });
-      } else {
-        res = await fetch("/api/admin/includes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      }
-
-      const text = await res.text();
-      let data: Record<string, unknown> | null = null;
-      if (text) {
-        try { data = JSON.parse(text); } catch { /* ignore */ }
-      }
-
-      if (!res.ok) {
-        throw new Error((data?.error as string) || `요청 실패 (${res.status})`);
-      }
-
-      if (editItem) {
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === editItem.id ? { ...i, ...body, sort: parseInt(body.sort) || 99 } : i
-          )
-        );
-      } else {
-        // data = { success: true, data: { ...row } } from created(row)
-        const row = data && typeof data === 'object' && 'data' in data
-          ? (data as { data: Record<string, unknown> }).data
-          : null;
-        const newItem: IncludeExclude = {
-          id: (row?.id as string) || '',
-          parent_type: parentType,
-          parent_id: parentId,
-          type: body.type,
-          text_kr: body.text_kr,
-          text_jp: body.text_jp,
-          sort: parseInt(body.sort) || 99,
-          is_visible: body.is_visible,
-          updated_at: (row?.updated_at as string) || '',
-        };
-        setItems((prev) => [...prev, newItem]);
-      }
-      showToast("수정 완료");
-      setTimeout(() => {
-        setShowForm(false);
-        setEditItem(null);
-      }, 500);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "저장 실패");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      const res = await fetch(`/api/admin/includes?id=${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      const text = await res.text();
-      if (!res.ok) {
-        let errMsg = `삭제 실패 (${res.status})`;
-        if (text) {
-          try { errMsg = JSON.parse(text).error || errMsg; } catch { /* ignore */ }
-        }
-        throw new Error(errMsg);
-      }
-      setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
-      setDeleteTarget(null);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "삭제 실패");
-    }
-  };
-
-  const handleToggleVisibility = async (item: IncludeExclude) => {
-    const newVisible = item.is_visible === "TRUE" ? "FALSE" : "TRUE";
-    try {
-      const res = await fetch("/api/admin/includes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, is_visible: newVisible }),
-      });
-      const text = await res.text();
-      if (!res.ok) {
-        let errMsg = `요청 실패 (${res.status})`;
-        if (text) {
-          try { errMsg = JSON.parse(text).error || errMsg; } catch { /* ignore */ }
-        }
-        throw new Error(errMsg);
-      }
-      setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, is_visible: newVisible } : i))
-      );
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "변경 실패");
-    }
-  };
-
-  if (!loaded) return null;
-
   const hasIncluded = included.length > 0;
   const hasExcluded = excluded.length > 0;
-  if (!hasIncluded && !hasExcluded && !isAdmin) return null;
+  if (!hasIncluded && !hasExcluded) return null;
 
   return (
     <div className="bg-surface border border-border rounded-[12px] p-4 mb-4">
       {/* Included */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[15px] font-bold text-text">포함사항</h3>
-          <AddButton onClick={() => handleAdd("INCLUDED")} label="추가" />
-        </div>
-        {included.length > 0 ? (
+      {hasIncluded && (
+        <div className="mb-4">
+          <h3 className="text-[15px] font-bold text-text mb-2">포함사항</h3>
           <ul className="space-y-1.5">
             {included.map((item) => (
-              <li key={item.id} className="flex items-start justify-between group">
-                <div className="flex items-start gap-2">
-                  <span className="text-green-600 text-[14px] mt-0.5">✓</span>
-                  <div>
-                    <span className="text-[15px] text-text">{item.text_kr}</span>
-                    {item.text_jp && (
-                      <p className="text-[13px] text-muted">{item.text_jp}</p>
-                    )}
-                  </div>
+              <li key={item.id} className="flex items-start gap-2">
+                <span className="text-green-600 text-[14px] mt-0.5">✓</span>
+                <div>
+                  <span className="text-[15px] text-text">{item.text_kr}</span>
+                  {item.text_jp && (
+                    <p className="text-[13px] text-muted">{item.text_jp}</p>
+                  )}
                 </div>
-                {isAdmin && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleToggleVisibility(item)}
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-[11px]"
-                      title={item.is_visible === "TRUE" ? "숨기기" : "표시"}
-                    >
-                      {item.is_visible === "TRUE" ? "👁" : "👁‍🗨"}
-                    </button>
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-[11px]"
-                      title="수정"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(item)}
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-[11px]"
-                      title="삭제"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                )}
               </li>
             ))}
           </ul>
-        ) : (
-          isAdmin && <p className="text-[13px] text-muted">포함사항이 없습니다.</p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Excluded */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[15px] font-bold text-text">불포함사항</h3>
-          <AddButton onClick={() => handleAdd("EXCLUDED")} label="추가" />
-        </div>
-        {excluded.length > 0 ? (
+      {hasExcluded && (
+        <div>
+          <h3 className="text-[15px] font-bold text-text mb-2">불포함사항</h3>
           <ul className="space-y-1.5">
             {excluded.map((item) => (
-              <li key={item.id} className="flex items-start justify-between group">
-                <div className="flex items-start gap-2">
-                  <span className="text-red-500 text-[14px] mt-0.5">✗</span>
-                  <div>
-                    <span className="text-[15px] text-text">{item.text_kr}</span>
-                    {item.text_jp && (
-                      <p className="text-[13px] text-muted">{item.text_jp}</p>
-                    )}
-                  </div>
+              <li key={item.id} className="flex items-start gap-2">
+                <span className="text-red-500 text-[14px] mt-0.5">✗</span>
+                <div>
+                  <span className="text-[15px] text-text">{item.text_kr}</span>
+                  {item.text_jp && (
+                    <p className="text-[13px] text-muted">{item.text_jp}</p>
+                  )}
                 </div>
-                {isAdmin && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleToggleVisibility(item)}
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-[11px]"
-                      title={item.is_visible === "TRUE" ? "숨기기" : "표시"}
-                    >
-                      {item.is_visible === "TRUE" ? "👁" : "👁‍🗨"}
-                    </button>
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-[11px]"
-                      title="수정"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(item)}
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-[11px]"
-                      title="삭제"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                )}
               </li>
             ))}
           </ul>
-        ) : (
-          isAdmin && <p className="text-[13px] text-muted">불포함사항이 없습니다.</p>
-        )}
-      </div>
-
-      {/* Add/Edit Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1100] p-4">
-          <div className="bg-white rounded-[16px] w-full max-w-[480px] p-5 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-[18px] font-bold text-text mb-4">
-              {editItem ? "항목 수정" : "항목 추가"} ({formData.type === "INCLUDED" ? "포함" : "불포함"})
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[13px] text-muted block mb-1">한국어 *</label>
-                <input
-                  value={formData.text_kr}
-                  onChange={(e) => setFormData({ ...formData, text_kr: e.target.value })}
-                  className="w-full border border-border rounded-[8px] px-3 py-2 text-[15px]"
-                  placeholder="조식 포함"
-                />
-              </div>
-              <div>
-                <label className="text-[13px] text-muted block mb-1">일본어</label>
-                <input
-                  value={formData.text_jp}
-                  onChange={(e) => setFormData({ ...formData, text_jp: e.target.value })}
-                  className="w-full border border-border rounded-[8px] px-3 py-2 text-[15px]"
-                  placeholder="朝食付き"
-                />
-              </div>
-              <div>
-                <label className="text-[13px] text-muted block mb-1">순서</label>
-                <input
-                  type="number"
-                  value={formData.sort}
-                  onChange={(e) => setFormData({ ...formData, sort: e.target.value })}
-                  className="w-full border border-border rounded-[8px] px-3 py-2 text-[15px]"
-                />
-              </div>
-              <div>
-                <label className="text-[13px] text-muted block mb-1">유형</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) =>
-                    setFormData({ ...formData, type: e.target.value as "INCLUDED" | "EXCLUDED" })
-                  }
-                  className="w-full border border-border rounded-[8px] px-3 py-2 text-[15px]"
-                >
-                  <option value="INCLUDED">포함사항</option>
-                  <option value="EXCLUDED">불포함사항</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => { setShowForm(false); setEditItem(null); }}
-                className="flex-1 border border-border rounded-[10px] py-3 text-[15px] font-medium text-text"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !formData.text_kr.trim()}
-                className="flex-1 bg-primary text-white rounded-[10px] py-3 text-[15px] font-medium disabled:opacity-50"
-              >
-                {saving ? "저장 중..." : "저장"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
-
-      {/* Delete Confirm */}
-      {deleteTarget && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1100] p-4">
-          <div className="bg-white rounded-[16px] w-full max-w-[360px] p-5">
-            <h3 className="text-[18px] font-bold text-text mb-2">삭제 확인</h3>
-            <p className="text-[15px] text-text mb-4">
-              &quot;{deleteTarget.text_kr}&quot; 항목을 삭제하시겠습니까?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 border border-border rounded-[10px] py-3 text-[15px] font-medium text-text"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 bg-red-500 text-white rounded-[10px] py-3 text-[15px] font-medium"
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <Toast message={message} visible={visible} />
     </div>
   );
 }
