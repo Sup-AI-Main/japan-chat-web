@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveArea, getAreaCategories, getFaq, getCommonCategories, getTravelTimes, getAreaEntitySummaryMap } from "@/lib/supabase-cms";
+import { resolveArea, getAreaCategories, getFaq, getTravelTimes, getAreaEntitySummaryMap } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
@@ -21,12 +21,11 @@ export default async function AreaPage({
   const areaLabel = currentArea.label;
 
   // 병렬 fetch: 독립적인 데이터를 동시에 가져옴
-  const [categories, allFaq, travelTimes, entityMap, commonCats] = await Promise.all([
+  const [categories, allFaq, travelTimes, entityMap] = await Promise.all([
     getAreaCategories(),
     getFaq(areaCode).catch(() => [] as FaqItem[]),
     getTravelTimes(areaCode).catch(() => [] as TravelTime[]),
     getAreaEntitySummaryMap(areaCode).catch(() => ({ hotels: [] as { id: string; name: string }[], golfCourses: [] as { id: string; name: string }[] })),
-    getCommonCategories(),
   ]);
 
   const categoryLinks = categories.map((cat) => ({
@@ -37,8 +36,6 @@ export default async function AreaPage({
   const popularFaqs = allFaq.slice(0, 3);
   const hotels = entityMap.hotels;
   const golfCourses = entityMap.golfCourses;
-  const commonCodes = new Set(commonCats.map((c) => c.code));
-
   return (
     <main className="min-h-screen px-4 py-6">
       <div className="max-w-[720px] mx-auto">
@@ -89,20 +86,21 @@ export default async function AreaPage({
             </h2>
             <div className="space-y-2">
               {popularFaqs.map((faq) => {
-                const isCommon = commonCodes.has(faq.category);
-                const faqLink = isCommon
-                  ? routes.guideCategory(faq.category.toLowerCase())
-                  : `/${area}/${faq.category.toLowerCase()}`;
                 return (
-                  <Link
+                  <details
                     key={faq.id}
-                    href={faqLink}
-                    className="block bg-surface border border-border rounded-[8px] p-3 hover:border-primary"
+                    className="bg-surface border border-border rounded-[8px] overflow-hidden group"
                   >
-                    <span className="text-[15px] text-text">
+                    <summary className="p-3 text-[15px] text-text cursor-pointer list-none flex items-center justify-between gap-2 hover:text-primary">
                       {getCategoryEmoji(faq.category)} {faq.question}
-                    </span>
-                  </Link>
+                      <span className="text-muted transition-transform group-open:rotate-180" aria-hidden="true">
+                        ▼
+                      </span>
+                    </summary>
+                    <div className="px-3 pb-3 pt-2 text-[15px] text-text leading-[1.6] border-t border-border">
+                      {faq.answer}
+                    </div>
+                  </details>
                 );
               })}
             </div>
