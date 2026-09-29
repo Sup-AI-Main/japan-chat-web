@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect } from "react";
 import { EditModalShell } from "./EditModalShell";
@@ -114,6 +115,7 @@ function InputField({
   onChange,
   placeholder,
   className = "",
+  hideLabel = false,
 }: {
   label: string;
   fieldKey: string;
@@ -122,10 +124,13 @@ function InputField({
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
+  hideLabel?: boolean;
 }) {
   return (
     <div className={className}>
+      {!hideLabel && (
         <EditableDisplayLabel entityType="GOLF" entityId={entityId} fieldKey={fieldKey} label={label} />
+      )}
       <input
         type="text"
         value={value}
@@ -233,6 +238,10 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
                   fieldKey={field.fieldKey}
                   entityId={golf?.id}
                   label={getFieldLabel(L, field.fieldKey, field.fallback) + (isFieldRequired(L, field.fieldKey) ? " *" : "")}
+                  hideLabel={
+                    getFieldLabel(L, field.fieldKey, field.fallback).trim() ===
+                    getSectionLabel(L, section.sectionKey, section.fallbackTitle).trim()
+                  }
                   value={form[field.formKey]}
                   onChange={(v) => update(field.formKey, v)}
                   placeholder={field.placeholder}

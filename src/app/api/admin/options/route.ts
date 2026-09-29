@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -14,7 +9,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'category_kr required' }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('display_options')
     .upsert(
       {
@@ -41,7 +36,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'category_kr required' }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('display_options')
     .delete()
     .eq('category_kr', category);

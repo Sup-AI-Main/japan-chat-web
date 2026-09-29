@@ -49,6 +49,24 @@ export function GolfDetailClient({
   const sectionLabel = (key: string, fb: string) => getSectionLabel(L, key, fb);
   const sectionVisible = (key: string) => isSectionVisible(L, key);
 
+  // Legacy golf columns and content_sections can contain the same migrated
+  // value. Keep the canonical legacy field and omit an exact duplicate card.
+  const legacyDetailValues = new Set(
+    [
+      course.course_summary,
+      course.play_cart,
+      course.clubhouse_dining,
+      course.bath_shower,
+      course.rental,
+      course.dress_code,
+    ]
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value)),
+  );
+  const deduplicatedContentSections = contentSections.filter(
+    (section) => !legacyDetailValues.has(section.content?.trim() ?? ""),
+  );
+
   const hasJsonDetails = isValidV1Document(course.details_json);
 
   const closeGolfModal = useCallback(() => {
@@ -224,7 +242,7 @@ export function GolfDetailClient({
           <ContentSectionsRenderer
             parentType="GOLF"
             parentId={course.id}
-            initialSections={contentSections}
+            initialSections={deduplicatedContentSections}
           />
         )}
       </div>
