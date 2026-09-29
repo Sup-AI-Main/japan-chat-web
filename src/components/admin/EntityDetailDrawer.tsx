@@ -5,9 +5,8 @@ import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { useToast, Toast } from "@/components/Toast";
 import FieldPickerModal from "@/components/admin/FieldPickerModal";
 import FieldCreateModal from "@/components/admin/FieldCreateModal";
-import IncludesExcludesEditor from "@/components/admin/IncludesExcludesEditor";
-import ContentSectionsEditor from "@/components/admin/ContentSectionsEditor";
 import RestaurantLocationsEditor from "@/components/admin/RestaurantLocationsEditor";
+import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEditor";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -221,6 +220,7 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
   const [hasChanges, setHasChanges] = useState(false);
   const [fieldPickerOpen, setFieldPickerOpen] = useState(false);
   const [fieldCreateOpen, setFieldCreateOpen] = useState(false);
+  const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const { message, visible, showToast } = useToast();
 
   // Local edit state for entity basic info
@@ -663,14 +663,17 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
               </div>
             </Section>
 
-            {/* ======== Includes/Excludes ======== */}
-            <Section title="포함/불포함 사항" icon="✅" defaultOpen={false}>
-              <IncludesExcludesEditor entityId={entityId} initialItems={detail.includes_excludes} onUpdate={loadDetail} />
-            </Section>
-
-            {/* ======== Content Sections ======== */}
-            <Section title="추가 안내" icon="📝" defaultOpen={false}>
-              <ContentSectionsEditor entityId={entityId} initialSections={detail.content_sections} onUpdate={loadDetail} />
+            {/* ======== Entity Details (CMS V2) ======== */}
+            <Section title="세부사항 (CMS V2)" icon="📝" defaultOpen={false}>
+              <p className="text-[13px] text-muted mb-3">
+                포함/불포함 사항, 추가 안내 등은 CMS V2 편집기에서 관리합니다.
+              </p>
+              <button
+                onClick={() => setDetailsEditorOpen(true)}
+                className="px-4 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px]"
+              >
+                세부사항 수정
+              </button>
             </Section>
 
             {/* ======== Restaurant Locations ======== */}
@@ -744,6 +747,17 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
           entity={detail?.entity ?? null}
           onCreated={handleFieldCreated}
           onClose={() => setFieldCreateOpen(false)}
+        />
+      )}
+
+      {/* CMS V2 Entity Details Editor */}
+      {detail && (
+        <EntityDetailsEditor
+          entityId={entityId}
+          entityType={detail.entity.entity_type.toUpperCase() as "GOLF" | "HOTEL" | "RESTAURANT" | "ATTRACTION"}
+          open={detailsEditorOpen}
+          onClose={() => setDetailsEditorOpen(false)}
+          onSaved={loadDetail}
         />
       )}
     </>
