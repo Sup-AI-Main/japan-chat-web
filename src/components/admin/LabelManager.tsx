@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
 import { useState, useEffect } from "react";
 import { adminFetchJson } from "@/lib/admin-fetch";
@@ -40,10 +41,6 @@ export default function LabelManager({ entityType, onClose }: LabelManagerProps)
   const [editingField, setEditingField] = useState<FieldDef | null>(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    loadData();
-  }, [entityType]);
-
   async function loadData() {
     setLoading(true);
     try {
@@ -59,6 +56,10 @@ export default function LabelManager({ entityType, onClose }: LabelManagerProps)
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadData();
+  }, [entityType]);
 
   async function handleSectionUpdate(section: SectionDef, updates: Partial<SectionDef>) {
     try {

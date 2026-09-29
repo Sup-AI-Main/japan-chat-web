@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs */
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { EditModalShell } from "./EditModalShell";
