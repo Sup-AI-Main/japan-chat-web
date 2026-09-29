@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { EditModalShell } from "./EditModalShell";
+import { EditableDisplayLabel } from "./EditableDisplayLabel";
 import {
   type DynamicLabelsResult,
   getSectionLabel,
@@ -107,12 +108,16 @@ interface GolfEditModalProps {
 
 function InputField({
   label,
+  fieldKey,
+  entityId,
   value,
   onChange,
   placeholder,
   className = "",
 }: {
   label: string;
+  fieldKey: string;
+  entityId?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -120,7 +125,7 @@ function InputField({
 }) {
   return (
     <div className={className}>
-      <label className="text-[13px] font-medium text-text mb-1 block">{label}</label>
+        <EditableDisplayLabel entityType="GOLF" entityId={entityId} fieldKey={fieldKey} label={label} />
       <input
         type="text"
         value={value}
@@ -219,12 +224,14 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
         return (
           <div key={section.sectionKey} className="mb-6">
             <h3 className="text-[15px] font-bold text-text mb-3">
-              {getSectionLabel(L, section.sectionKey, section.fallbackTitle)}
+              <EditableDisplayLabel entityType="GOLF" entityId={golf?.id} sectionKey={section.sectionKey} label={getSectionLabel(L, section.sectionKey, section.fallbackTitle)} />
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
               {visibleFields.map((field) => (
                 <InputField
                   key={field.fieldKey}
+                  fieldKey={field.fieldKey}
+                  entityId={golf?.id}
                   label={getFieldLabel(L, field.fieldKey, field.fallback) + (isFieldRequired(L, field.fieldKey) ? " *" : "")}
                   value={form[field.formKey]}
                   onChange={(v) => update(field.formKey, v)}

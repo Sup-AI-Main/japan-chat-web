@@ -1,301 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
-import { isAuthenticated } from '@/lib/auth';
-import {
-  getAdminOptions,
-  appendAdminOption,
-  updateAdminOption,
-  invalidateCategoryCache,
-  invalidateAreaCache,
-} from '@/lib/supabase-cms';
-import {
-  ok,
-  created,
-  badRequest,
-  notFound,
-  duplicateCode,
-  serverError,
-  safeJson,
-} from '@/lib/crud/response';
-import { deleteCategoryFull, deleteAreaFull } from '@/lib/crud/compound-delete';
-import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET() {
-  const authed = await isAuthenticated();
-  if (!authed)
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' },
-      { status: 401 }
-    );
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-  try {
-    const options = await getAdminOptions();
-    return ok({ options });
-  } catch (err) {
-    return serverError(err);
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { category_kr, category_jp, created } = body;
+
+  if (!category_kr) {
+    return NextResponse.json({ error: 'category_kr required' }, { status: 400 });
   }
+
+  const { data, error } = await supabaseAdmin
+    .from('display_options')
+    .upsert(
+      {
+        category_kr,
+        category_jp: category_jp || null,
+        created: created || new Date().toISOString(),
+      },
+      { onConflict: 'category_kr' }
+    )
+    .select();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
 }
 
-export async function POST(request: NextRequest) {
-  const authed = await isAuthenticated();
-  if (!authed)
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' },
-      { status: 401 }
-    );
+export async function DELETE(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const category = searchParams.get('category_kr');
 
-  try {
-    const body = await safeJson<Record<string, string>>(request);
-    if (!body) return badRequest('Empty request body');
-    const { option_type, label, group, icon, description } = body;
-
-    if (!option_type || !label) {
-      return badRequest('option_type과 label은 필수입니다.');
-    }
-
-    if (option_type === 'CATEGORY' && !group) {
-      return badRequest('CATEGORY 옵션에는 group 필드가 필수입니다. (AREA 또는 COMMON)');
-    }
-
-    const options = await getAdminOptions();
-    const sameType = options.filter((o) => o.option_type === option_type);
-    const maxSort = sameType.reduce((max, o) => Math.max(max, o.sort), 0);
-
-    const code =
-      option_type === 'AREA'
-        ? label.replace(/\s+/g, '').toUpperCase().trim().slice(0, 20)
-        : label.replace(/\s+/g, '_').toUpperCase().trim().slice(0, 20);
-
-    const option = await appendAdminOption({
-      option_type,
-      code,
-      label,
-      icon: icon || '📌',
-      description: description || '',
-      group: group || '',
-      active: 'TRUE',
-      sort: String(maxSort + 1),
-    });
-
-    if (option?.id) {
-      // Re-verify: read back the created row from DB to confirm persistence
-      const tableName = option_type === 'AREA' ? 'areas' : 'categories';
-      const selectCols =
-        option_type === 'AREA' ? 'id, code, active' : 'id, code, group_type, active';
-
-      const { data: verify, error: verifyError } = (await (getSupabaseAdmin() as any)
-        .from(tableName)
-        .select(selectCols)
-        .eq('id', option.id)
-        .maybeSingle()) as { data: Record<string, unknown> | null; error: unknown };
-
-      if (verifyError) {
-        console.error('[POST /api/admin/options] persistence verification failed:', verifyError);
-        return serverError(verifyError);
-      }
-
-      if (!verify) {
-        return serverError(new Error('저장 후 재조회에 실패했습니다.'));
-      }
-
-      // Normalize DB row → AdminOption (server is single source of truth)
-      const normalized = {
-        id: String(verify.id),
-        option_type: String(option_type),
-        code: String(verify.code ?? ''),
-        label: String(option.label ?? option.name_kr ?? ''),
-        icon: String(option.icon ?? ''),
-        description: String(option.description ?? ''),
-        group: String(verify.group_type ?? group ?? ''),
-        active: String(verify.active ?? 'TRUE'),
-        sort: Number(option.sort ?? 0),
-        updated_at: String(option.updated_at ?? new Date().toISOString()),
-      };
-
-      // Invalidate resolver cache + ISR paths for the new option
-      if (option_type === 'CATEGORY') {
-        invalidateCategoryCache();
-        revalidatePath('/guide');
-        revalidatePath('/guide/[category]', 'page');
-        if (normalized.code) revalidatePath(`/guide/${normalized.code.toLowerCase()}`);
-      } else if (option_type === 'AREA') {
-        invalidateAreaCache();
-      }
-      return created({ id: normalized.id, option: normalized });
-    }
-    return serverError(new Error('저장에 실패했습니다.'));
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[POST /api/admin/options] error:', msg);
-    const code = (err as Record<string, unknown>)?.code;
-    if (code === '23505' || String(msg).includes('duplicate')) {
-      return duplicateCode('같은 이름/코드의 항목이 이미 존재합니다.');
-    }
-    return serverError(err);
+  if (!category) {
+    return NextResponse.json({ error: 'category_kr required' }, { status: 400 });
   }
-}
 
-export async function PUT(request: NextRequest) {
-  const authed = await isAuthenticated();
-  if (!authed)
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' },
-      { status: 401 }
-    );
+  const { error } = await supabaseAdmin
+    .from('display_options')
+    .delete()
+    .eq('category_kr', category);
 
-  try {
-    const body = await safeJson<Record<string, string>>(request);
-    if (!body) return badRequest('Empty request body');
-    const { id, label, icon, description } = body;
-
-    if (!id || !label) {
-      return badRequest('id와 label은 필수입니다.');
-    }
-
-    const db = getSupabaseAdmin();
-
-    // Fetch existing record before update to capture code + group_type
-    const { data: existingCat } = await db
-      .from('categories')
-      .select('id, code, group_type')
-      .eq('id', id)
-      .maybeSingle();
-    const { data: existingArea } = !existingCat
-      ? await db.from('areas').select('id, code').eq('id', id).maybeSingle()
-      : { data: null };
-
-    const updateData: Record<string, string> = { id, label };
-    if (icon !== undefined) updateData.icon = icon;
-    if (description !== undefined) updateData.description = description;
-    const success = await updateAdminOption(updateData);
-
-    if (success) {
-      // Invalidate resolver cache + ISR paths
-      if (existingCat) {
-        invalidateCategoryCache();
-        revalidatePath('/guide');
-        revalidatePath('/guide/[category]', 'page');
-        const updatedCode = String(existingCat.code ?? '').toLowerCase();
-        if (updatedCode) revalidatePath(`/guide/${updatedCode}`);
-      } else if (existingArea) {
-        invalidateAreaCache();
-      }
-      return ok({ success: true });
-    }
-    return serverError(new Error('수정에 실패했습니다.'));
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[PUT /api/admin/options] error:', msg);
-    return serverError(err);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
 
-export async function DELETE(request: NextRequest) {
-  const authed = await isAuthenticated();
-  if (!authed)
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' },
-      { status: 401 }
-    );
-
-  try {
-    const id = request.nextUrl.searchParams.get('id');
-    if (!id) {
-      return badRequest('id 필수');
-    }
-
-    // A18: ID로 종류를 확인한 후 실제 DELETE 수행
-    const db = getSupabaseAdmin();
-
-    // 카테고리인지 확인
-    const { data: cat, error: catError } = await db
-      .from('categories')
-      .select('id, code')
-      .eq('id', id)
-      .maybeSingle();
-    if (catError) {
-      console.error('[DELETE /api/admin/options] category lookup failed:', catError);
-      return serverError(catError);
-    }
-    if (cat) {
-      // Get impact report before delete
-      const { count: faqCount, error: faqCountError } = await db
-        .from('faq')
-        .select('id', { count: 'exact', head: true })
-        .eq('category_id', id);
-
-      if (faqCountError) {
-        console.error('[DELETE /api/admin/options] faq count query failed:', faqCountError);
-      }
-
-      const impact = await deleteCategoryFull(id, true);
-
-      // Post-delete verify: confirm the category no longer exists
-      const { data: stillExists, error: verifyDeleteError } = await db
-        .from('categories')
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (verifyDeleteError) {
-        console.error('[DELETE /api/admin/options] delete verification failed:', verifyDeleteError);
-        return serverError(verifyDeleteError);
-      }
-
-      if (stillExists) {
-        console.error('[DELETE /api/admin/options] category still exists after delete:', id);
-        return serverError(new Error('삭제 후에도 카테고리가 남아있습니다.'));
-      }
-
-      invalidateCategoryCache();
-      revalidatePath('/guide');
-      revalidatePath('/guide/[category]', 'page');
-      const deletedCode = String(cat.code ?? '').toLowerCase();
-      if (deletedCode) revalidatePath(`/guide/${deletedCode}`);
-      return ok({ deleted: true, id, impact, faqCount: faqCount ?? 0 });
-    }
-
-    // 지역인지 확인
-    const { data: area, error: areaError } = await db
-      .from('areas')
-      .select('id, code')
-      .eq('id', id)
-      .maybeSingle();
-    if (areaError) {
-      console.error('[DELETE /api/admin/options] area lookup failed:', areaError);
-      return serverError(areaError);
-    }
-    if (area) {
-      const impact = await deleteAreaFull(id, true);
-
-      // Post-delete verify: confirm the area no longer exists
-      const { data: stillExists, error: verifyDeleteError } = await db
-        .from('areas')
-        .select('id')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (verifyDeleteError) {
-        console.error(
-          '[DELETE /api/admin/options] area delete verification failed:',
-          verifyDeleteError
-        );
-        return serverError(verifyDeleteError);
-      }
-
-      if (stillExists) {
-        console.error('[DELETE /api/admin/options] area still exists after delete:', id);
-        return serverError(new Error('삭제 후에도 지역이 남아있습니다.'));
-      }
-
-      invalidateAreaCache();
-      return ok({ deleted: true, id, impact });
-    }
-
-    return notFound('해당 항목을 찾을 수 없습니다.');
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[DELETE /api/admin/options] error:', msg);
-    return serverError(err);
-  }
+  return NextResponse.json({ success: true });
 }

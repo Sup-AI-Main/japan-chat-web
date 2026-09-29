@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { EditModalShell } from "./EditModalShell";
+import { EditableDisplayLabel } from "./EditableDisplayLabel";
 import {
   type DynamicLabelsResult,
   getSectionLabel,
@@ -89,6 +90,8 @@ interface HotelEditModalProps {
 
 function InputField({
   label,
+  fieldKey,
+  entityId,
   required,
   value,
   onChange,
@@ -96,6 +99,8 @@ function InputField({
   className = "",
 }: {
   label: string;
+  fieldKey: string;
+  entityId?: string;
   required?: boolean;
   value: string;
   onChange: (v: string) => void;
@@ -104,10 +109,7 @@ function InputField({
 }) {
   return (
     <div className={className}>
-      <label className="text-[13px] font-medium text-text mb-1 block">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
+      <EditableDisplayLabel entityType="HOTEL" entityId={entityId} fieldKey={fieldKey} label={label} />
       <input
         type="text"
         value={value}
@@ -308,12 +310,14 @@ export function HotelEditModal({
           return (
             <div key={section.sectionKey} className="mb-6">
               <h3 className="text-[15px] font-bold text-text mb-3">
-                {getSectionLabel(L, section.sectionKey, section.fallbackTitle)}
+                <EditableDisplayLabel entityType="HOTEL" entityId={hotel?.id} sectionKey={section.sectionKey} label={getSectionLabel(L, section.sectionKey, section.fallbackTitle)} />
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                 {visibleFields.map((field) => (
                   <InputField
                     key={field.fieldKey}
+                    fieldKey={field.fieldKey}
+                    entityId={hotel?.id}
                     label={getFieldLabel(L, field.fieldKey, field.fallback)}
                     required={isFieldRequired(L, field.fieldKey)}
                     value={(form[field.formKey] as string) ?? ""}

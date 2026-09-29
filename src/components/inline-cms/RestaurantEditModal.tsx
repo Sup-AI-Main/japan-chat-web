@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { EditModalShell } from "./EditModalShell";
+import { EditableDisplayLabel } from "./EditableDisplayLabel";
 import {
   type DynamicLabelsResult,
   getSectionLabel,
@@ -131,6 +132,8 @@ const NEARBY_SECTION = {
 
 function InputField({
   label,
+  fieldKey,
+  entityId,
   value,
   onChange,
   placeholder,
@@ -138,6 +141,8 @@ function InputField({
   className = "",
 }: {
   label: string;
+  fieldKey: string;
+  entityId?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -146,7 +151,7 @@ function InputField({
 }) {
   return (
     <div className={className}>
-      <label className="text-[13px] font-medium text-text mb-1 block">{label}</label>
+      <EditableDisplayLabel entityType="RESTAURANT" entityId={entityId} fieldKey={fieldKey} label={label} />
       <input
         type={type}
         value={value}
@@ -344,12 +349,14 @@ export function RestaurantEditModal({
         return (
           <div key={section.sectionKey} className="mb-6">
             <h3 className="text-[15px] font-bold text-text mb-3">
-              {getSectionLabel(L, section.sectionKey, section.fallbackTitle)}
+              <EditableDisplayLabel entityType="RESTAURANT" entityId={restaurant?.id} sectionKey={section.sectionKey} label={getSectionLabel(L, section.sectionKey, section.fallbackTitle)} />
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
               {visibleFields.map((field) => (
                 <InputField
                   key={field.fieldKey}
+                  fieldKey={field.fieldKey}
+                  entityId={restaurant?.id}
                   label={
                     getFieldLabel(L, field.fieldKey, field.fallback) +
                     (isFieldRequired(L, field.fieldKey) ? " *" : "")
@@ -371,12 +378,14 @@ export function RestaurantEditModal({
         return (
           <div className="mb-6">
             <h3 className="text-[15px] font-bold text-text mb-3">
-              {getSectionLabel(L, DISTANCE_SECTION.sectionKey, DISTANCE_SECTION.fallbackTitle)}
+              <EditableDisplayLabel entityType="RESTAURANT" entityId={restaurant?.id} sectionKey={DISTANCE_SECTION.sectionKey} label={getSectionLabel(L, DISTANCE_SECTION.sectionKey, DISTANCE_SECTION.fallbackTitle)} />
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
               {distFields.map((field) => (
                 <InputField
                   key={field.fieldKey}
+                  fieldKey={field.fieldKey}
+                  entityId={restaurant?.id}
                   label={
                     getFieldLabel(L, field.fieldKey, field.fallback) +
                     (isFieldRequired(L, field.fieldKey) ? " *" : "")
@@ -395,7 +404,7 @@ export function RestaurantEditModal({
       {isSectionVisible(L, NEARBY_SECTION.sectionKey) && (isFieldActive(L, "near_type") || isFieldActive(L, "near_id")) && (
         <div className="mb-2">
           <h3 className="text-[15px] font-bold text-text mb-3">
-            {getSectionLabel(L, NEARBY_SECTION.sectionKey, NEARBY_SECTION.fallbackTitle)}
+            <EditableDisplayLabel entityType="RESTAURANT" entityId={restaurant?.id} sectionKey={NEARBY_SECTION.sectionKey} label={getSectionLabel(L, NEARBY_SECTION.sectionKey, NEARBY_SECTION.fallbackTitle)} />
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
             {isFieldActive(L, "near_type") && (
