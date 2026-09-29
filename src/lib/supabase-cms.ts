@@ -439,7 +439,7 @@ export async function resolveCategoryFromAdmin(slug: string): Promise<AdminOptio
  * Throws Error on DB failure.
  */
 export async function resolveCommonCategory(slug: string): Promise<AdminOption | null> {
-  const code = slug.toUpperCase();
+  const code = slug.trim().toUpperCase();
   const categories = await getCommonCategories();
   return categories.find((c) => c.code === code) ?? null;
 }

@@ -2,11 +2,13 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { useToast, Toast } from "@/components/Toast";
 import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
+import { routes } from "@/lib/routes";
 
 interface AdminOption {
   id: string;
@@ -190,7 +192,7 @@ function CategoryCreateModal({
       updateStep("site_sync", "success");
     }
 
-    // Step 5: ROUTE_VERIFY
+    // Step 5: ROUTE_VERIFY — check that the public URL returns 200 and includes the category
     updateStep("route_verify", "running");
     try {
       const routeRes = await fetch(`/guide/${createdOption!.code.toLowerCase()}`, {
@@ -199,6 +201,11 @@ function CategoryCreateModal({
       });
       if (!routeRes.ok) {
         throw new Error(`공개 페이지 확인 실패 (${routeRes.status})`);
+      }
+      // Verify the page body actually renders this category
+      const body = await routeRes.text();
+      if (!body.includes(createdOption!.label)) {
+        throw new Error("공개 페이지에 카테고리가 표시되지 않습니다.");
       }
       updateStep("route_verify", "success");
     } catch (err) {
@@ -482,6 +489,7 @@ export default function GuideCategoriesClient({
   const [deleteTarget, setDeleteTarget] = useState<AdminOption | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
+  const router = useRouter();
   const { message, visible, showToast } = useToast();
 
   const existingCodes = new Set(
@@ -506,12 +514,14 @@ export default function GuideCategoriesClient({
     setCategories((prev) => [...prev, saved].sort((a, b) => a.sort - b.sort));
     showToast("카테고리 생성 완료");
     setCreateModal(false);
+    router.refresh();
   };
 
   const handleSaved = (saved: AdminOption) => {
     setCategories((prev) => prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c)));
     showToast("수정 완료");
     setTimeout(closeEditModal, 500);
+    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -522,6 +532,7 @@ export default function GuideCategoriesClient({
       if (res.ok) {
         setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
         setDeleteTarget(null);
+        router.refresh();
       }
     } finally {
       setDeleteLoading(false);
@@ -539,7 +550,7 @@ export default function GuideCategoriesClient({
         {categories.map((cat) => (
           <div key={cat.code} className="relative group/cat">
             <Link
-              href={`/guide/${cat.code.toLowerCase()}`}
+              href={routes.guideCategory(cat.code.toLowerCase())}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{
                 backgroundColor: getCategoryBg(cat.code),
@@ -594,7 +605,7 @@ export default function GuideCategoriesClient({
       <ConfirmModal
         open={!!deleteTarget}
         title="카테고리 삭제"
-        message={`"${deleteTarget?.label}" 카테고리를 삭제하시겠습니까? 연결된 FAQ가 있으면 사용자에게 더 이상 표시되지 않습니다.`}
+        message={`"${deleteTarget?.label}" 카테고리를 삭제하시겠습니까? 연결된 FAQ와 카테고리 연결 데이터도 영구적으로 삭제됩니다.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}

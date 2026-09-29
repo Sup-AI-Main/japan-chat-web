@@ -1,15 +1,12 @@
 import Link from "next/link";
-import { getAdminOptions } from "@/lib/supabase-cms";
+import { getCommonCategories } from "@/lib/supabase-cms";
 import GuideCategoriesClient from "@/components/GuideCategoriesClient";
 import { routes } from "@/lib/routes";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export default async function GuidePage() {
-  const allOptions = await getAdminOptions();
-  const commonCategories = allOptions
-    .filter((o) => o.option_type === "CATEGORY" && o.group === "COMMON" && o.active !== "FALSE")
-    .sort((a, b) => a.sort - b.sort);
+  const commonCategories = await getCommonCategories();
 
   return (
     <main className="min-h-screen px-4 py-6">
