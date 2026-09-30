@@ -305,6 +305,26 @@ function entitySlugToId(slug: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Category row mapper (includes template_type)
+// ---------------------------------------------------------------------------
+
+function mapCategoryRow(c: Record<string, unknown>): AdminOption {
+  return {
+    id: c.id as string,
+    option_type: 'CATEGORY',
+    code: c.code as string,
+    label: c.label as string,
+    icon: (c.icon as string) || '',
+    description: (c.description as string) || '',
+    group: (c.group_type as string) || '',
+    active: c.active ? 'TRUE' : 'FALSE',
+    sort: c.sort as number,
+    updated_at: (c.updated_at as string) || '',
+    template_type: (c.template_type as string) || 'COMMON',
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Admin Options (areas + categories combined)
 // ---------------------------------------------------------------------------
 
@@ -316,7 +336,9 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
       .order('sort'),
     db()
       .from('categories')
-      .select('id, code, label, icon, description, group_type, active, sort, updated_at')
+      .select(
+        'id, code, label, icon, description, group_type, template_type, active, sort, updated_at'
+      )
       .order('sort'),
   ]);
 
@@ -340,20 +362,10 @@ export async function getAdminOptions(): Promise<AdminOption[]> {
     active: a.active ? 'TRUE' : 'FALSE',
     sort: a.sort,
     updated_at: a.updated_at,
+    template_type: undefined,
   }));
 
-  const catOptions: AdminOption[] = (catsResult.data || []).map((c) => ({
-    id: c.id,
-    option_type: 'CATEGORY',
-    code: c.code,
-    label: c.label,
-    icon: c.icon || '',
-    description: c.description || '',
-    group: c.group_type || '',
-    active: c.active ? 'TRUE' : 'FALSE',
-    sort: c.sort,
-    updated_at: c.updated_at,
-  }));
+  const catOptions: AdminOption[] = (catsResult.data || []).map(mapCategoryRow);
 
   return [...areaOptions, ...catOptions];
 }
@@ -467,31 +479,24 @@ export async function resolveAreaLayout(slug: string): Promise<{ code: string; b
 export async function getActiveCategories(): Promise<AdminOption[]> {
   const { data, error } = await db()
     .from('categories')
-    .select('id, code, label, icon, description, group_type, active, sort, updated_at')
+    .select(
+      'id, code, label, icon, description, group_type, template_type, active, sort, updated_at'
+    )
     .eq('active', true)
     .order('sort');
   if (error) {
     logError('READ', 'categories', undefined, error);
     throw error;
   }
-  return (data || []).map((c) => ({
-    id: c.id,
-    option_type: 'CATEGORY',
-    code: c.code,
-    label: c.label,
-    icon: c.icon || '',
-    description: c.description || '',
-    group: c.group_type || '',
-    active: 'TRUE',
-    sort: c.sort,
-    updated_at: c.updated_at,
-  }));
+  return (data || []).map(mapCategoryRow);
 }
 
 export async function getAreaCategories(): Promise<AdminOption[]> {
   const { data, error } = await db()
     .from('categories')
-    .select('id, code, label, icon, description, group_type, active, sort, updated_at')
+    .select(
+      'id, code, label, icon, description, group_type, template_type, active, sort, updated_at'
+    )
     .eq('active', true)
     .eq('group_type', 'AREA')
     .order('sort');
@@ -499,24 +504,15 @@ export async function getAreaCategories(): Promise<AdminOption[]> {
     logError('READ', 'categories', undefined, error);
     throw error;
   }
-  return (data || []).map((c) => ({
-    id: c.id,
-    option_type: 'CATEGORY',
-    code: c.code,
-    label: c.label,
-    icon: c.icon || '',
-    description: c.description || '',
-    group: 'AREA',
-    active: 'TRUE',
-    sort: c.sort,
-    updated_at: c.updated_at,
-  }));
+  return (data || []).map(mapCategoryRow);
 }
 
 export async function getCommonCategories(): Promise<AdminOption[]> {
   const { data, error } = await db()
     .from('categories')
-    .select('id, code, label, icon, description, group_type, active, sort, updated_at')
+    .select(
+      'id, code, label, icon, description, group_type, template_type, active, sort, updated_at'
+    )
     .eq('active', true)
     .eq('group_type', 'COMMON')
     .order('sort');
@@ -524,18 +520,7 @@ export async function getCommonCategories(): Promise<AdminOption[]> {
     logError('READ', 'categories', undefined, error);
     throw error;
   }
-  return (data || []).map((c) => ({
-    id: c.id,
-    option_type: 'CATEGORY',
-    code: c.code,
-    label: c.label,
-    icon: c.icon || '',
-    description: c.description || '',
-    group: 'COMMON',
-    active: 'TRUE',
-    sort: c.sort,
-    updated_at: c.updated_at,
-  }));
+  return (data || []).map(mapCategoryRow);
 }
 
 // ---------------------------------------------------------------------------
@@ -625,7 +610,7 @@ export async function getGolfCourseById(id: string): Promise<GolfCourse | null> 
 }
 
 export async function appendGolfCourse(
-  data: Record<string, string>
+  data: Record<string, string> & { details_json?: unknown }
 ): Promise<{ id: string; slug: string }> {
   const areaId = await resolveAreaId(data.area || '');
   if (!areaId) throw new Error(`Area not found: ${data.area}`);
@@ -645,6 +630,7 @@ export async function appendGolfCourse(
         display_name: data.display_name || '',
         active: isActive(data.active),
         sort: parseInt(data.sort || '999') || 999,
+        details_json: data.details_json ?? null,
       })
       .select('id')
       .single();
@@ -706,7 +692,7 @@ export async function appendGolfCourse(
 
 export async function updateGolfCourse(
   id: string,
-  data: Record<string, string>,
+  data: Record<string, string> & { details_json?: unknown },
   expectedUpdatedAt?: string
 ): Promise<boolean> {
   // Resolve entity by id (UUID)
@@ -744,6 +730,7 @@ export async function updateGolfCourse(
   if (data.display_name !== undefined) entityUpdates.display_name = data.display_name;
   if (data.active !== undefined) entityUpdates.active = isActive(data.active);
   if (data.sort !== undefined) entityUpdates.sort = parseInt(data.sort) || 0;
+  if (data.details_json !== undefined) entityUpdates.details_json = data.details_json;
   if (data.area !== undefined) {
     const areaId = await resolveAreaId(data.area);
     if (areaId) entityUpdates.area_id = areaId;
@@ -2904,6 +2891,7 @@ export async function appendAdminOption(
       label: data.label || '',
       icon: data.icon || '',
       group_type: data.group || 'AREA',
+      template_type: data.template_type || 'COMMON',
       description: data.description || '',
       allows_specific_target: true,
       allowed_entity_types: [],
@@ -2958,6 +2946,7 @@ export async function updateAdminOption(data: Record<string, string>): Promise<b
   } else {
     if (data.label !== undefined) updates.label = data.label;
     if (data.group !== undefined) updates.group_type = data.group;
+    if (data.template_type !== undefined) updates.template_type = data.template_type;
   }
   if (data.icon !== undefined) updates.icon = data.icon;
   if (data.description !== undefined) updates.description = data.description;

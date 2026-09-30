@@ -34,3 +34,62 @@ export const routes = {
   adminAreaEntities: (slug: string) => `/admin/${slug}/entities`,
   adminAreaManage: (slug: string) => `/admin/${slug}/manage`,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Centralized category route resolver
+// ---------------------------------------------------------------------------
+
+/** Valid entity template types that map to existing [area]/[entity] routes */
+const ENTITY_TEMPLATES = new Set(['GOLF', 'HOTEL', 'RESTAURANT', 'ATTRACTION']);
+
+/**
+ * Resolve the actual route for a category based on its template_type.
+ *
+ * - ENTITY templates (GOLF/HOTEL/RESTAURANT/ATTRACTION):
+ *   - AREA group → `/{area}/{lowercase_code}` (e.g., /dos/golf)
+ *   - These map to existing page files at src/app/[area]/golf/page.tsx etc.
+ *
+ * - AREA template: `/{area}/faq/{lowercase_code}` (area-scoped FAQ)
+ * - COMMON template: `/guide/{lowercase_code}` (shared guide page)
+ *
+ * Returns null for unknown template types so callers can skip broken links.
+ */
+export function resolveCategoryRoute(
+  areaSlug: string,
+  categoryCode: string,
+  templateType: string | undefined,
+  groupType: string
+): string | null {
+  const tt = (templateType || 'COMMON').toUpperCase();
+  const codeLower = categoryCode.toLowerCase();
+
+  if (ENTITY_TEMPLATES.has(tt)) {
+    if (groupType === 'AREA') {
+      const entityRouteMap: Record<string, (slug: string) => string> = {
+        GOLF: routes.areaGolf,
+        HOTEL: routes.areaHotel,
+        RESTAURANT: routes.areaRestaurant,
+        ATTRACTION: routes.areaAttraction,
+      };
+      return entityRouteMap[tt]?.(areaSlug) ?? null;
+    }
+    // Entity template in non-AREA group — unexpected, skip
+    return null;
+  }
+
+  // AREA template — render FAQ content scoped to the area
+  if (tt === 'AREA') {
+    return routes.areaFaq(areaSlug, codeLower);
+  }
+
+  // COMMON template — render shared guide content
+  if (tt === 'COMMON') {
+    if (groupType === 'COMMON') {
+      return routes.guideCategory(codeLower);
+    }
+    // AREA group with COMMON template — also use area FAQ
+    return routes.areaFaq(areaSlug, codeLower);
+  }
+
+  return null;
+}

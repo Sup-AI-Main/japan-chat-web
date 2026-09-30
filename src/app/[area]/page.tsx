@@ -4,7 +4,7 @@ import { resolveArea, getAreaCategories, getFaq, getTravelTimes, getAreaEntitySu
 import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
-import { routes } from "@/lib/routes";
+import { routes, resolveCategoryRoute } from "@/lib/routes";
 
 export const revalidate = 300;
 
@@ -28,10 +28,13 @@ export default async function AreaPage({
     getAreaEntitySummaryMap(areaCode).catch(() => ({ hotels: [] as { id: string; name: string }[], golfCourses: [] as { id: string; name: string }[] })),
   ]);
 
-  const categoryLinks = categories.map((cat) => ({
-    ...cat,
-    slug: cat.code.toLowerCase(),
-  }));
+  const categoryLinks = categories
+    .map((cat) => {
+      const href = resolveCategoryRoute(area, cat.code, cat.template_type, cat.group);
+      if (!href) return null;
+      return { ...cat, href };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
 
   const popularFaqs = allFaq.slice(0, 3);
   const hotels = entityMap.hotels;
@@ -47,7 +50,7 @@ export default async function AreaPage({
             ← 지역 변경
           </Link>
           <h1 className="text-[24px] font-bold text-text">
-            {getAreaEmoji(areaCode)} {areaLabel} 여행 가이드
+            {currentArea.icon || getAreaEmoji(areaCode)} {areaLabel} 여행 가이드
           </h1>
         </div>
 
@@ -55,7 +58,7 @@ export default async function AreaPage({
           {categoryLinks.map((cat) => (
             <Link
               key={cat.code}
-              href={`/${area}/${cat.slug}`}
+              href={cat.href}
               prefetch={false}
               className="rounded-[12px] p-4 text-center transition-colors min-h-[56px] flex items-center justify-center"
               style={{
@@ -66,7 +69,7 @@ export default async function AreaPage({
               }}
             >
               <span className="text-[16px] font-medium whitespace-nowrap" style={{ color: getCategoryColor(cat.code) }}>
-                {getCategoryEmoji(cat.code)} {cat.label}
+                {cat.icon || getCategoryEmoji(cat.code)} {cat.label}
               </span>
             </Link>
           ))}

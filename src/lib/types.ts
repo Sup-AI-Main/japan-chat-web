@@ -210,6 +210,7 @@ export interface AdminOption {
   active: string;
   sort: number;
   updated_at: string;
+  template_type?: string; // "GOLF" | "HOTEL" | "RESTAURANT" | "ATTRACTION" | "AREA" | "COMMON"
 }
 
 // ContentSection

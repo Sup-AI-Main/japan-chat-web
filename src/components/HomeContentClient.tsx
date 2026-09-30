@@ -20,6 +20,7 @@ interface AdminOption {
   sort: number;
   active: string;
   updated_at: string;
+  template_type?: string;
 }
 
 interface HomeContentClientProps {
@@ -65,8 +66,8 @@ function OptionEditModal({
         method: isEdit ? "PUT" : "POST",
         body: JSON.stringify(
           isEdit
-            ? { id: option.id, label: label.trim(), icon: icon.trim() || "📌", description: description.trim() }
-            : { option_type: optionType, label: label.trim(), icon: icon.trim() || "📌", description: description.trim(), group: group || "" }
+            ? { id: option.id, label: label.trim(), icon: icon.trim(), description: description.trim() }
+            : { option_type: optionType, label: label.trim(), icon: icon.trim(), description: description.trim(), group: group || "" }
         ),
       });
       onSaved({
@@ -74,12 +75,13 @@ function OptionEditModal({
         option_type: optionType,
         code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
         label: label.trim(),
-        icon: icon.trim() || "📌",
+        icon: icon.trim(),
         description: description.trim(),
         group: group || "",
         sort: option?.sort || 999,
         active: "TRUE",
         updated_at: new Date().toISOString(),
+        template_type: option?.template_type || "COMMON",
       });
       // Note: Do not call onClose() here. The parent component
       // will handle showing a toast and closing the modal after a delay.
@@ -244,7 +246,7 @@ export default function HomeContentClient({
               href={routes.area(area.code.toLowerCase())}
               className="block bg-surface border border-border rounded-[12px] p-6 text-center hover:border-primary hover:bg-primary-soft transition-colors"
             >
-              <span className="text-[24px] block mb-1">{getAreaEmoji(area.code)}</span>
+              <span className="text-[24px] block mb-1">{area.icon || getAreaEmoji(area.code)}</span>
               <span className="text-[20px] font-bold text-text block mb-1">{area.label}</span>
               {area.description && (
                 <span className="text-[14px] text-muted">{area.description}</span>
