@@ -44,13 +44,20 @@
 | 볼거리 목록 | PASS (empty state) | `/dos/attraction` 정상 렌더링, 등록 데이터 없음 |
 | 공통 안내 | PASS | `/guide/onsen`, `/guide/driver`, `/guide/general` 정상 렌더링 |
 | 상세 라벨 편집 UI | PASS | 기존 섹션 삭제, 항목 추가, 수정완료 컨트롤 확인; 콘솔 오류 없음 |
-| 잘못된 지역 카테고리 링크 | FAIL | 대시보드와 `/dos`에 노출된 `ddd sdfasd` 링크 `/dos/faq/test%20q`가 404 반환 |
+| 잘못된 지역 카테고리 링크 | FIXED/PASS | `ddd sdfasd` 링크가 `/dos/faq/test-q`로 생성되고 정상 렌더링 |
 
 주의사항:
 
 - 실제 운영 DB에 테스트 데이터를 생성·수정·삭제하는 mutation round-trip은 운영 데이터 보호를 위해 이번 QA에서는 실행하지 않았다.
 - 따라서 CRUD UI/API 연결과 화면 로딩은 확인했지만, 운영 DB에 대한 저장 후 재조회 증거는 아직 별도 확인이 필요하다.
-- `ddd sdfasd` 카테고리는 링크가 생성되는 조건과 실제 라우트가 불일치한다. 해당 카테고리의 code/template/group 데이터를 확인한 뒤 링크를 숨기거나 안전한 slug로 정규화해야 한다.
+- `ddd sdfasd`의 legacy code는 `TEST Q`였으며, 공백 code를 URL slug로 정규화하도록 수정했다. 배포 후 `/dos/faq/test-q` 200 및 콘솔 오류 없음 확인.
+
+배포 확인:
+
+- Commit: `593d76a`
+- `/dos` link: `/dos/faq/test-q`
+- `/dos/faq/test-q`: 정상 페이지 렌더링, 404 문구 없음
+- Console errors: 0
 
 ## QA Metadata
 

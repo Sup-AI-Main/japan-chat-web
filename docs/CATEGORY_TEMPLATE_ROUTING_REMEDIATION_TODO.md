@@ -29,7 +29,8 @@
 - [ ] 운영 mutation round-trip은 데이터 보호를 위해 미실행.
 - [x] `/dos/faq/test%20q` 404 원인 확인: legacy `code = TEST Q`의 공백 slug 처리 누락.
 - [x] URL 생성 및 category resolver/admin resolver에 공백 code slug 정규화 적용.
-- [ ] 수정사항 배포 후 `/dos/faq/test-q` 및 관리자 링크 재확인.
+- [x] 수정사항 배포 후 `/dos/faq/test-q` 재확인: 정상 렌더링, 404 없음.
+- [x] `/dos` 링크가 공백 URL이 아닌 `/dos/faq/test-q`를 생성하는지 확인.
 
 ## Phase 0 — Evidence ✅ COMPLETE
 
@@ -152,4 +153,4 @@ HTTP tests via dev server (localhost:3001):
   - `/dos` → 200, `/guide` → 200, `/guide/onsen` → 200
   - `/dos/faq/restaurant` → 200, `/dos/faq/hotel` → 200
   - `/guide/nonexistent_category_xyz` → 404, `/dos/faq/general` → 404
-- Historical production smoke test referenced `f691ce1`; current slug-normalization fix requires a new deployment verification.
+- Production slug-normalization verification: PASS after commit `593d76a`.
