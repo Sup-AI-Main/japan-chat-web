@@ -12,6 +12,7 @@ import {
   isFieldActive,
   isFieldRequired,
 } from "@/lib/dynamic-labels";
+import type { EntityDetailsDocumentV1, EntityDetailsItem } from "@/lib/entity-details/types";
 
 interface GolfData {
   id?: string;
@@ -26,6 +27,7 @@ interface GolfData {
   rental: string;
   dress_code: string;
   google_maps_url: string;
+  details_json?: EntityDetailsDocumentV1 | null;
 }
 
 const EMPTY_GOLF: GolfData = {
@@ -40,7 +42,32 @@ const EMPTY_GOLF: GolfData = {
   rental: "",
   dress_code: "",
   google_maps_url: "",
+  details_json: null,
 };
+
+interface CustomGolfField { id: string; label: string; value: string; }
+
+function readCustomFields(document?: EntityDetailsDocumentV1 | null): CustomGolfField[] {
+  const section = document?.sections.find((item) => item.key === "custom_golf_fields");
+  return (section?.items ?? []).map((item, index) => ({
+    // Custom keys are intentionally local to this entity. Re-number them so
+    // legacy/missing keys and deleted rows can never create duplicate React
+    // keys or duplicate JSON item ids.
+    id: `label-${index + 1}`,
+    label: item.label_ko || "",
+    value: typeof item.value === "string" ? item.value : String(item.value ?? ""),
+  }));
+}
+
+function toCustomDetails(fields: CustomGolfField[]): EntityDetailsDocumentV1 | null {
+  const items: EntityDetailsItem[] = fields
+    .filter((field) => field.label.trim() || field.value.trim())
+    .map((field, index) => {
+      const key = `label-${index + 1}`;
+      return { id: key, key, label_ko: field.label.trim() || `항목 ${index + 1}`, type: "textarea", value: field.value, sort: index + 1, is_visible: true };
+    });
+  return items.length ? { version: 1, sections: [{ id: "custom-golf-fields", key: "custom_golf_fields", title_ko: "추가 정보", sort: 1, is_visible: true, items }] } : null;
+}
 
 const SECTIONS = [
   {
@@ -148,10 +175,12 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
   const [form, setForm] = useState<GolfData>(EMPTY_GOLF);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [customFields, setCustomFields] = useState<CustomGolfField[]>([]);
 
   useEffect(() => {
     if (open) {
       setForm(golf ? { ...golf } : { ...EMPTY_GOLF });
+      setCustomFields(readCustomFields(golf?.details_json));
       setError("");
       setSaving(false);
     }
@@ -159,6 +188,15 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
 
   const update = (key: keyof GolfData, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const addCustomField = () => {
+    setCustomFields((prev) => {
+      const used = new Set(prev.map((field) => field.id));
+      let number = 1;
+      while (used.has(`label-${number}`)) number += 1;
+      return [...prev, { id: `label-${number}`, label: "", value: "" }];
+    });
   };
 
   const handleSave = async () => {
@@ -189,6 +227,7 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          details_json: toCustomDetails(customFields),
           id: golf?.id,
           area: area.toUpperCase(),
         }),
@@ -251,6 +290,21 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
           </div>
         );
       })}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-[15px] font-bold text-text">추가 정보</h3>
+          <button type="button" onClick={addCustomField} className="text-[13px] text-primary border border-primary rounded px-3 py-1.5">+ 항목 추가</button>
+        </div>
+        <div className="space-y-3">
+          {customFields.map((field, index) => (
+            <div key={field.id} className="flex gap-2 items-start">
+              <input value={field.label} onChange={(event) => setCustomFields((prev) => prev.map((item, i) => i === index ? { ...item, label: event.target.value } : item))} placeholder={`라벨-${index + 1}`} className="w-1/3 border border-border rounded-[8px] px-3 py-2 text-[14px]" />
+              <textarea value={field.value} onChange={(event) => setCustomFields((prev) => prev.map((item, i) => i === index ? { ...item, value: event.target.value } : item))} placeholder="값" className="flex-1 border border-border rounded-[8px] px-3 py-2 text-[14px] min-h-[40px]" />
+              <button type="button" onClick={() => setCustomFields((prev) => prev.filter((_, i) => i !== index))} className="text-danger px-2 py-2" aria-label="항목 삭제">×</button>
+            </div>
+          ))}
+        </div>
+      </div>
     </EditModalShell>
   );
 }

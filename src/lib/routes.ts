@@ -87,8 +87,8 @@ export function resolveCategoryRoute(
     if (groupType === 'COMMON') {
       return routes.guideCategory(codeLower);
     }
-    // AREA group with COMMON template — also use area FAQ
-    return routes.areaFaq(areaSlug, codeLower);
+    // AREA group with COMMON template — invalid combination, skip
+    return null;
   }
 
   return null;

@@ -526,7 +526,7 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-[17px] font-bold text-text">
-                      {getAreaEmoji(area.code)} {area.name_kr}
+                      {area.icon || getAreaEmoji(area.code)} {area.name_kr}
                     </h3>
                     <span className="text-[12px] font-mono text-muted">{area.code}</span>
                   </div>
@@ -534,7 +534,7 @@ export default function Dashboard() {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted mb-4">
                     {categoryBreakdown.map((cb) => (
                       <span key={cb.code}>
-                        {getCategoryEmoji(cb.code)} {cb.label} {cb.count}
+                        {cb.icon || getCategoryEmoji(cb.code)} {cb.label} {cb.count}
                       </span>
                     ))}
                     <span>❓ FAQ {faqCount}</span>
@@ -544,10 +544,10 @@ export default function Dashboard() {
                     {categoryBreakdown.map((cb) => (
                       <Link
                         key={cb.code}
-                        href={routes.adminAreaEntities(area.code.toLowerCase())}
+                        href={routes.adminAreaCategory(area.code.toLowerCase(), cb.code.toLowerCase())}
                         className="px-3 py-2 text-[12px] text-center text-text bg-gray-50 border border-border rounded-[8px] hover:border-primary hover:bg-primary-soft transition-colors min-h-[36px] flex items-center justify-center"
                       >
-                        {getCategoryEmoji(cb.code)} {cb.label} 관리
+                        {cb.icon || getCategoryEmoji(cb.code)} {cb.label} 관리
                       </Link>
                     ))}
                     <Link

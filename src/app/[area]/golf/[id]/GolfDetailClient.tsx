@@ -262,6 +262,7 @@ export function GolfDetailClient({
           rental: course.rental || "",
           dress_code: course.dress_code || "",
           google_maps_url: course.google_maps_url || "",
+          details_json: course.details_json,
         } : null}
         area={area}
         open={editGolfOpen}

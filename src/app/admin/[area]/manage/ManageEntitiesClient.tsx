@@ -8,6 +8,7 @@ import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
 import { useToast, Toast } from "@/components/Toast";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import type { TravelTime } from "@/lib/types";
+import type { EntityDetailsDocumentV1 } from "@/lib/entity-details/types";
 
 interface AreaInfo {
   id: string;
@@ -77,6 +78,7 @@ interface GolfItem {
   active: string;
   sort: number;
   updated_at: string;
+  details_json?: EntityDetailsDocumentV1 | null;
 }
 
 export default function ManageEntitiesClient({
@@ -407,6 +409,7 @@ export default function ManageEntitiesClient({
           rental: golfTarget.rental || "",
           dress_code: golfTarget.dress_code || "",
           google_maps_url: golfTarget.google_maps_url || "",
+          details_json: golfTarget.details_json,
         } : null}
         area={area}
         open={golfModal}

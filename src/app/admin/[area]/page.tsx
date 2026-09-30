@@ -51,7 +51,7 @@ export default async function AdminAreaPage({
         </div>
 
         <h1 className="text-[24px] font-bold text-text mb-2">
-          {getAreaEmoji(currentArea.code)} {currentArea.label}
+          {currentArea.icon || getAreaEmoji(currentArea.code)} {currentArea.label}
         </h1>
         <p className="text-[16px] text-muted mb-6">
           어떤 질문을 관리할까요?
@@ -71,7 +71,7 @@ export default async function AdminAreaPage({
               }}
             >
               <span className="text-[16px] font-medium whitespace-nowrap" style={{ color: getCategoryColor(cat.code) }}>
-                {getCategoryEmoji(cat.code)} {cat.label}
+                {cat.icon || getCategoryEmoji(cat.code)} {cat.label}
               </span>
             </Link>
           ))}

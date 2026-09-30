@@ -21,6 +21,7 @@ export interface CategoryRow {
   icon: string;
   description: string;
   group_type: string;
+  template_type: string;
   active: boolean;
   sort: number;
   created_at: string;
@@ -43,7 +44,7 @@ export async function listCategories(): Promise<CategoryRow[]> {
   const db = getSupabaseServer();
   const { data, error } = await db
     .from("categories")
-    .select("id, code, label, icon, description, group_type, active, sort, created_at, updated_at")
+    .select(CATEGORY_SELECT)
     .order("sort");
 
   if (error) throw error;
@@ -54,7 +55,7 @@ export async function getCategory(id: string): Promise<CategoryRow | null> {
   const db = getSupabaseServer();
   const { data, error } = await db
     .from("categories")
-    .select("id, code, label, icon, description, group_type, active, sort, created_at, updated_at")
+    .select(CATEGORY_SELECT)
     .eq("id", id)
     .single();
 
@@ -64,6 +65,44 @@ export async function getCategory(id: string): Promise<CategoryRow | null> {
   }
   return data as CategoryRow;
 }
+
+const VALID_TEMPLATE_TYPES = ["GOLF", "HOTEL", "RESTAURANT", "ATTRACTION", "AREA", "COMMON"];
+
+// ---------------------------------------------------------------------------
+// Validate group_type → template_type consistency
+// ---------------------------------------------------------------------------
+
+function normalizeAndValidateTemplateType(
+  groupType: string,
+  rawTemplateType: unknown
+): string {
+  const tt = toStr(rawTemplateType).toUpperCase() || "COMMON";
+
+  if (!VALID_TEMPLATE_TYPES.includes(tt)) {
+    throw new Error(
+      `Invalid template_type: "${tt}". Allowed: ${VALID_TEMPLATE_TYPES.join(", ")}`
+    );
+  }
+
+  // AREA group → must use an AREA-family template (entity, AREA)
+  if (groupType === "AREA" && tt === "COMMON") {
+    throw new Error(
+      "AREA category cannot use template_type COMMON. Use GOLF, HOTEL, RESTAURANT, ATTRACTION, or AREA."
+    );
+  }
+
+  // COMMON group → must use COMMON template
+  if (groupType === "COMMON" && tt !== "COMMON") {
+    throw new Error(
+      `COMMON category must use template_type COMMON. Got "${tt}".`
+    );
+  }
+
+  return tt;
+}
+
+const CATEGORY_SELECT =
+  "id, code, label, icon, description, group_type, template_type, active, sort, created_at, updated_at";
 
 // ---------------------------------------------------------------------------
 // Create (service role)
@@ -81,6 +120,11 @@ export async function createCategory(
     throw new Error(`Invalid group_type: ${groupType}. Must be AREA, COMMON, or SYSTEM`);
   }
 
+  const templateType =
+    groupType === "SYSTEM"
+      ? "COMMON"
+      : normalizeAndValidateTemplateType(groupType, data.template_type);
+
   const db = getSupabaseAdmin();
 
   const insertData = {
@@ -89,6 +133,7 @@ export async function createCategory(
     icon: toStr(data.icon),
     description: toStr(data.description),
     group_type: groupType,
+    template_type: templateType,
     active: true,
     sort: toInt(data.sort, 999),
   };
@@ -96,7 +141,7 @@ export async function createCategory(
   const { data: row, error } = await db
     .from("categories")
     .insert(insertData)
-    .select("id, code, label, icon, description, group_type, active, sort, created_at, updated_at")
+    .select(CATEGORY_SELECT)
     .single();
 
   if (error) throw error;
@@ -125,7 +170,7 @@ export async function updateCategory(
 
   const { data: existing, error: findError } = await db
     .from("categories")
-    .select("id, code, label, icon, description, group_type, active, sort, updated_at")
+    .select(CATEGORY_SELECT)
     .eq("id", id)
     .single();
 
@@ -150,6 +195,15 @@ export async function updateCategory(
     }
     updates.group_type = gt;
   }
+  if (data.template_type !== undefined || data.group_type !== undefined) {
+    const groupForValidation = (updates.group_type as string) || existing.group_type;
+    if (groupForValidation !== "SYSTEM") {
+      updates.template_type = normalizeAndValidateTemplateType(
+        groupForValidation,
+        data.template_type ?? existing.template_type
+      );
+    }
+  }
   if (data.active !== undefined) updates.active = Boolean(data.active);
   if (data.sort !== undefined) updates.sort = toInt(data.sort, 0);
 
@@ -161,7 +215,7 @@ export async function updateCategory(
     .from("categories")
     .update(updates)
     .eq("id", id)
-    .select("id, code, label, icon, description, group_type, active, sort, created_at, updated_at")
+    .select(CATEGORY_SELECT)
     .single();
 
   if (updateError) throw updateError;

@@ -1,14 +1,16 @@
 # Japan Chat Web — Core Agent Rules
 
-Project: `japan-chat-web`  
+Project: `japan-chat-web`
 Stack: Next.js App Router + TypeScript + Supabase/PostgreSQL
 
 ## Always follow
+
 - Work on one logical task at a time and make the smallest correct change.
 - Use targeted searches by default. Repository-wide search is allowed for explicit audits/exhaustive verification or when all call sites must be found.
 - Follow Next.js App Router boundaries. Prefer Server Components/server-side data access; add `'use client'` only when state, effects, browser APIs, or event handlers require it.
 - Use explicit TypeScript types. Avoid `any` unless unavoidable and local.
 - Keep Supabase privileged access server-side. For SSR auth/session integration, follow the project's approved `@supabase/ssr` pattern; do not add dependencies during unrelated work.
+- Supabase is already configured for this project in `.env.local`. For every Supabase-related command, query, test, or connection, load and use the local `.env.local` configuration first; do not use another environment by default. Do not repeatedly ask the user to connect or provide the Supabase project URL/key. Never copy its secret values into source files, `AGENTS.md`, logs, chat messages, or client code.
 - Never expose `service_role`, secret keys, admin credentials, or privileged tokens to client code.
 - Public reads and admin writes are separate security boundaries. Never make an admin API public to fix a public-read issue.
 - Never disable/weaken RLS, policies, grants, or auth as a shortcut.
@@ -17,10 +19,33 @@ Stack: Next.js App Router + TypeScript + Supabase/PostgreSQL
 - `0 rows affected` must never be reported as successful deletion.
 - A toast or HTTP 2xx is not persistence proof. Verify changed CRUD after reload and, for DB mutations, with DB queries.
 - Never claim production verification unless the intended deployment and relevant production behavior were actually checked.
+- GitHub pushes trigger the project's automatic deployment pipeline. Do not run or trigger Vercel deployments directly unless the user explicitly requests it.
 - QA/completion evidence is text-only; do not use screenshots as proof.
 - Treat `CODE_VERIFIED`, `DB_VERIFIED`, `FUNCTION_VERIFIED`, and `DEPLOY_VERIFIED` as independent claims.
 
+## No Image Input — Absolute Rule
+
+- NEVER send, attach, upload, forward, reference, or include any image, screenshot, visual attachment, image URL, image file, or image input in a model/provider request.
+- NEVER enable vision, image input, multimodal input, or image-capable request mode for agent work.
+- NEVER pass screenshots or images through a `Reference`, attachment, context item, tool result, or hidden request payload.
+- If the UI or agent environment automatically attaches an image/reference, REMOVE it before sending the model request.
+- All QA, debugging, verification, and completion evidence must be TEXT-ONLY.
+- For browser/UI verification, use text evidence only:
+  - DOM text
+  - HTTP responses
+  - console logs
+  - network logs
+  - database queries
+  - API responses
+  - file/code inspection
+- Screenshots may be viewed by the human operator, but the agent MUST NOT send them to the model or use them as verification evidence.
+- Do not retry an image-input request with another image endpoint or model.
+- If a task genuinely cannot proceed without sending an image to the model, STOP and report `BLOCKED` with the exact reason instead of attempting image input.
+
+- If the UI or agent environment automatically attaches an image/reference, REMOVE it before sending the model request.
+
 ## Verification retry guardrails
+
 - **Do not accept Production E2E results as verification of the latest code until the deployed production SHA matches the intended/pushed SHA.** If the SHAs differ, classify the result as deployment timing/mismatch, not as proof for or against the latest change.
 - If the same verification fails **2 times**, a third automatic retry is forbidden. Stop immediately and report `BLOCKED` instead of looping.
 - A `BLOCKED` report must include:
@@ -33,6 +58,7 @@ Stack: Next.js App Router + TypeScript + Supabase/PostgreSQL
 - Infinite or open-ended retry loops are forbidden. Do not keep changing code merely because verification infrastructure, authentication, deployment timing, or environment state is unresolved.
 
 ## Read only when relevant
+
 Do **not** preload every agent document.
 
 - Supabase/schema/RLS/RPC/migration/DB-security work → `docs/agent/supabase.md`
@@ -43,12 +69,15 @@ Do **not** preload every agent document.
 Read multiple detail files only when the task genuinely spans those areas. See `docs/agent/README.md`.
 
 ## Approval
+
 An already-approved TODO/spec authorizes changes explicitly inside its scope. Do not request duplicate approval.
 
 Ask before destructive/structural changes **outside** approved scope, including destructive schema removal, unexpected FK semantic changes, breaking public API/auth changes, or irreversible production-data transformations.
 
 ## Source of truth
+
 For DB work, never guess. Cross-check:
+
 1. actual Supabase production state,
 2. committed migrations,
 3. `docs/06_DB_스키마_운영가이드.md`.
@@ -56,6 +85,7 @@ For DB work, never guess. Cross-check:
 If they disagree, report the drift and establish production reality before changing anything.
 
 ## Priority
+
 User request / approved TODO > security & production-data safety > production reality > project contracts/specs > existing architecture > minimal correct change > verification > token/time saving.
 
 <!-- BEGIN:nextjs-agent-rules -->

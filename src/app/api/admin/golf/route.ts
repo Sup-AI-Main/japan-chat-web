@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   try {
-    const body = await safeJson<Record<string, string>>(req);
+    const body = await safeJson<Record<string, string> & { details_json?: unknown }>(req);
     if (!body) return badRequest("Empty request body");
 
     // Server-side required field validation
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const authed = await isAuthenticated();
   if (!authed) return NextResponse.json({ success: false, error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
-  const body = await safeJson<Record<string, string>>(req);
+  const body = await safeJson<Record<string, string> & { details_json?: unknown }>(req);
   if (!body) return badRequest("Empty request body");
 
   // Server-side required field validation

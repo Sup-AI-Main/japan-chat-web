@@ -9,23 +9,16 @@ import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { useToast, Toast } from "@/components/Toast";
 import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import { routes } from "@/lib/routes";
+import type { AdminOption } from "@/lib/types";
 
-interface AdminOption {
-  id: string;
-  option_type: string;
+type CategoryCreateInput = {
   code: string;
   label: string;
   icon: string;
   description: string;
-  group: string;
-  sort: number;
-  active: string;
-  updated_at: string;
-}
-
-interface GuideCategoriesClientProps {
-  initialCategories: AdminOption[];
-}
+  group_type: string;
+  template_type: string;
+};
 
 /* ── Progress Steps ── */
 
@@ -38,21 +31,17 @@ interface ProgressStep {
   error?: string;
 }
 
-// Internal stages (used by logic, not shown directly to users)
 const INITIAL_STEPS: ProgressStep[] = [
   { id: "validation", label: "입력 정보 확인", status: "pending" },
-  { id: "schema_check", label: "CMS 구조 확인", status: "pending" },
   { id: "sheet_create", label: "데이터베이스에 저장 중...", status: "pending" },
-  { id: "site_sync", label: "사이트에 연결 중...", status: "pending" },
   { id: "route_verify", label: "페이지 준비 중...", status: "pending" },
   { id: "final_verify", label: "정상 작동 확인 중...", status: "pending" },
 ];
 
-// User-visible steps (3 simplified groups mapped from internal stages)
 const VISIBLE_GROUPS = [
-  { label: "입력 확인", stages: ["validation", "schema_check"], doneLabel: "입력 확인 완료" },
+  { label: "입력 확인", stages: ["validation"], doneLabel: "입력 확인 완료" },
   { label: "데이터베이스에 저장 중...", stages: ["sheet_create"], doneLabel: "데이터베이스 저장 완료" },
-  { label: "사이트에 반영 중...", stages: ["site_sync", "route_verify", "final_verify"], doneLabel: "사이트 반영 완료" },
+  { label: "사이트에 반영 중...", stages: ["route_verify", "final_verify"], doneLabel: "사이트 반영 완료" },
 ];
 
 function getVisibleStepStatus(steps: ProgressStep[], stages: string[]): StepStatus {
@@ -70,7 +59,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   return <span className="text-[14px] text-muted">○</span>;
 }
 
-/* ── Category Create Modal (with real Progress) ── */
+/* ── Category Create Modal ── */
 
 function CategoryCreateModal({
   open,
@@ -81,14 +70,15 @@ function CategoryCreateModal({
   open: boolean;
   existingCodes: Set<string>;
   onClose: () => void;
-  onSaved: (data: AdminOption) => void;
+  onSaved: (created: AdminOption) => void;
 }) {
   const [label, setLabel] = useState("");
-  const [icon, setIcon] = useState("📌");
+  const [icon, setIcon] = useState("");
+  const [groupType, setGroupType] = useState("COMMON");
+  const [templateType, setTemplateType] = useState("COMMON");
   const [phase, setPhase] = useState<"form" | "progress" | "done">("form");
   const [steps, setSteps] = useState<ProgressStep[]>(INITIAL_STEPS);
   const [error, setError] = useState("");
-  const [createdId, setCreatedId] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -121,45 +111,24 @@ function CategoryCreateModal({
     }
     updateStep("validation", "success");
 
-    // Step 2: SCHEMA_CHECK (verify CATEGORY entity in cms_schema)
-    updateStep("schema_check", "running");
-    try {
-      const schemaRes = await fetch("/api/admin/cms-schema?entity=CATEGORY");
-      if (schemaRes.ok) {
-        const schemaData = await schemaRes.json();
-        if (!schemaData.fields || schemaData.fields.length === 0) {
-          // Schema not set up — not fatal, we can still create
-          updateStep("schema_check", "success");
-        } else {
-          updateStep("schema_check", "success");
-        }
-      } else {
-        // Schema endpoint might not exist — not fatal
-        updateStep("schema_check", "success");
-      }
-    } catch {
-      // Schema check is non-fatal
-      updateStep("schema_check", "success");
-    }
-
-    // Step 3: SHEET_CREATE
+    // Step 2: SHEET_CREATE
     updateStep("sheet_create", "running");
-    let createdOption: AdminOption | null = null;
+    let createdRow: AdminOption | null = null;
     try {
-      const result = await adminFetchJson<{ id?: string; data?: { id?: string; option?: AdminOption } }>("/api/admin/options", {
+      createdRow = await adminFetchJson<AdminOption>("/api/admin/manage-categories", {
         method: "POST",
         body: JSON.stringify({
-          option_type: "CATEGORY",
+          code,
           label: trimmedLabel,
-          icon: icon.trim() || "📌",
-          group: "COMMON",
-        }),
+          icon: icon.trim(),
+          description: "",
+          group_type: groupType,
+          template_type: templateType,
+        } satisfies CategoryCreateInput),
       });
-      createdOption = result.data?.option ?? null;
-      if (!createdOption?.id || !createdOption.code) {
+      if (!createdRow?.id) {
         throw new Error("생성된 카테고리 정보를 확인할 수 없습니다.");
       }
-      setCreatedId(createdOption.id);
       updateStep("sheet_create", "success");
     } catch (err) {
       if (err instanceof ConflictError) {
@@ -170,44 +139,21 @@ function CategoryCreateModal({
       return;
     }
 
-    // Step 4: SITE_SYNC (invalidate cache + re-fetch)
-    updateStep("site_sync", "running");
-    try {
-      const listRes = await fetch("/api/admin/options?type=CATEGORY");
-      if (listRes.ok) {
-        const listData = await listRes.json();
-        const found = (listData.options || []).some(
-          (o: AdminOption) => o.id === createdOption!.id
-        );
-        if (found) {
-          updateStep("site_sync", "success");
-        } else {
-          // Might be cache delay — still mark success
-          updateStep("site_sync", "success");
-        }
-      } else {
-        updateStep("site_sync", "success");
-      }
-    } catch {
-      updateStep("site_sync", "success");
-    }
-
-    // Step 5: ROUTE_VERIFY — check that the public URL returns 200 and includes the category
+    // Step 3: ROUTE_VERIFY
     updateStep("route_verify", "running");
     try {
-      const routeRes = await fetch(`/guide/${createdOption!.code.toLowerCase()}`, {
-        method: "GET",
-        cache: "no-store",
-      });
-      if (!routeRes.ok) {
-        throw new Error(`공개 페이지 확인 실패 (${routeRes.status})`);
+      if (groupType === "COMMON") {
+        // COMMON categories have a single canonical route: /guide/{code}
+        const verifyPath = `/guide/${createdRow!.code.toLowerCase()}`;
+        const routeRes = await fetch(verifyPath, { method: "GET", cache: "no-store" });
+        if (!routeRes.ok) {
+          throw new Error(`공개 페이지 확인 실패 (${routeRes.status})`);
+        }
+        updateStep("route_verify", "success");
+      } else {
+        // AREA categories are verified per-area by [area]/page.tsx — skip global HTTP verify
+        updateStep("route_verify", "success");
       }
-      // Verify the page body actually renders this category
-      const body = await routeRes.text();
-      if (!body.includes(createdOption!.label)) {
-        throw new Error("공개 페이지에 카테고리가 표시되지 않습니다.");
-      }
-      updateStep("route_verify", "success");
     } catch (err) {
       updateStep(
         "route_verify",
@@ -217,21 +163,18 @@ function CategoryCreateModal({
       return;
     }
 
-    // Step 6: FINAL_VERIFY
+    // Step 4: FINAL_VERIFY
     updateStep("final_verify", "running");
     updateStep("final_verify", "success");
 
-    // All done
     setPhase("done");
 
-    // After showing completion for ~800ms, close and notify parent
     setTimeout(() => {
-      onSaved(createdOption!);
+      onSaved(createdRow!);
     }, 800);
   };
 
   const handleRetry = () => {
-    // Find the failed step and restart from there
     setPhase("form");
     setError("");
     setSteps(INITIAL_STEPS);
@@ -268,29 +211,53 @@ function CategoryCreateModal({
               />
             </div>
             <div>
+              <label className="block text-[14px] font-medium text-text mb-1">그룹 *</label>
+              <select
+                value={groupType}
+                onChange={(e) => {
+                  const g = e.target.value;
+                  setGroupType(g);
+                  // Reset template when group changes
+                  setTemplateType(g === "COMMON" ? "COMMON" : "AREA");
+                }}
+                className="w-full border border-border rounded-[10px] px-4 py-3 text-[16px] focus:outline-none focus:border-primary"
+              >
+                <option value="COMMON">COMMON — 공통 카테고리 (guide)</option>
+                <option value="AREA">AREA — 지역 카테고리 (area)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[14px] font-medium text-text mb-1">템플릿 *</label>
+              <select
+                value={templateType}
+                onChange={(e) => setTemplateType(e.target.value)}
+                className="w-full border border-border rounded-[10px] px-4 py-3 text-[16px] focus:outline-none focus:border-primary"
+              >
+                {groupType === "COMMON" ? (
+                  <option value="COMMON">COMMON — 공통 안내 (guide)</option>
+                ) : (
+                  <>
+                    <option value="AREA">AREA — 지역 FAQ</option>
+                    <option value="GOLF">GOLF — 골프장</option>
+                    <option value="HOTEL">HOTEL — 호텔</option>
+                    <option value="RESTAURANT">RESTAURANT — 음식점</option>
+                    <option value="ATTRACTION">ATTRACTION — 볼거리</option>
+                  </>
+                )}
+              </select>
+            </div>
+            <div>
               <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
-              <div className="flex flex-wrap gap-2">
-                {["📌", "♨️", "🚙", "🏨", "⛳", "🍽️", "🍜", "☕", "💰", "💱", "💳", "🛒", "🎫", "🗺️", "📍", "✈️", "🚌", "🚕", "🚆", "🛳️", "🎁", "📋", "ℹ️", "⚠️"].map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => setIcon(e)}
-                    className={`w-11 h-11 flex items-center justify-center rounded-[8px] text-[20px] border cursor-pointer transition-all ${icon === e ? "border-primary bg-primary/10 scale-110" : "border-border hover:border-primary/50"}`}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-[13px] text-muted">또는 직접 입력:</span>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={icon}
                   onChange={(e) => setIcon(e.target.value.slice(0, 4))}
-                  className="w-16 border border-border rounded-[8px] px-2 py-1 text-[18px] text-center focus:outline-none focus:border-primary"
+                  placeholder="(비워두면 없음)"
+                  className="w-24 border border-border rounded-[8px] px-3 py-2 text-[18px] text-center focus:outline-none focus:border-primary"
                   maxLength={4}
                 />
-                <span className="text-[14px]">선택: {icon}</span>
+                {icon && <span className="text-[18px]">{icon}</span>}
               </div>
             </div>
             {error && <p className="text-[14px] text-danger">{error}</p>}
@@ -301,7 +268,7 @@ function CategoryCreateModal({
           </form>
         )}
 
-        {/* Progress Phase — user sees 3 simplified steps */}
+        {/* Progress Phase */}
         {phase === "progress" && (
           <div className="space-y-3">
             {VISIBLE_GROUPS.map((group) => {
@@ -351,7 +318,7 @@ function CategoryCreateModal({
           </div>
         )}
 
-        {/* Done Phase — 3 simplified completed steps */}
+        {/* Done Phase */}
         {phase === "done" && (
           <div className="space-y-3">
             {VISIBLE_GROUPS.map((group) => (
@@ -370,7 +337,7 @@ function CategoryCreateModal({
   );
 }
 
-/* ── Edit Modal (simple, unchanged) ── */
+/* ── Edit Modal ── */
 
 function CategoryEditModal({
   category,
@@ -384,7 +351,8 @@ function CategoryEditModal({
   onSaved: (data: AdminOption) => void;
 }) {
   const [label, setLabel] = useState(category?.label || "");
-  const [icon, setIcon] = useState(category?.icon || "📌");
+  const [icon, setIcon] = useState(category?.icon || "");
+  const [templateType, setTemplateType] = useState(category?.template_type || "COMMON");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -400,14 +368,21 @@ function CategoryEditModal({
     setError("");
 
     try {
-      await adminFetchJson("/api/admin/options", {
+      await adminFetchJson("/api/admin/manage-categories", {
         method: "PUT",
-        body: JSON.stringify({ id: category.id, label: label.trim(), icon: icon.trim() || "📌" }),
+        body: JSON.stringify({
+          id: category.id,
+          label: label.trim(),
+          icon: icon.trim(),
+          template_type: templateType,
+          updated_at: category.updated_at,
+        }),
       });
       onSaved({
         ...category,
         label: label.trim(),
-        icon: icon.trim() || "📌",
+        icon: icon.trim(),
+        template_type: templateType,
         updated_at: new Date().toISOString(),
       });
     } catch (err) {
@@ -444,29 +419,37 @@ function CategoryEditModal({
           </div>
           <div>
             <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
-            <div className="flex flex-wrap gap-2">
-              {["📌", "♨️", "🚙", "🏨", "⛳", "🍽️", "🍜", "☕", "💰", "💱", "💳", "🛒", "🎫", "🗺️", "📍", "✈️", "🚌", "🚕", "🚆", "🛳️", "🎁", "📋", "ℹ️", "⚠️"].map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setIcon(e)}
-                  className={`w-11 h-11 flex items-center justify-center rounded-[8px] text-[20px] border cursor-pointer transition-all ${icon === e ? "border-primary bg-primary/10 scale-110" : "border-border hover:border-primary/50"}`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-[13px] text-muted">또는 직접 입력:</span>
+            <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={icon}
                 onChange={(e) => setIcon(e.target.value.slice(0, 4))}
-                className="w-16 border border-border rounded-[8px] px-2 py-1 text-[18px] text-center focus:outline-none focus:border-primary"
+                placeholder="(비워두면 없음)"
+                className="w-24 border border-border rounded-[8px] px-3 py-2 text-[18px] text-center focus:outline-none focus:border-primary"
                 maxLength={4}
               />
-              <span className="text-[14px]">선택: {icon}</span>
+              {icon && <span className="text-[18px]">{icon}</span>}
             </div>
+          </div>
+          <div>
+            <label className="block text-[14px] font-medium text-text mb-1">템플릿 *</label>
+            <select
+              value={templateType}
+              onChange={(e) => setTemplateType(e.target.value)}
+              className="w-full border border-border rounded-[10px] px-4 py-3 text-[16px] focus:outline-none focus:border-primary"
+            >
+              {category.group === "COMMON" ? (
+                <option value="COMMON">COMMON — 공통 안내 (guide)</option>
+              ) : (
+                <>
+                  <option value="AREA">AREA — 지역 FAQ</option>
+                  <option value="GOLF">GOLF — 골프장</option>
+                  <option value="HOTEL">HOTEL — 호텔</option>
+                  <option value="RESTAURANT">RESTAURANT — 음식점</option>
+                  <option value="ATTRACTION">ATTRACTION — 볼거리</option>
+                </>
+              )}
+            </select>
           </div>
           {error && <p className="text-[14px] text-danger">{error}</p>}
           <div className="flex gap-2 pt-2">
@@ -481,7 +464,9 @@ function CategoryEditModal({
 
 export default function GuideCategoriesClient({
   initialCategories,
-}: GuideCategoriesClientProps) {
+}: {
+  initialCategories: AdminOption[];
+}) {
   const [categories, setCategories] = useState(initialCategories);
   const [createModal, setCreateModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
@@ -510,8 +495,8 @@ export default function GuideCategoriesClient({
     setEditModal(true);
   };
 
-  const handleCreated = (saved: AdminOption) => {
-    setCategories((prev) => [...prev, saved].sort((a, b) => a.sort - b.sort));
+  const handleCreated = (created: AdminOption) => {
+    setCategories((prev) => [...prev, created].sort((a, b) => a.sort - b.sort));
     showToast("카테고리 생성 완료");
     setCreateModal(false);
     router.refresh();
@@ -528,7 +513,7 @@ export default function GuideCategoriesClient({
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/options?id=${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/manage-categories?id=${deleteTarget.id}`, { method: "DELETE" });
       if (res.ok) {
         setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
         setDeleteTarget(null);

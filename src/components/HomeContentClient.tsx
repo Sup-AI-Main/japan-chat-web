@@ -44,7 +44,7 @@ function OptionEditModal({
   onSaved: (data: AdminOption) => void;
 }) {
   const [label, setLabel] = useState(option?.label || "");
-  const [icon, setIcon] = useState(option?.icon || "📌");
+  const [icon, setIcon] = useState(option?.icon || "");
   const [description, setDescription] = useState(option?.description || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -62,16 +62,45 @@ function OptionEditModal({
 
     try {
       const isEdit = !!option;
-      const result = await adminFetchJson<{ id?: string; data?: { id?: string; option?: Record<string, unknown> } }>("/api/admin/options", {
-        method: isEdit ? "PUT" : "POST",
-        body: JSON.stringify(
-          isEdit
-            ? { id: option.id, label: label.trim(), icon: icon.trim(), description: description.trim() }
-            : { option_type: optionType, label: label.trim(), icon: icon.trim(), description: description.trim(), group: group || "" }
-        ),
-      });
+      if (optionType === "CATEGORY") {
+        const endpoint = "/api/admin/manage-categories";
+        if (isEdit) {
+          await adminFetchJson(endpoint, {
+            method: "PUT",
+            body: JSON.stringify({
+              id: option!.id,
+              label: label.trim(),
+              icon: icon.trim(),
+              description: description.trim(),
+              updated_at: option!.updated_at,
+            }),
+          });
+        } else {
+          const code = label.trim().replace(/\s+/g, "_").toUpperCase().slice(0, 20);
+          await adminFetchJson(endpoint, {
+            method: "POST",
+            body: JSON.stringify({
+              code,
+              label: label.trim(),
+              icon: icon.trim(),
+              description: description.trim(),
+              group_type: group || "COMMON",
+              template_type: "COMMON",
+            }),
+          });
+        }
+      } else {
+        await adminFetchJson<Record<string, unknown>>("/api/admin/options", {
+          method: isEdit ? "PUT" : "POST",
+          body: JSON.stringify(
+            isEdit
+              ? { id: option.id, label: label.trim(), icon: icon.trim(), description: description.trim() }
+              : { option_type: optionType, label: label.trim(), icon: icon.trim(), description: description.trim(), group: group || "" }
+          ),
+        });
+      }
       onSaved({
-        id: result.data?.id || result.id || option?.id || "",
+        id: option?.id || label.trim().replace(/\s+/g, "_").toUpperCase(),
         option_type: optionType,
         code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
         label: label.trim(),
@@ -222,7 +251,10 @@ export default function HomeContentClient({
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/options?id=${deleteTarget.id}`, { method: "DELETE" });
+      const endpoint = deleteType === "CATEGORY"
+        ? `/api/admin/manage-categories?id=${deleteTarget.id}`
+        : `/api/admin/options?id=${deleteTarget.id}`;
+      const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
         if (deleteType === "AREA") {
           setAreas((prev) => prev.filter((a) => a.id !== deleteTarget.id));
@@ -282,16 +314,19 @@ export default function HomeContentClient({
             {isAdmin && <AddButton onClick={handleAddCategory} label="카테고리 추가" />}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {categories.map((cat) => (
-              <div key={cat.code} className="relative group/cat">
-                <Link
-                  href={routes.guideCategory(cat.code.toLowerCase())}
-                  className="block bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary transition-colors"
-                >
-                  <span className="text-[16px] font-medium text-text">
-                    {cat.icon || getCategoryEmoji(cat.code)} {cat.label}
-                  </span>
-                </Link>
+            {categories.map((cat) => {
+              // Home page only serves COMMON group categories (filtered by page.tsx)
+              const catHref = routes.guideCategory(cat.code.toLowerCase());
+              return (
+                <div key={cat.code} className="relative group/cat">
+                  <Link
+                    href={catHref}
+                    className="block bg-surface border border-border rounded-[12px] p-4 text-center hover:border-primary transition-colors"
+                  >
+                    <span className="text-[16px] font-medium text-text">
+                      {cat.icon || getCategoryEmoji(cat.code)} {cat.label}
+                    </span>
+                  </Link>
                 {isAdmin && (
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     <button
@@ -310,8 +345,9 @@ export default function HomeContentClient({
                     </button>
                   </div>
                 )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
