@@ -438,10 +438,10 @@ export async function resolveAreaFromAdmin(slug: string): Promise<AdminOption | 
  * Throws Error on DB failure.
  */
 export async function resolveCategoryFromAdmin(slug: string): Promise<AdminOption | null> {
-  const code = slug.toUpperCase();
+  const code = normalizeCategoryRouteCode(slug);
   const options = await getAdminOptions();
   return (
-    options.find((o) => o.option_type === 'CATEGORY' && o.code === code && o.active !== 'FALSE') ??
+    options.find((o) => o.option_type === 'CATEGORY' && normalizeCategoryRouteCode(o.code) === code && o.active !== 'FALSE') ??
     null
   );
 }
@@ -451,9 +451,19 @@ export async function resolveCategoryFromAdmin(slug: string): Promise<AdminOptio
  * Throws Error on DB failure.
  */
 export async function resolveCommonCategory(slug: string): Promise<AdminOption | null> {
-  const code = slug.trim().toUpperCase();
+  const code = normalizeCategoryRouteCode(slug);
   const categories = await getCommonCategories();
-  return categories.find((c) => c.code === code) ?? null;
+  return categories.find((c) => normalizeCategoryRouteCode(c.code) === code) ?? null;
+}
+
+function normalizeCategoryRouteCode(value: string): string {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // Keep malformed input unchanged; the lookup will safely return null.
+  }
+  return decoded.trim().toUpperCase().replace(/\s+/g, '-');
 }
 
 /**

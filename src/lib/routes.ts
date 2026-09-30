@@ -17,23 +17,34 @@ export const routes = {
   areaRestaurantDetail: (slug: string, id: string) => `/${slug}/restaurant/${id}`,
   areaAttraction: (slug: string) => `/${slug}/attraction`,
   areaAttractionDetail: (slug: string, slugOrId: string) => `/${slug}/attraction/${slugOrId}`,
-  areaFaq: (slug: string, category: string) => `/${slug}/faq/${category}`,
+  areaFaq: (slug: string, category: string) => `/${slug}/faq/${categoryRouteSlug(category)}`,
 
   // Guide routes
   guide: () => '/guide',
-  guideCategory: (category: string) => `/guide/${category}`,
+  guideCategory: (category: string) => `/guide/${categoryRouteSlug(category)}`,
 
   // Admin routes
   admin: () => '/admin',
   adminHome: () => '/admin/home',
   adminArea: (slug: string) => `/admin/${slug}`,
-  adminAreaCategory: (slug: string, category: string) => `/admin/${slug}/${category}`,
-  adminAreaCategoryNew: (slug: string, category: string) => `/admin/${slug}/${category}/new`,
+  adminAreaCategory: (slug: string, category: string) => `/admin/${slug}/${categoryRouteSlug(category)}`,
+  adminAreaCategoryNew: (slug: string, category: string) => `/admin/${slug}/${categoryRouteSlug(category)}/new`,
   adminAreaCategoryDetail: (slug: string, category: string, id: string) =>
-    `/admin/${slug}/${category}/${id}`,
+    `/admin/${slug}/${categoryRouteSlug(category)}/${id}`,
   adminAreaEntities: (slug: string) => `/admin/${slug}/entities`,
   adminAreaManage: (slug: string) => `/admin/${slug}/manage`,
 } as const;
+
+/** Convert legacy category codes such as `TEST Q` into URL-safe slugs. */
+export function categoryRouteSlug(categoryCode: string): string {
+  let decoded = categoryCode;
+  try {
+    decoded = decodeURIComponent(categoryCode);
+  } catch {
+    // Keep the original value when a malformed URL escape is supplied.
+  }
+  return decoded.trim().toLowerCase().replace(/\s+/g, '-');
+}
 
 // ---------------------------------------------------------------------------
 // Centralized category route resolver
@@ -61,7 +72,7 @@ export function resolveCategoryRoute(
   groupType: string
 ): string | null {
   const tt = (templateType || 'COMMON').toUpperCase();
-  const codeLower = categoryCode.toLowerCase();
+  const codeLower = categoryRouteSlug(categoryCode);
 
   if (ENTITY_TEMPLATES.has(tt)) {
     if (groupType === 'AREA') {

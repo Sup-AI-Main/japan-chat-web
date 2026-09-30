@@ -1,5 +1,36 @@
 # Category Template Routing Remediation TODO
 
+## 2026-09-30 — Full CRUD follow-up (local, not deployed)
+
+이번 후속 점검에서 발견한 CRUD 문제와 수정 사항:
+
+- `HomeContentClient`: 카테고리 저장 응답을 `{ success, data }`에서 실제 행으로 반영하도록 수정.
+- `HomeContentClient`: 지역 수정/추가를 오류가 있는 레거시 `/api/admin/options`가 아니라 `/api/admin/areas`로 연결.
+- `HomeContentClient`: 지역·카테고리 삭제에 `confirmed=true`를 전달하고 실패 응답을 토스트로 표시.
+- `GuideCategoriesClient`: 생성 응답의 실제 `data` 행을 사용하도록 확인.
+- `GuideFaqClient`: FAQ 생성 시 실제 DB ID(`result.data.id`)를 저장하고, 삭제 실패를 표시하도록 수정.
+- `AreaTravelTimesClient`: 이동시간 삭제 실패를 조용히 무시하지 않고 오류를 표시하도록 수정.
+- `src/app/admin/[area]/manage/ManageEntitiesClient.tsx`: 지역 수정 경로를 `/api/admin/areas`로 교체하고 `name_kr/name_jp/icon` 필드로 저장.
+- `GolfEditModal`: 추가 라벨 삭제·추가 시 기존 `details_json`의 다른 섹션을 보존하도록 수정. 빈 라벨을 임의의 라벨로 만들지 않음.
+- `entity-editor` GET: 기존 `content_sections` 데이터가 아직 JSON으로 이전되지 않은 엔티티도 상세 편집기에 불러오도록 보완.
+
+검증:
+
+- `git diff --check` PASS
+- `npx tsc --noEmit --pretty false` PASS
+- `npm run lint` PASS
+- 현재 slug 정규화 변경은 로컬 작업 트리 상태이며, 이 후속 수정에 대한 `DEPLOY_VERIFIED`는 아직 미검증.
+
+### Production QA follow-up
+
+- [x] 홈, 지역, 골프, 호텔, 맛집, 볼거리 목록, 공통 안내 페이지의 텍스트 렌더링 확인.
+- [x] 골프·호텔·맛집 상세 페이지의 `세부사항 수정` 진입점 확인.
+- [x] 상세 편집기에서 기존 섹션 삭제, 항목 추가, 저장 버튼 DOM 확인.
+- [ ] 운영 mutation round-trip은 데이터 보호를 위해 미실행.
+- [x] `/dos/faq/test%20q` 404 원인 확인: legacy `code = TEST Q`의 공백 slug 처리 누락.
+- [x] URL 생성 및 category resolver/admin resolver에 공백 code slug 정규화 적용.
+- [ ] 수정사항 배포 후 `/dos/faq/test-q` 및 관리자 링크 재확인.
+
 ## Phase 0 — Evidence ✅ COMPLETE
 
 - [x] Read `AGENTS.md` and relevant CMS/schema/verification guidance.
@@ -121,4 +152,4 @@ HTTP tests via dev server (localhost:3001):
   - `/dos` → 200, `/guide` → 200, `/guide/onsen` → 200
   - `/dos/faq/restaurant` → 200, `/dos/faq/hotel` → 200
   - `/guide/nonexistent_category_xyz` → 404, `/dos/faq/general` → 404
-- Production deployed SHA = f691ce1.
+- Historical production smoke test referenced `f691ce1`; current slug-normalization fix requires a new deployment verification.
