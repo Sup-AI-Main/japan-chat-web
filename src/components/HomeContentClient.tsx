@@ -62,10 +62,11 @@ function OptionEditModal({
 
     try {
       const isEdit = !!option;
+      let saved: AdminOption;
       if (optionType === "CATEGORY") {
         const endpoint = "/api/admin/manage-categories";
         if (isEdit) {
-          await adminFetchJson(endpoint, {
+          const result = await adminFetchJson<{ success: true; data: AdminOption }>(endpoint, {
             method: "PUT",
             body: JSON.stringify({
               id: option!.id,
@@ -75,9 +76,10 @@ function OptionEditModal({
               updated_at: option!.updated_at,
             }),
           });
+          saved = result.data;
         } else {
           const code = label.trim().replace(/\s+/g, "_").toUpperCase().slice(0, 20);
-          await adminFetchJson(endpoint, {
+          const result = await adminFetchJson<{ success: true; data: AdminOption }>(endpoint, {
             method: "POST",
             body: JSON.stringify({
               code,
@@ -88,9 +90,55 @@ function OptionEditModal({
               template_type: "COMMON",
             }),
           });
+          saved = result.data;
         }
+      } else if (optionType === "AREA") {
+        const result = await adminFetchJson<{
+          success: true;
+          data: {
+            id: string;
+            code: string;
+            name_kr: string;
+            icon: string;
+            description: string;
+            sort: number;
+            active: boolean;
+            updated_at: string;
+          };
+        }>("/api/admin/areas", {
+          method: isEdit ? "PUT" : "POST",
+          body: JSON.stringify(
+            isEdit
+              ? {
+                  id: option!.id,
+                  name_kr: label.trim(),
+                  icon: icon.trim(),
+                  description: description.trim(),
+                  updated_at: option!.updated_at,
+                }
+              : {
+                  code: label.trim().replace(/\s+/g, "_").toUpperCase().slice(0, 20),
+                  name_kr: label.trim(),
+                  icon: icon.trim(),
+                  description: description.trim(),
+                  sort: 999,
+                }
+          ),
+        });
+        saved = {
+          id: result.data.id,
+          option_type: "AREA",
+          code: result.data.code,
+          label: result.data.name_kr,
+          icon: result.data.icon || "",
+          description: result.data.description || "",
+          group: "",
+          sort: result.data.sort,
+          active: result.data.active ? "TRUE" : "FALSE",
+          updated_at: result.data.updated_at,
+        };
       } else {
-        await adminFetchJson<Record<string, unknown>>("/api/admin/options", {
+        const result = await adminFetchJson<{ success: true; data?: AdminOption }>("/api/admin/options", {
           method: isEdit ? "PUT" : "POST",
           body: JSON.stringify(
             isEdit
@@ -98,20 +146,22 @@ function OptionEditModal({
               : { option_type: optionType, label: label.trim(), icon: icon.trim(), description: description.trim(), group: group || "" }
           ),
         });
+        saved = result.data || {
+          ...option,
+          id: option?.id || label.trim().replace(/\s+/g, "_").toUpperCase(),
+          option_type: optionType,
+          code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
+          label: label.trim(),
+          icon: icon.trim(),
+          description: description.trim(),
+          group: group || option?.group || "",
+          sort: option?.sort || 999,
+          active: option?.active || "TRUE",
+          updated_at: new Date().toISOString(),
+          template_type: option?.template_type || "COMMON",
+        } as AdminOption;
       }
-      onSaved({
-        id: option?.id || label.trim().replace(/\s+/g, "_").toUpperCase(),
-        option_type: optionType,
-        code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
-        label: label.trim(),
-        icon: icon.trim(),
-        description: description.trim(),
-        group: group || "",
-        sort: option?.sort || 999,
-        active: "TRUE",
-        updated_at: new Date().toISOString(),
-        template_type: option?.template_type || "COMMON",
-      });
+      onSaved(saved);
       // Note: Do not call onClose() here. The parent component
       // will handle showing a toast and closing the modal after a delay.
     } catch (err) {
@@ -252,8 +302,8 @@ export default function HomeContentClient({
     setDeleteLoading(true);
     try {
       const endpoint = deleteType === "CATEGORY"
-        ? `/api/admin/manage-categories?id=${deleteTarget.id}`
-        : `/api/admin/options?id=${deleteTarget.id}`;
+        ? `/api/admin/manage-categories?id=${deleteTarget.id}&confirmed=true`
+        : `/api/admin/areas?id=${deleteTarget.id}&confirmed=true`;
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
         if (deleteType === "AREA") {
@@ -262,7 +312,11 @@ export default function HomeContentClient({
           setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
         }
         setDeleteTarget(null);
+      } else {
+        throw new Error(`${deleteType === "AREA" ? "지역" : "카테고리"} 삭제 실패 (${res.status})`);
       }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "삭제 실패");
     } finally {
       setDeleteLoading(false);
     }

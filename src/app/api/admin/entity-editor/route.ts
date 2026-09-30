@@ -42,13 +42,54 @@ export async function GET(req: NextRequest) {
       ? areaRelation[0]?.code
       : areaRelation?.code;
 
+    let detailsJson = data.details_json;
+    if (!detailsJson) {
+      // Legacy content_sections must remain editable when an entity has not
+      // yet been migrated to the JSON document format. Convert them into the
+      // editor's draft shape without mutating the database during GET.
+      const { data: legacySections, error: legacyError } = await supabase
+        .from("content_sections")
+        .select("id, title, content, emoji, sort, is_visible")
+        .eq("parent_entity_id", entityId)
+        .order("sort");
+
+      if (legacyError) throw legacyError;
+      if (legacySections && legacySections.length > 0) {
+        detailsJson = {
+          version: 1,
+          sections: legacySections.map((section) => ({
+            id: `legacy-section-${section.id}`,
+            key: `legacy_${section.id}`,
+            title_ko: section.title || "추가 안내",
+            title_jp: null,
+            emoji: section.emoji || null,
+            sort: section.sort ?? 0,
+            is_visible: section.is_visible !== false,
+            items: [
+              {
+                id: `legacy-item-${section.id}`,
+                key: `legacy_${section.id}_content`,
+                label_ko: "",
+                label_jp: null,
+                type: "textarea",
+                value: section.content || null,
+                value_jp: null,
+                sort: 0,
+                is_visible: section.is_visible !== false,
+              },
+            ],
+          })),
+        };
+      }
+    }
+
     return ok({
       id: data.id,
       slug: data.slug,
       display_name: data.display_name,
       entity_type: data.entity_type,
       updated_at: data.updated_at,
-      details_json: data.details_json,
+      details_json: detailsJson,
       area: areaCode ?? null,
     });
   } catch (err) {

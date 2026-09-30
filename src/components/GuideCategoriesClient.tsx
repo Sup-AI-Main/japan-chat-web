@@ -115,7 +115,7 @@ function CategoryCreateModal({
     updateStep("sheet_create", "running");
     let createdRow: AdminOption | null = null;
     try {
-      createdRow = await adminFetchJson<AdminOption>("/api/admin/manage-categories", {
+      const result = await adminFetchJson<{ success: true; data: AdminOption }>("/api/admin/manage-categories", {
         method: "POST",
         body: JSON.stringify({
           code,
@@ -126,6 +126,7 @@ function CategoryCreateModal({
           template_type: templateType,
         } satisfies CategoryCreateInput),
       });
+      createdRow = result.data;
       if (!createdRow?.id) {
         throw new Error("생성된 카테고리 정보를 확인할 수 없습니다.");
       }
@@ -513,12 +514,16 @@ export default function GuideCategoriesClient({
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/manage-categories?id=${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/manage-categories?id=${deleteTarget.id}&confirmed=true`, { method: "DELETE" });
       if (res.ok) {
         setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
         setDeleteTarget(null);
         router.refresh();
+      } else {
+        throw new Error(`카테고리 삭제 실패 (${res.status})`);
       }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "카테고리 삭제 실패");
     } finally {
       setDeleteLoading(false);
     }

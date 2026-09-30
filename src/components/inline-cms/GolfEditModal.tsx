@@ -59,14 +59,20 @@ function readCustomFields(document?: EntityDetailsDocumentV1 | null): CustomGolf
   }));
 }
 
-function toCustomDetails(fields: CustomGolfField[]): EntityDetailsDocumentV1 | null {
+function toCustomDetails(fields: CustomGolfField[], currentDocument?: EntityDetailsDocumentV1 | null): EntityDetailsDocumentV1 | null {
   const items: EntityDetailsItem[] = fields
     .filter((field) => field.label.trim() || field.value.trim())
     .map((field, index) => {
       const key = `label-${index + 1}`;
-      return { id: key, key, label_ko: field.label.trim() || `항목 ${index + 1}`, type: "textarea", value: field.value, sort: index + 1, is_visible: true };
+      return { id: key, key, label_ko: field.label.trim(), type: "textarea", value: field.value, sort: index + 1, is_visible: true };
     });
-  return items.length ? { version: 1, sections: [{ id: "custom-golf-fields", key: "custom_golf_fields", title_ko: "추가 정보", sort: 1, is_visible: true, items }] } : null;
+  const existingSections = (currentDocument?.sections ?? []).filter(
+    (section) => section.key !== "custom_golf_fields",
+  );
+  const sections = items.length
+    ? [...existingSections, { id: "custom-golf-fields", key: "custom_golf_fields", title_ko: "추가 정보", sort: existingSections.length + 1, is_visible: true, items }]
+    : existingSections;
+  return sections.length ? { version: 1, sections } : null;
 }
 
 const SECTIONS = [
@@ -227,7 +233,7 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          details_json: toCustomDetails(customFields),
+          details_json: toCustomDetails(customFields, golf?.details_json),
           id: golf?.id,
           area: area.toUpperCase(),
         }),

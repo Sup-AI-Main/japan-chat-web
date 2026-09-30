@@ -203,13 +203,13 @@ export default function ManageEntitiesClient({
     if (!currentArea) return;
     setAreaLoading(true);
     try {
-      await adminFetchJson("/api/admin/options", {
+      await adminFetchJson("/api/admin/areas", {
         method: "PUT",
         body: JSON.stringify({
           id: currentArea.id,
-          label: areaForm.name_kr,
+          name_kr: areaForm.name_kr,
+          name_jp: areaForm.name_jp,
           icon: areaForm.icon,
-          description: areaForm.name_jp,
         }),
       });
       showToast("지역 정보 저장 완료");

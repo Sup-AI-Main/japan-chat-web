@@ -278,10 +278,14 @@ export default function AreaTravelTimesClient({
       const res = await fetch(`/api/admin/travel-times?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        setTravelTimes((prev) => prev.filter((t) => t.id !== deleteTarget.id));
-        setDeleteTarget(null);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `이동시간 삭제 실패 (${res.status})`);
       }
+      setTravelTimes((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "이동시간 삭제 실패");
     } finally {
       setDeleteLoading(false);
     }

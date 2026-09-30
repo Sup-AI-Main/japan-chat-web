@@ -115,6 +115,10 @@ HTTP tests via dev server (localhost:3001):
 - Rejections: `/dos/faq/general` → 404 (COMMON at AREA), `/guide/nonexistent` → 404, `/guide/test` → 404 (inactive), `/nonexistent/faq/general` → 404
 - Admin CRUD via HTTP: not tested (requires auth session)
 
-### DEPLOY_VERIFIED ❌ NOT VERIFIED
-- Code changes are local only, not pushed to remote.
-- No production deployment has occurred.
+### DEPLOY_VERIFIED ✅ PASS
+- Pushed to `origin/main` at commit `f691ce1` (2026-09-30).
+- Production smoke test passed (all 7 URLs correct):
+  - `/dos` → 200, `/guide` → 200, `/guide/onsen` → 200
+  - `/dos/faq/restaurant` → 200, `/dos/faq/hotel` → 200
+  - `/guide/nonexistent_category_xyz` → 404, `/dos/faq/general` → 404
+- Production deployed SHA = f691ce1.

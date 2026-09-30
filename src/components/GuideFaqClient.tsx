@@ -55,12 +55,12 @@ function FaqEditModal({
         active: "TRUE",
       };
 
-      const result = await adminFetchJson<{ id?: string }>("/api/admin/faq", {
+      const result = await adminFetchJson<{ success: true; data: { id?: string } }>("/api/admin/faq", {
         method: isEdit ? "PUT" : "POST",
         body: JSON.stringify(payload),
       });
       onSaved({
-        id: result.id || faq?.id || "",
+        id: result.data?.id || faq?.id || "",
         area: "ALL",
         category: categoryCode,
         question_scope: "AREA",
@@ -180,10 +180,14 @@ export default function GuideFaqClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: deleteTarget.id }),
       });
-      if (res.ok) {
-        setFaqs((prev) => prev.filter((f) => f.id !== deleteTarget.id));
-        setDeleteTarget(null);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `질문 삭제 실패 (${res.status})`);
       }
+      setFaqs((prev) => prev.filter((f) => f.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "질문 삭제 실패");
     } finally {
       setDeleteLoading(false);
     }
