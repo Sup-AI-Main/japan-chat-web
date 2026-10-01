@@ -95,7 +95,7 @@ export function HotelDetailClient({
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
-    window.location.reload();
+    window.setTimeout(() => window.location.reload(), 500);
   };
 
   // Legacy fallback: check if variable detail fields have data

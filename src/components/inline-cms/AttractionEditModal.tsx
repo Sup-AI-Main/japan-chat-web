@@ -68,6 +68,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
   }, [attraction?.id]);
 
   async function handleSave() {
+    if (saving) return;
     if (!form.name_kr.trim()) {
       setError("이름(한국어)은 필수입니다.");
       return;

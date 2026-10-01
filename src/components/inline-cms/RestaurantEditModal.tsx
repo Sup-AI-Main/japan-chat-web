@@ -208,6 +208,7 @@ export function RestaurantEditModal({
   };
 
   const handleSave = async () => {
+    if (saving) return;
     setSaving(true);
     setError("");
     setConflict(false);

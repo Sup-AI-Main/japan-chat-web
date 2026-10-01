@@ -206,6 +206,7 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
   };
 
   const handleSave = async () => {
+    if (saving) return;
     setError("");
 
     // Validate required fields

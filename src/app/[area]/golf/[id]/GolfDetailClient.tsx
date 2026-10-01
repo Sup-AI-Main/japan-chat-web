@@ -73,7 +73,7 @@ export function GolfDetailClient({
     setDetailsEditorOpen(false);
     // Force a fresh document after server revalidation so deleted containers
     // cannot survive in a stale App Router/client state tree.
-    window.location.reload();
+    window.setTimeout(() => window.location.reload(), 500);
   };
 
   return (

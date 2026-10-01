@@ -56,7 +56,7 @@ export default function AttractionDetailClient({ attraction: initialAttraction, 
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
-    window.location.reload();
+    window.setTimeout(() => window.location.reload(), 500);
   };
 
   const confirmDelete = async () => {

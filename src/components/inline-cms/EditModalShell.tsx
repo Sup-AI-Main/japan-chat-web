@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ModalShell } from "./ModalShell";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface EditModalShellProps {
   open: boolean;
@@ -31,13 +32,13 @@ export function EditModalShell({
   requestCloseRef,
   children,
 }: EditModalShellProps) {
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+
   const handleClose = useCallback(() => {
     if (saving) return;
     if (isDirty) {
-      const ok = window.confirm(
-        "저장하지 않은 변경사항이 있습니다. 변경사항을 버리고 닫으시겠습니까?"
-      );
-      if (!ok) return;
+      setDiscardConfirmOpen(true);
+      return;
     }
     onClose();
   }, [saving, isDirty, onClose]);
@@ -49,13 +50,14 @@ export function EditModalShell({
   }, [requestCloseRef, handleClose]);
 
   return (
-    <ModalShell
-      open={open}
-      title={title}
-      onClose={handleClose}
-      error={error}
-      footer={
-        <>
+    <>
+      <ModalShell
+        open={open}
+        title={title}
+        onClose={handleClose}
+        error={error}
+        footer={
+          <>
           <button
             type="button"
             onClick={handleClose}
@@ -72,10 +74,22 @@ export function EditModalShell({
           >
             {saving ? savingLabel : saveLabel}
           </button>
-        </>
-      }
-    >
-      {children}
-    </ModalShell>
+          </>
+        }
+      >
+        {children}
+      </ModalShell>
+      <ConfirmModal
+        open={discardConfirmOpen}
+        title="변경사항 취소"
+        message="저장하지 않은 변경사항이 있습니다. 변경사항을 버리고 닫으시겠습니까?"
+        confirmLabel="버리고 닫기"
+        onCancel={() => setDiscardConfirmOpen(false)}
+        onConfirm={() => {
+          setDiscardConfirmOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

@@ -15,6 +15,8 @@
 "use client";
 
 import { ModalShell } from "@/components/inline-cms/ModalShell";
+import { ConfirmModal } from "@/components/inline-cms/ConfirmModal";
+import { useState } from "react";
 import type { SaveStep } from "./EntitySaveProgress";
 import { EntitySaveProgress } from "./EntitySaveProgress";
 
@@ -43,25 +45,26 @@ export function EntityDetailsEditorModal({
   showPipeline,
   children,
 }: EntityDetailsEditorModalProps) {
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+
   const handleClose = () => {
     if (saving) return; // block close while saving
     if (isDirty) {
-      const ok = window.confirm(
-        "저장하지 않은 변경사항이 있습니다. 변경사항을 버리고 닫으시겠습니까?"
-      );
-      if (!ok) return;
+      setDiscardConfirmOpen(true);
+      return;
     }
     onClose();
   };
 
   return (
-    <ModalShell
-      open={open}
-      title={title}
-      onClose={handleClose}
-      error={error ?? undefined}
-      footer={
-        <div className="flex items-center gap-3 w-full">
+    <>
+      <ModalShell
+        open={open}
+        title={title}
+        onClose={handleClose}
+        error={error ?? undefined}
+        footer={
+          <div className="flex items-center gap-3 w-full">
           {isDirty && !saving && (
             <span className="text-[13px] text-orange-600 flex-1">
               저장되지 않은 변경사항
@@ -83,13 +86,25 @@ export function EntityDetailsEditorModal({
           >
             {saving ? "저장 중..." : "수정완료"}
           </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {children}
+          <EntitySaveProgress steps={saveSteps} visible={showPipeline} />
         </div>
-      }
-    >
-      <div className="space-y-4">
-        {children}
-        <EntitySaveProgress steps={saveSteps} visible={showPipeline} />
-      </div>
-    </ModalShell>
+      </ModalShell>
+      <ConfirmModal
+        open={discardConfirmOpen}
+        title="변경사항 취소"
+        message="저장하지 않은 변경사항이 있습니다. 변경사항을 버리고 닫으시겠습니까?"
+        confirmLabel="버리고 닫기"
+        onCancel={() => setDiscardConfirmOpen(false)}
+        onConfirm={() => {
+          setDiscardConfirmOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }
