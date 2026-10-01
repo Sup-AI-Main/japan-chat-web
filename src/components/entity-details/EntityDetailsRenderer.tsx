@@ -37,7 +37,21 @@ function isDuplicateOfTitle(
 }
 
 /** Sections whose items are conceptually a flat list (no per-item labels). */
-const LIST_SECTION_KEYS = new Set(["includes", "excludes"]);
+const LIST_SECTION_KEYS = new Set([
+  "includes",
+  "excludes",
+  "included",
+  "excluded",
+  "included_items",
+  "excluded_items",
+]);
+
+function isListSection(section: EntityDetailsSection): boolean {
+  if (LIST_SECTION_KEYS.has(section.key.trim().toLowerCase())) return true;
+
+  const title = section.title_ko.trim().replace(/\s+/g, "");
+  return title === "포함사항" || title === "불포함사항";
+}
 
 // ---------------------------------------------------------------------------
 // Field value renderer
@@ -154,21 +168,26 @@ export function EntityDetailsRenderer({ details }: EntityDetailsRendererProps) {
               {section.title_ko}
             </h2>
 
-            {LIST_SECTION_KEYS.has(section.key) ? (
+            {isListSection(section) ? (
               /* List-style sections: render all values as a single bullet list */
               <ul className="space-y-1.5 list-disc list-inside">
                 {items.map((item) => {
                   if (isItemEmpty(item)) return null;
-                  const text =
-                    typeof item.value === "string"
-                      ? item.value
-                      : String(item.value ?? "");
-                  if (!text.trim()) return null;
-                  return (
-                    <li key={item.id} className="text-[15px] text-text">
-                      {text}
-                    </li>
-                  );
+                  const values = Array.isArray(item.value)
+                    ? item.value
+                    : [item.value];
+                  return values.map((value, valueIndex) => {
+                    const text = typeof value === "string" ? value : String(value ?? "");
+                    if (!text.trim()) return null;
+                    return (
+                      <li
+                        key={`${item.id}-${valueIndex}`}
+                        className="text-[15px] text-text"
+                      >
+                        {text}
+                      </li>
+                    );
+                  });
                 })}
               </ul>
             ) : (
