@@ -45,11 +45,13 @@ export default function HotelListClient({
     router.refresh();
   };
 
-  const handleDelete = async (hotel: Hotel) => {
+  const handleDelete = async (hotel: Hotel): Promise<boolean> => {
     const res = await fetch(`/api/admin/hotel?id=${hotel.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
     if (res.ok) {
       setHotels((prev) => prev.filter((h) => h.id !== hotel.id));
+      return true;
     }
+    return false;
   };
 
   const hotelToEditData = (h: Hotel) => ({

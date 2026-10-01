@@ -59,14 +59,16 @@ export default function AttractionDetailClient({ attraction: initialAttraction, 
     window.setTimeout(() => window.location.reload(), 500);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (): Promise<boolean> => {
     setDeleting(true);
     try {
       const res = await fetch(`/api/admin/attraction?id=${attraction.id}&area=${area}`, { method: "DELETE" });
       if (res.ok) {
         router.push(`/${area}/attraction`);
+        return true;
       } else {
         showToast("삭제에 실패했습니다.");
+        return false;
       }
     } finally {
       setDeleting(false);

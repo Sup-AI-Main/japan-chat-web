@@ -180,8 +180,8 @@ export default function RestaurantListClient({
     setDeleteModal({ open: true, restaurant });
   };
 
-  const confirmDelete = async () => {
-    if (!deleteModal.restaurant) return;
+  const confirmDelete = async (): Promise<boolean> => {
+    if (!deleteModal.restaurant) return false;
     setDeleting(true);
     try {
       const res = await fetch(`/api/admin/restaurant?id=${deleteModal.restaurant.id}&area=${area}`, {
@@ -189,8 +189,9 @@ export default function RestaurantListClient({
       });
       if (res.ok) {
         setRestaurants((prev) => prev.filter((r) => r.id !== deleteModal.restaurant!.id));
-        setDeleteModal({ open: false, restaurant: null });
+        return true;
       }
+      return false;
     } finally {
       setDeleting(false);
     }
@@ -336,7 +337,6 @@ export default function RestaurantListClient({
           onClose={() => setEditModal({ open: false, restaurant: null })}
           onSaved={(saved) => {
             handleSaved(saved);
-            setEditModal({ open: false, restaurant: null });
           }}
           nearOptions={nearOptions}
           dynamicLabels={dynamicLabels}

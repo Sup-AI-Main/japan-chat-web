@@ -35,6 +35,7 @@ import type {
 import type { SaveStep, SaveStepStatus } from "./EntitySaveProgress";
 import { EntityDetailsEditorModal } from "./EntityDetailsEditorModal";
 import { EntityDetailsSectionEditor } from "./EntityDetailsSectionEditor";
+import { ActionButton } from "@/components/inline-cms/ActionButton";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -474,13 +475,13 @@ export function EntityDetailsEditor({
       </div>
 
       {/* Add section button */}
-      <button
-        onClick={addSection}
+      <ActionButton
+        onAction={addSection}
         disabled={saving}
         className="mt-4 border border-border px-4 py-2 rounded text-[13px] text-text hover:bg-surface min-h-[44px]"
       >
         + 섹션 추가
-      </button>
+      </ActionButton>
     </>
   );
 

@@ -19,6 +19,7 @@ import { ConfirmModal } from "@/components/inline-cms/ConfirmModal";
 import { useState } from "react";
 import type { SaveStep } from "./EntitySaveProgress";
 import { EntitySaveProgress } from "./EntitySaveProgress";
+import { ActionButton } from "@/components/inline-cms/ActionButton";
 
 interface EntityDetailsEditorModalProps {
   open: boolean;
@@ -78,14 +79,13 @@ export function EntityDetailsEditorModal({
           >
             취소
           </button>
-          <button
-            type="button"
-            onClick={onSave}
+          <ActionButton
+            onAction={onSave}
             disabled={saving || !isDirty}
             className="px-5 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
           >
             {saving ? "저장 중..." : "수정완료"}
-          </button>
+          </ActionButton>
           </div>
         }
       >

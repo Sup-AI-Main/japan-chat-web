@@ -17,6 +17,7 @@
 
 import type { EntityDetailsSection } from "@/lib/entity-details/types";
 import { EntityDetailsItemEditor } from "./EntityDetailsItemEditor";
+import { ActionButton } from "@/components/inline-cms/ActionButton";
 
 interface EntityDetailsSectionEditorProps {
   section: EntityDetailsSection;
@@ -106,30 +107,30 @@ export function EntityDetailsSectionEditor({
 
         {/* Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={onMoveUp}
+          <ActionButton
+            onAction={onMoveUp}
             disabled={disabled}
             className="text-muted hover:text-text text-[14px] min-w-[32px] min-h-[32px] flex items-center justify-center"
             title="위로 이동"
           >
             ↑
-          </button>
-          <button
-            onClick={onMoveDown}
+          </ActionButton>
+          <ActionButton
+            onAction={onMoveDown}
             disabled={disabled}
             className="text-muted hover:text-text text-[14px] min-w-[32px] min-h-[32px] flex items-center justify-center"
             title="아래로 이동"
           >
             ↓
-          </button>
-          <button
-            onClick={onRemove}
+          </ActionButton>
+          <ActionButton
+            onAction={onRemove}
             disabled={disabled}
             className="text-red-500 hover:text-red-700 text-[13px] min-w-[44px] min-h-[32px] flex items-center justify-center"
             title="섹션 삭제"
           >
             삭제
-          </button>
+          </ActionButton>
         </div>
       </div>
 
@@ -144,13 +145,13 @@ export function EntityDetailsSectionEditor({
             disabled={disabled}
           />
         ))}
-        <button
-          onClick={onAddItem}
+        <ActionButton
+          onAction={onAddItem}
           disabled={disabled}
           className="text-primary text-[13px] hover:underline min-h-[44px] flex items-center"
         >
           + 항목 추가
-        </button>
+        </ActionButton>
       </div>
     </div>
   );

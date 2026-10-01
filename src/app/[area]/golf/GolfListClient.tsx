@@ -60,11 +60,13 @@ export default function GolfListClient({
     router.refresh();
   };
 
-  const handleDelete = async (course: GolfCourse) => {
+  const handleDelete = async (course: GolfCourse): Promise<boolean> => {
     const res = await fetch(`/api/admin/golf?id=${course.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
     if (res.ok) {
       setCourses((prev) => prev.filter((c) => c.id !== course.id));
+      return true;
     }
+    return false;
   };
 
   return (

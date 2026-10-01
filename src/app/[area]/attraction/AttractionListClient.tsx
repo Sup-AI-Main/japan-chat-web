@@ -44,15 +44,16 @@ export default function AttractionListClient({ attractions: initial, area, areaL
     });
   };
 
-  const confirmDelete = async () => {
-    if (!deleteModal.attraction) return;
+  const confirmDelete = async (): Promise<boolean> => {
+    if (!deleteModal.attraction) return false;
     setDeleting(true);
     try {
       const res = await fetch(`/api/admin/attraction?id=${deleteModal.attraction.id}&area=${area}`, { method: "DELETE" });
       if (res.ok) {
         setAttractions((prev) => prev.filter((a) => a.id !== deleteModal.attraction!.id));
-        setDeleteModal({ open: false, attraction: null });
+        return true;
       }
+      return false;
     } finally {
       setDeleting(false);
     }

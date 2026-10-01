@@ -20,6 +20,7 @@ import type {
   EntityDetailsItem,
   EntityDetailItemType,
 } from "@/lib/entity-details/types";
+import { ActionButton } from "@/components/inline-cms/ActionButton";
 
 interface EntityDetailsItemEditorProps {
   item: EntityDetailsItem;
@@ -88,13 +89,13 @@ function BooleanValueEditor({
         {value === true ? "예 (true)" : value === false ? "아니오 (false)" : "null"}
       </label>
       {value !== null && value !== undefined && (
-        <button
-          onClick={() => onChange(null)}
+        <ActionButton
+          onAction={() => onChange(null)}
           disabled={disabled}
           className="text-[12px] text-muted hover:text-text"
         >
           null로 설정
-        </button>
+        </ActionButton>
       )}
     </div>
   );
@@ -182,22 +183,22 @@ function ListValueEditor({
             disabled={disabled}
             className="flex-1 border border-border rounded px-2 py-1 text-[13px]"
           />
-          <button
-            onClick={() => removeItem(idx)}
+          <ActionButton
+            onAction={() => removeItem(idx)}
             disabled={disabled}
             className="text-red-400 hover:text-red-600 text-[12px] min-w-[32px] min-h-[32px] flex items-center justify-center"
           >
             ✕
-          </button>
+          </ActionButton>
         </div>
       ))}
-      <button
-        onClick={addItem}
+      <ActionButton
+        onAction={addItem}
         disabled={disabled}
         className="text-primary text-[12px] hover:underline min-h-[32px]"
       >
         + 항목 추가
-      </button>
+      </ActionButton>
     </div>
   );
 }
@@ -340,14 +341,14 @@ export function EntityDetailsItemEditor({
         </div>
 
         {/* Delete */}
-        <button
-          onClick={onRemove}
+        <ActionButton
+          onAction={onRemove}
           disabled={disabled}
           className="text-red-400 hover:text-red-600 text-[12px] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
           title="항목 삭제"
         >
           ✕
-        </button>
+        </ActionButton>
       </div>
     </div>
   );

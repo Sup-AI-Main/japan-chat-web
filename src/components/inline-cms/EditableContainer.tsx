@@ -19,7 +19,7 @@ interface EditableContainerProps {
   canDelete?: boolean;
   canAdd?: boolean;
   onEdit?: () => void;
-  onDelete?: () => Promise<void> | void;
+  onDelete?: () => Promise<boolean> | boolean | void;
   onAdd?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -53,12 +53,13 @@ export function EditableContainer({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [mobileMenuOpen]);
 
-  const handleDelete = useCallback(async () => {
-    if (!onDelete) return;
+  const handleDelete = useCallback(async (): Promise<boolean> => {
+    if (!onDelete) return false;
     setDeleting(true);
     try {
-      await onDelete();
-      setShowDeleteConfirm(false);
+      const result = await onDelete();
+      if (result === false) return false;
+      return true;
     } finally {
       setDeleting(false);
     }
