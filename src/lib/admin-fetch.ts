@@ -27,10 +27,22 @@ export async function adminFetchJson<T = Record<string, unknown>>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(url, {
+  const request = {
     headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
-  });
+  };
+  const isReadRequest = !request.method || request.method.toUpperCase() === "GET";
+  let res: Response;
+
+  try {
+    res = await fetch(url, request);
+  } catch (error) {
+    // A transient HTTP/2 ping failure or serverless cold-start failure can
+    // reject fetch before a response exists. Safe GETs may be retried once;
+    // mutation requests must never be retried automatically.
+    if (!isReadRequest || !(error instanceof TypeError)) throw error;
+    res = await fetch(url, { ...request, cache: "no-store" });
+  }
 
   if (res.status === 409) {
     const text = await res.text();
