@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
-import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection } from "@/components/inline-cms";
+import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection, EntityFaqManager } from "@/components/inline-cms";
 import { isValidV1Document } from "@/lib/entity-details/validate";
 import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
 import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEditor";
@@ -299,7 +299,8 @@ export default function RestaurantDetailClient({
       <IncludeExcludeSection parentType="RESTAURANT" parentId={restaurant.id} initialItems={initialIncludes} />
 
       {/* FAQs */}
-      {faqs && faqs.length > 0 && (
+      {isAdmin && <EntityFaqManager area={area} entityType="RESTAURANT" entityId={restaurant.id} initialFaqs={faqs ?? []} canManage />}
+      {!isAdmin && faqs && faqs.length > 0 && (
         <div className="border-t border-border pt-6 mb-6">
           <h2 className="text-[18px] font-bold text-text mb-4">
             자주 묻는 질문

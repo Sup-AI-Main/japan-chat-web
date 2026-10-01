@@ -10,3 +10,4 @@ export { RestaurantEditModal } from "./RestaurantEditModal";
 export { GolfEditModal } from "./GolfEditModal";
 export { IncludeExcludeSection } from "./IncludeExcludeSection";
 export { ContentSectionsRenderer } from "./ContentSectionsRenderer";
+export { EntityFaqManager } from "./EntityFaqManager";

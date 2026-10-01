@@ -16,8 +16,8 @@ export async function PUT(request: NextRequest) {
     entity_id?: string;
   } | null;
   const entityType = body?.entity_type?.toUpperCase();
-  const label = body?.label_ko?.trim();
-  if (!entityType || !body?.entity_id || !label || (!body?.section_key && !body?.field_key)) {
+  const label = body?.label_ko?.trim() ?? "";
+  if (!entityType || !body?.entity_id || (!body?.section_key && !body?.field_key)) {
     return Response.json({ error: "entity_type, label_ko와 section_key 또는 field_key가 필요합니다." }, { status: 400 });
   }
 
@@ -28,12 +28,18 @@ export async function PUT(request: NextRequest) {
   const sections = Array.isArray(details.sections) ? details.sections : [];
   if (body.section_key) {
     const section = sections.find((item) => item.key === body.section_key);
-    if (section) section.title_ko = label;
+    if (section) {
+      if (label) section.title_ko = label;
+      else delete section.title_ko;
+    }
   } else {
     for (const section of sections) {
       const items = Array.isArray(section.items) ? section.items as Array<Record<string, unknown>> : [];
       const item = items.find((entry) => entry.key === body.field_key);
-      if (item) item.label_ko = label;
+      if (item) {
+        if (label) item.label_ko = label;
+        else delete item.label_ko;
+      }
     }
   }
   const result = await db.from("entities").update({ details_json: details }).eq("id", body.entity_id).select("id, details_json").single();

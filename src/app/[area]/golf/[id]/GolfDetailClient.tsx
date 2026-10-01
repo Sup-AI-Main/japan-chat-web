@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { GolfCourse, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
@@ -13,7 +13,7 @@ import {
   EditableContainer,
   IncludeExcludeSection,
   ContentSectionsRenderer,
-  GolfEditModal,
+  EntityFaqManager,
 } from "@/components/inline-cms";
 import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEditor";
 import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
@@ -36,8 +36,7 @@ export function GolfDetailClient({
   dynamicLabels,
   initialIncludes,
 }: GolfDetailClientProps) {
-  const [course, setCourse] = useState(initialCourse);
-  const [editGolfOpen, setEditGolfOpen] = useState(false);
+  const course = initialCourse;
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const isAdmin = useAdmin();
   const { message, visible, showToast } = useToast();
@@ -69,17 +68,6 @@ export function GolfDetailClient({
 
   const hasJsonDetails = isValidV1Document(course.details_json);
 
-  const closeGolfModal = useCallback(() => {
-    setEditGolfOpen(false);
-  }, []);
-
-  const handleGolfSaved = (saved: Record<string, unknown>) => {
-    setCourse(saved as unknown as GolfCourse);
-    showToast("수정 완료");
-    setTimeout(closeGolfModal, 500);
-    router.refresh();
-  };
-
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
@@ -100,7 +88,7 @@ export function GolfDetailClient({
           entityType="golf"
           id={course.id}
           canEdit={isAdmin}
-          onEdit={() => setEditGolfOpen(true)}
+          onEdit={() => setDetailsEditorOpen(true)}
         >
           <h1 className="text-[24px] font-bold text-text mb-1">
             {course.display_name || course.official_name}
@@ -195,47 +183,12 @@ export function GolfDetailClient({
 
         </EditableContainer>
 
-        {/* Details editor button (admin only) */}
-        {isAdmin && (
-          <button
-            onClick={() => setDetailsEditorOpen(true)}
-            className="mb-4 border border-border px-4 py-2 rounded text-[13px] text-text hover:bg-surface min-h-[44px]"
-          >
-            📝 세부사항 수정
-          </button>
-        )}
-
         {/* 포함/불포함 사항 — skip when details_json already renders them */}
         {!hasJsonDetails && (
           <IncludeExcludeSection parentType="GOLF" parentId={course.id} initialItems={initialIncludes} />
         )}
 
-        {/* FAQs */}
-        {faqs.length > 0 && (
-          <div className="border-t border-border pt-6 mb-6">
-            <h2 className="text-[18px] font-bold text-text mb-4">
-              자주 묻는 질문
-            </h2>
-            <div className="space-y-2">
-              {faqs.map((faq) => (
-                <details
-                  key={faq.id}
-                  className="bg-surface border border-border rounded-[8px] group"
-                >
-                  <summary className="p-3 flex justify-between items-center font-medium text-[15px] text-text">
-                    <span>Q. {faq.question}</span>
-                    <span className="chevron-icon text-muted transition-transform">
-                      ▼
-                    </span>
-                  </summary>
-                  <div className="px-3 pb-3 text-[15px] text-text leading-[1.6] border-t border-border pt-3">
-                    {faq.answer}
-                  </div>
-                </details>
-              ))}
-            </div>
-          </div>
-        )}
+        {(isAdmin || faqs.length > 0) && <EntityFaqManager area={area} entityType="GOLF" entityId={course.id} initialFaqs={faqs} canManage={isAdmin} />}
 
         {/* Content Sections (dynamic) — skip when details_json already renders them */}
         {!hasJsonDetails && (
@@ -246,30 +199,6 @@ export function GolfDetailClient({
           />
         )}
       </div>
-
-      {/* Golf Core Edit Modal — relational core fields only */}
-      <GolfEditModal
-        golf={isAdmin ? {
-          id: course.id,
-          display_name: course.display_name || "",
-          official_name: course.official_name || "",
-          address: course.address || "",
-          phone: course.phone || "",
-          course_summary: course.course_summary || "",
-          play_cart: course.play_cart || "",
-          clubhouse_dining: course.clubhouse_dining || "",
-          bath_shower: course.bath_shower || "",
-          rental: course.rental || "",
-          dress_code: course.dress_code || "",
-          google_maps_url: course.google_maps_url || "",
-          details_json: course.details_json,
-        } : null}
-        area={area}
-        open={editGolfOpen}
-        onClose={closeGolfModal}
-        onSaved={handleGolfSaved}
-        dynamicLabels={dynamicLabels}
-      />
 
       <Toast message={message} visible={visible} />
 

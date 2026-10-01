@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Attraction, ContentSection } from "@/lib/types";
+import type { Attraction, ContentSection, FaqItem } from "@/lib/types";
 import { useAdmin } from "@/hooks/use-admin";
-import { EditToolbar, ConfirmModal, ContentSectionsRenderer } from "@/components/inline-cms";
+import { EditToolbar, ConfirmModal, ContentSectionsRenderer, EntityFaqManager } from "@/components/inline-cms";
 import AttractionEditModal from "@/components/inline-cms/AttractionEditModal";
 import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEditor";
 import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
@@ -27,9 +27,10 @@ interface Props {
   area: string;
   contentSections: ContentSection[];
   sectionDefs: SectionDef[];
+  faqs: FaqItem[];
 }
 
-export default function AttractionDetailClient({ attraction: initial, area, contentSections, sectionDefs }: Props) {
+export default function AttractionDetailClient({ attraction: initial, area, contentSections, sectionDefs, faqs }: Props) {
   const [attraction, setAttraction] = useState(initial);
   const [editOpen, setEditOpen] = useState(false);
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
@@ -224,6 +225,8 @@ export default function AttractionDetailClient({ attraction: initial, area, cont
           세부사항 수정
         </button>
       )}
+
+      {(isAdmin || faqs.length > 0) && <EntityFaqManager area={area} entityType="ATTRACTION" entityId={attraction.id} initialFaqs={faqs} canManage={isAdmin} />}
 
       {/* Content Sections — only when details_json is absent */}
       {!hasJsonDetails && (

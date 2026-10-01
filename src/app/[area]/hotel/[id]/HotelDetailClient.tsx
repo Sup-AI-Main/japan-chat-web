@@ -17,6 +17,7 @@ import {
   EditableContainer,
   IncludeExcludeSection,
   ContentSectionsRenderer,
+  EntityFaqManager,
   HotelEditModal,
 } from "@/components/inline-cms";
 
@@ -324,7 +325,8 @@ export function HotelDetailClient({
         )}
 
         {/* 호텔 관련 질문 */}
-        {faqs.length > 0 && (
+        {isAdmin && <EntityFaqManager area={area} entityType="HOTEL" entityId={hotel.id} initialFaqs={faqs} canManage />}
+        {!isAdmin && faqs.length > 0 && (
           <div className="border-t border-border pt-6 mb-6">
             <h2 className="text-[18px] font-bold text-text mb-4">호텔 관련 질문</h2>
             <div className="space-y-2">

@@ -1,4 +1,4 @@
-import { resolveArea, getAttractionById, getContentSections } from "@/lib/supabase-cms";
+import { resolveArea, getAttractionById, getContentSections, getFaqForEntity } from "@/lib/supabase-cms";
 import { listSectionDefinitions } from "@/lib/crud/section-definitions";
 import { getCategoryEmoji } from "@/lib/display";
 import Link from "next/link";
@@ -21,13 +21,15 @@ export default async function AttractionDetailPage({
   const attraction = await getAttractionById(slug);
   if (!attraction || attraction.area !== areaCode) notFound();
 
-  const [contentSectionsResult, sectionDefsResult] = await Promise.allSettled([
+  const [contentSectionsResult, sectionDefsResult, faqsResult] = await Promise.allSettled([
     getContentSections(attraction.id),
     listSectionDefinitions("ATTRACTION"),
+    getFaqForEntity(areaCode, "ATTRACTION", attraction.id),
   ]);
 
   const contentSections = contentSectionsResult.status === "fulfilled" ? contentSectionsResult.value : [];
   const sectionDefs = sectionDefsResult.status === "fulfilled" ? sectionDefsResult.value : [];
+  const faqs = faqsResult.status === "fulfilled" ? faqsResult.value : [];
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -44,6 +46,7 @@ export default async function AttractionDetailPage({
           area={area}
           contentSections={contentSections}
           sectionDefs={sectionDefs}
+          faqs={faqs}
         />
       </div>
     </main>

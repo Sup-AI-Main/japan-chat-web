@@ -19,7 +19,7 @@ export function EditableDisplayLabel({
 
   async function save() {
     const next = value.trim();
-    if (!entityId || !next || next === label.replace(/\s+\*$/, "")) return;
+    if (!entityId || next === label.replace(/\s+\*$/, "")) return;
     await fetch("/api/admin/display-labels", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
