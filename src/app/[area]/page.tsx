@@ -5,6 +5,7 @@ import { getAreaEmoji, getCategoryEmoji, getCategoryColor, getCategoryBg, getCat
 import type { FaqItem, TravelTime } from "@/lib/types";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
 import { routes, resolveCategoryRoute } from "@/lib/routes";
+import AreaFaqClient from "@/components/AreaFaqClient";
 
 export const revalidate = 300;
 
@@ -82,33 +83,7 @@ export default async function AreaPage({
           area={areaCode}
         />
 
-        {popularFaqs.length > 0 && (
-          <div className="border-t border-border pt-6">
-            <h2 className="text-[18px] font-bold text-text mb-4">
-              ❓ 자주 찾는 질문
-            </h2>
-            <div className="space-y-2">
-              {popularFaqs.map((faq) => {
-                return (
-                  <details
-                    key={faq.id}
-                    className="bg-surface border border-border rounded-[8px] overflow-hidden group"
-                  >
-                    <summary className="p-3 text-[15px] text-text cursor-pointer list-none flex items-center justify-between gap-2 hover:text-primary">
-                      {getCategoryEmoji(faq.category)} {faq.question}
-                      <span className="text-muted transition-transform group-open:rotate-180" aria-hidden="true">
-                        ▼
-                      </span>
-                    </summary>
-                    <div className="px-3 pb-3 pt-2 text-[15px] text-text leading-[1.6] border-t border-border">
-                      {faq.answer}
-                    </div>
-                  </details>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <AreaFaqClient area={areaCode} initialFaqs={popularFaqs} />
       </div>
     </main>
   );
