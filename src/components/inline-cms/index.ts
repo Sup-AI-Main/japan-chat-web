@@ -2,6 +2,7 @@ export { EditToolbar, AddButton } from "./EditToolbar";
 export { ConfirmModal } from "./ConfirmModal";
 export { ModalShell } from "./ModalShell";
 export { EditModalShell } from "./EditModalShell";
+export { ActionButton } from "./ActionButton";
 export { EditableContainer } from "./EditableContainer";
 export { EditableSection } from "./EditableSection";
 export { EditableList } from "./EditableList";

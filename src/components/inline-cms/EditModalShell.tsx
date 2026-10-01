@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { ModalShell } from "./ModalShell";
 import { ConfirmModal } from "./ConfirmModal";
+import { ActionButton } from "./ActionButton";
+import { Toast, useToast } from "@/components/Toast";
 
 interface EditModalShellProps {
   open: boolean;
   title: string;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => void | boolean | Promise<void | boolean>;
   saving?: boolean;
   saveLabel?: string;
   savingLabel?: string;
@@ -33,6 +35,7 @@ export function EditModalShell({
   children,
 }: EditModalShellProps) {
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const { message, visible, showToast } = useToast();
 
   const handleClose = useCallback(() => {
     if (saving) return;
@@ -48,6 +51,14 @@ export function EditModalShell({
       requestCloseRef.current = handleClose;
     }
   }, [requestCloseRef, handleClose]);
+
+  const handleSave = async () => {
+    const result = await onSave();
+    if (result === false) return;
+    const message = title.includes("수정") ? "수정 완료" : "저장 완료";
+    showToast(message, 300);
+    window.setTimeout(onClose, 300);
+  };
 
   return (
     <>
@@ -66,19 +77,19 @@ export function EditModalShell({
           >
             취소
           </button>
-          <button
-            type="button"
-            onClick={onSave}
+          <ActionButton
+            onAction={handleSave}
             disabled={saving}
             className="px-5 py-2 text-[14px] text-white bg-primary rounded-[8px] hover:opacity-90 min-h-[40px] disabled:opacity-50"
           >
             {saving ? savingLabel : saveLabel}
-          </button>
+          </ActionButton>
           </>
         }
       >
         {children}
       </ModalShell>
+      <Toast message={message} visible={visible} />
       <ConfirmModal
         open={discardConfirmOpen}
         title="변경사항 취소"

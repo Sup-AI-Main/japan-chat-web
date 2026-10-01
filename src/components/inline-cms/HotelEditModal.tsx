@@ -138,6 +138,7 @@ export function HotelEditModal({
 
   const [form, setForm] = useState<HotelData>(EMPTY_HOTEL);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const initialRef = useRef<HotelData>(EMPTY_HOTEL);
@@ -165,8 +166,9 @@ export function HotelEditModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = async () => {
-    if (saving) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (savingRef.current) return false;
+    savingRef.current = true;
     setSaving(true);
     setError("");
     setConflict(false);
@@ -180,8 +182,9 @@ export function HotelEditModal({
         if (!(value as string).trim()) {
           const label = getFieldLabel(L, field.fieldKey, field.fallback);
           setError(`${label}은(는) 필수입니다.`);
+          savingRef.current = false;
           setSaving(false);
-          return;
+          return false;
         }
       }
     }
@@ -206,7 +209,7 @@ export function HotelEditModal({
       if (res.status === 409) {
         setConflict(true);
         setSaving(false);
-        return;
+        return false;
       }
 
       if (!res.ok) {
@@ -227,12 +230,15 @@ export function HotelEditModal({
       }
       onSaved(saved);
       initialRef.current = { ...form };
+      return true;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "저장 중 문제가 발생했습니다."
       );
+      return false;
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   };
 

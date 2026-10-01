@@ -83,6 +83,58 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // The legacy include/exclude rows are also part of the entity's editable
+    // details. Project them into the shared editor so every entity type gets
+    // the same section/item CRUD UI. Existing JSON sections remain untouched.
+    const { data: includeExcludeRows, error: includeExcludeError } = await supabase
+      .from("includes_excludes")
+      .select("id, type, text_kr, text_jp, sort, is_visible")
+      .eq("parent_entity_id", entityId)
+      .order("sort");
+
+    if (includeExcludeError) throw includeExcludeError;
+    if (includeExcludeRows && includeExcludeRows.length > 0) {
+      const base = detailsJson && typeof detailsJson === "object"
+        ? structuredClone(detailsJson as { version?: number; sections?: Array<Record<string, unknown>> })
+        : { version: 1, sections: [] };
+      const sections = Array.isArray(base.sections) ? base.sections : [];
+      const includedRows = includeExcludeRows.filter((row) => row.type === "INCLUDED");
+      const excludedRows = includeExcludeRows.filter((row) => row.type === "EXCLUDED");
+
+      const addLegacySection = (
+        key: string,
+        title: string,
+        rows: typeof includeExcludeRows,
+        sort: number,
+      ) => {
+        if (sections.some((section) => section.key === key)) return;
+        sections.push({
+          id: `legacy-${key}`,
+          key,
+          title_ko: title,
+          title_jp: null,
+          sort,
+          is_visible: true,
+          items: rows.map((row, index) => ({
+            id: `legacy-${key}-${row.id}`,
+            key: `legacy_${key}_${row.id}`,
+            label_ko: "",
+            label_jp: row.text_jp || null,
+            type: "text",
+            value: row.text_kr || "",
+            sort: row.sort ?? index,
+            is_visible: row.is_visible !== false,
+            legacy_id: row.id,
+            source: "includes_excludes",
+          })),
+        });
+      };
+
+      addLegacySection("includes", "포함사항", includedRows, sections.length);
+      addLegacySection("excludes", "불포함사항", excludedRows, sections.length);
+      detailsJson = { version: 1, sections };
+    }
+
     return ok({
       id: data.id,
       slug: data.slug,

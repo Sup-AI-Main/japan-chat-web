@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdmin } from "@/hooks/use-admin";
+import { ActionButton } from "./ActionButton";
 
 interface EditToolbarProps {
   onEdit: () => void;
@@ -14,20 +15,20 @@ export function EditToolbar({ onEdit, onDelete, className = "" }: EditToolbarPro
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>
-      <button
-        onClick={onEdit}
+      <ActionButton
+        onAction={onEdit}
         className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 text-sm"
         title="수정"
       >
         ✏️
-      </button>
-      <button
-        onClick={onDelete}
+      </ActionButton>
+      <ActionButton
+        onAction={onDelete}
         className="w-8 h-8 flex items-center justify-center rounded hover:bg-red-50 text-gray-500 hover:text-red-600 text-sm"
         title="삭제"
       >
         🗑️
-      </button>
+      </ActionButton>
     </div>
   );
 }
@@ -43,11 +44,11 @@ export function AddButton({ onClick, label = "추가", className = "" }: AddButt
   if (!isAdmin) return null;
 
   return (
-    <button
-      onClick={onClick}
+    <ActionButton
+      onAction={onClick}
       className={`inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium ${className}`}
     >
       ＋ {label}
-    </button>
+    </ActionButton>
   );
 }

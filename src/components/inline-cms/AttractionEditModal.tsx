@@ -24,6 +24,7 @@ interface Props {
 export default function AttractionEditModal({ open, onClose, attraction, area, onSaved }: Props) {
   const [form, setForm] = useState<CoreForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const initialRef = useRef<CoreForm>(EMPTY_FORM);
@@ -67,11 +68,13 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
     }
   }, [attraction?.id]);
 
-  async function handleSave() {
-    if (saving) return;
+  async function handleSave(): Promise<boolean> {
+    if (savingRef.current) return false;
+    savingRef.current = true;
     if (!form.name_kr.trim()) {
       setError("이름(한국어)은 필수입니다.");
-      return;
+      savingRef.current = false;
+      return false;
     }
     setSaving(true);
     setError("");
@@ -96,7 +99,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
       if (res.status === 409) {
         setConflict(true);
         setError("다른 사용자가 이미 수정했습니다. 새로고침 후 다시 시도하세요.");
-        return;
+        return false;
       }
 
       if (!res.ok) {
@@ -112,10 +115,12 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
         throw new Error("서버 응답이 올바르지 않습니다 (id 누락).");
       }
       onSaved(saved);
-      onClose();
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+      return false;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }

@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { EditModalShell } from "./EditModalShell";
 import { EditableDisplayLabel } from "./EditableDisplayLabel";
 import {
@@ -180,6 +180,7 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
 
   const [form, setForm] = useState<GolfData>(EMPTY_GOLF);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState("");
   const [customFields, setCustomFields] = useState<CustomGolfField[]>([]);
 
@@ -205,8 +206,9 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
     });
   };
 
-  const handleSave = async () => {
-    if (saving) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (savingRef.current) return false;
+    savingRef.current = true;
     setError("");
 
     // Validate required fields
@@ -219,7 +221,8 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
           if (!value || value.trim() === "") {
             const label = getFieldLabel(L, field.fieldKey, field.fallback);
             setError(`"${label}" 항목은 필수입니다.`);
-            return;
+            savingRef.current = false;
+            return false;
           }
         }
       }
@@ -253,9 +256,12 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
         throw new Error("서버 응답이 올바르지 않습니다 (id 누락).");
       }
       onSaved(saved);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
+      return false;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

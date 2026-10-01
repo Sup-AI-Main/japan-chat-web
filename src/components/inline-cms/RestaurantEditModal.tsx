@@ -180,6 +180,7 @@ export function RestaurantEditModal({
   const L: DynamicLabelsResult = dynamicLabels ?? { sections: [], fieldMap: {} };
   const [form, setForm] = useState<RestaurantData>(EMPTY_RESTAURANT);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const initialRef = useRef<RestaurantData>(EMPTY_RESTAURANT);
@@ -207,8 +208,9 @@ export function RestaurantEditModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = async () => {
-    if (saving) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (savingRef.current) return false;
+    savingRef.current = true;
     setSaving(true);
     setError("");
     setConflict(false);
@@ -222,8 +224,9 @@ export function RestaurantEditModal({
         if (typeof val === "string" && val.trim() === "") {
           const label = getFieldLabel(L, field.fieldKey, field.fallback);
           setError(`"${label}" 항목은 필수입니다.`);
+          savingRef.current = false;
           setSaving(false);
-          return;
+          return false;
         }
       }
     }
@@ -244,7 +247,7 @@ export function RestaurantEditModal({
       if (res.status === 409) {
         setConflict(true);
         setSaving(false);
-        return;
+        return false;
       }
 
       if (!res.ok) {
@@ -262,9 +265,12 @@ export function RestaurantEditModal({
       if (!saved.name && saved.name_kr) saved.name = saved.name_kr;
       onSaved(saved);
       initialRef.current = { ...form };
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장 중 문제가 발생했습니다.");
+      return false;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

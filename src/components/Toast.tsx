@@ -6,7 +6,7 @@ export function useToast() {
   const [message, setMessage] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
 
-  const showToast = useCallback((msg: string, duration = 500) => {
+  const showToast = useCallback((msg: string, duration = 300) => {
     setMessage(msg);
     setVisible(true);
     setTimeout(() => setVisible(false), duration);
