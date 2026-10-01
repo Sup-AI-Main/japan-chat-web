@@ -7,6 +7,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { useGuideStore } from "@/store/guide-store";
 import Link from "next/link";
 import { routes } from "@/lib/routes";
+import { ADMIN_AUTH_EXPIRED_EVENT } from "@/lib/admin-fetch";
 
 export default function AdminLoginButton() {
   const isAdmin = useAdmin();
@@ -27,6 +28,17 @@ export default function AdminLoginButton() {
       setLoading(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setAdmin(false);
+      setError("관리자 세션이 만료되었습니다. 다시 로그인해 주세요.");
+      setOpen(true);
+    };
+
+    window.addEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, [setAdmin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

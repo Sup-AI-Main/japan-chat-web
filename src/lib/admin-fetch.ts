@@ -23,6 +23,14 @@ export class StaleVersionError extends ConflictError {
   }
 }
 
+export const ADMIN_AUTH_EXPIRED_EVENT = "admin-auth-expired";
+
+function notifyAdminAuthExpired(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(ADMIN_AUTH_EXPIRED_EVENT));
+  }
+}
+
 export async function adminFetchJson<T = Record<string, unknown>>(
   url: string,
   options: RequestInit = {}
@@ -42,6 +50,10 @@ export async function adminFetchJson<T = Record<string, unknown>>(
     // mutation requests must never be retried automatically.
     if (!isReadRequest || !(error instanceof TypeError)) throw error;
     res = await fetch(url, { ...request, cache: "no-store" });
+  }
+
+  if (res.status === 401) {
+    notifyAdminAuthExpired();
   }
 
   if (res.status === 409) {
