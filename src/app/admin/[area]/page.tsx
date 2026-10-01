@@ -27,7 +27,10 @@ export default async function AdminAreaPage({
   // DOS/BEPPU → group=AREA 카테고리
   const targetGroup = areaCode === "ALL" ? GROUP_COMMON : GROUP_AREA;
 
-  const allOptions = await getAdminOptions();
+  const allOptions = await getAdminOptions().catch((error) => {
+    console.error("[ADMIN_OPTIONS_LOAD_ERROR]", error);
+    return [];
+  });
   const categories = allOptions
     .filter((o) => o.option_type === "CATEGORY" && o.active !== "FALSE" && o.group === targetGroup)
     .sort((a, b) => a.sort - b.sort);

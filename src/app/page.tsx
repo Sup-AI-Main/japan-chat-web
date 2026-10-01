@@ -4,7 +4,12 @@ import HomeContentClient from "@/components/HomeContentClient";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const allOptions = await getAdminOptions();
+  let allOptions: Awaited<ReturnType<typeof getAdminOptions>> = [];
+  try {
+    allOptions = await getAdminOptions();
+  } catch (error) {
+    console.error("[HOME_OPTIONS_LOAD_ERROR]", error);
+  }
 
   const areas = allOptions
     .filter((o) => o.option_type === "AREA" && o.active !== "FALSE" && o.code !== "ALL")

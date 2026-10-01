@@ -41,7 +41,7 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
       );
       if (!res.ok) throw new Error("질문 목록 조회 실패");
       const data = await res.json();
-      setFaqs(data.faqs);
+      setFaqs(Array.isArray(data.faqs) ? data.faqs : []);
     } catch {
       setMessage("질문 목록을 새로고침하지 못했습니다.");
       setTimeout(() => setMessage(""), 3000);

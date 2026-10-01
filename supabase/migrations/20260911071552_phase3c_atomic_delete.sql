@@ -47,13 +47,19 @@ BEGIN
   -- 4. field_definition_scopes referencing this area
   DELETE FROM field_definition_scopes WHERE area_id = p_area_id;
 
-  -- 5. entities (CASCADE handles: hotels, golf_courses, restaurants, content_sections, includes_excludes, restaurant_locations, field_definitions.scope_entity_id)
+  -- 5. Remove both sides of restaurant relationships explicitly. This also
+  -- works safely if an environment has an older FK definition.
+  DELETE FROM restaurant_locations
+  WHERE restaurant_entity_id = ANY(v_entity_ids)
+     OR near_entity_id = ANY(v_entity_ids);
+
+  -- 6. entities (CASCADE handles the remaining entity-owned rows)
   DELETE FROM entities WHERE area_id = p_area_id;
 
-  -- 6. faq
+  -- 7. faq
   DELETE FROM faq WHERE area_id = p_area_id;
 
-  -- 7. the area itself
+  -- 8. the area itself
   DELETE FROM areas WHERE id = p_area_id;
 
   -- Return impact report for logging

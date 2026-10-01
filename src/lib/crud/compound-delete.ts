@@ -14,6 +14,8 @@
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { logChange } from '@/lib/crud/change-log';
+import { invalidateAreaCache as invalidateCmsAreaCache, invalidateCategoryCache } from '@/lib/supabase-cms';
+import { invalidateAreaCache as invalidateAreaResolverCache } from '@/lib/area';
 import { isUuid } from '@/lib/crud/validation';
 
 // ---------------------------------------------------------------------------
@@ -272,6 +274,11 @@ export async function deleteAreaFull(
 
   if (error) throw error;
 
+  // This function is called directly by the API route, so invalidate here.
+  // Otherwise deleted areas can remain resolvable until cache expiry.
+  invalidateCmsAreaCache();
+  invalidateAreaResolverCache();
+
   await logChange({
     action: 'DELETE',
     entityType: 'areas',
@@ -430,6 +437,8 @@ export async function deleteCategoryFull(
   });
 
   if (error) throw error;
+
+  invalidateCategoryCache();
 
   await logChange({
     action: 'DELETE',

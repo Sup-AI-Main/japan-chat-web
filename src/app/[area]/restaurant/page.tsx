@@ -10,7 +10,10 @@ export const revalidate = 300;
 
 export async function generateStaticParams() {
   try {
-    const options = await getAdminOptions();
+    const options = await getAdminOptions().catch((error) => {
+      console.error("[RESTAURANT_OPTIONS_LOAD_ERROR]", error);
+      return [];
+    });
     const areas = options.filter(o => o.option_type === 'AREA' && o.active !== 'FALSE' && o.code !== 'ALL');
     return areas.map((a) => ({ area: a.code.toLowerCase() }));
   } catch {

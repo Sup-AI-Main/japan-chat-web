@@ -2486,11 +2486,19 @@ async function saveAttractionFieldValues(
 }
 
 export async function deleteAttraction(id: string): Promise<boolean> {
-  const { data: entity } = await db().from('entities').select('id').eq('id', id).single();
+  const { data: entity, error: findError } = await db().from('entities').select('id').eq('id', id).maybeSingle();
+  if (findError) {
+    logError('READ', 'entities', id, findError);
+    throw findError;
+  }
   if (!entity) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+  const { error: faqError } = await adminDb().from('faq').delete().eq('scope', 'SPECIFIC').eq('related_entity_id', entity.id);
+  if (faqError) {
+    logError('DELETE', 'faq', entity.id, faqError);
+    throw faqError;
+  }
 
   const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
   if (error) {
