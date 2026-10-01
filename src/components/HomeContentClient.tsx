@@ -6,7 +6,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
-import { routes } from "@/lib/routes";
+import { resolveCategoryRoute, routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
 
 interface AdminOption {
@@ -370,7 +370,13 @@ export default function HomeContentClient({
           <div className="grid grid-cols-2 gap-3">
             {categories.map((cat) => {
               // Home page only serves COMMON group categories (filtered by page.tsx)
-              const catHref = routes.guideCategory(cat.code.toLowerCase());
+              const catHref = resolveCategoryRoute(
+                "all",
+                cat.code,
+                cat.template_type,
+                cat.group
+              );
+              if (!catHref) return null;
               return (
                 <div key={cat.code} className="relative group/cat">
                   <Link

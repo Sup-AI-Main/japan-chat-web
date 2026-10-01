@@ -452,8 +452,14 @@ export async function resolveCategoryFromAdmin(slug: string): Promise<AdminOptio
  */
 export async function resolveCommonCategory(slug: string): Promise<AdminOption | null> {
   const code = normalizeCategoryRouteCode(slug);
-  const categories = await getCommonCategories();
-  return categories.find((c) => normalizeCategoryRouteCode(c.code) === code) ?? null;
+  const options = await getAdminOptions();
+  return options.find(
+    (c) =>
+      c.option_type === 'CATEGORY' &&
+      c.group === 'COMMON' &&
+      c.active !== 'FALSE' &&
+      normalizeCategoryRouteCode(c.code) === code
+  ) ?? null;
 }
 
 function normalizeCategoryRouteCode(value: string): string {
