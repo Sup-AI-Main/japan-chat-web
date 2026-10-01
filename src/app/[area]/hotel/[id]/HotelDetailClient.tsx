@@ -95,7 +95,7 @@ export function HotelDetailClient({
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
-    router.refresh();
+    window.location.reload();
   };
 
   // Legacy fallback: check if variable detail fields have data

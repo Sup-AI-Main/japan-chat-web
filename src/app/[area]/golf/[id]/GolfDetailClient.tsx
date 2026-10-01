@@ -71,11 +71,9 @@ export function GolfDetailClient({
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
-    // Re-run the current route after the server has revalidated its cache.
-    // This prevents the App Router from retaining the previous RSC tree,
-    // which could leave deleted detail containers visible until a hard reload.
-    router.replace(window.location.pathname);
-    router.refresh();
+    // Force a fresh document after server revalidation so deleted containers
+    // cannot survive in a stale App Router/client state tree.
+    window.location.reload();
   };
 
   return (

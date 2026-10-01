@@ -30,8 +30,8 @@ interface Props {
   faqs: FaqItem[];
 }
 
-export default function AttractionDetailClient({ attraction: initial, area, contentSections, sectionDefs, faqs }: Props) {
-  const [attraction, setAttraction] = useState(initial);
+export default function AttractionDetailClient({ attraction: initialAttraction, area, contentSections, sectionDefs, faqs }: Props) {
+  const [attraction, setAttraction] = useState(initialAttraction);
   const [editOpen, setEditOpen] = useState(false);
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
@@ -56,7 +56,7 @@ export default function AttractionDetailClient({ attraction: initial, area, cont
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
-    router.refresh();
+    window.location.reload();
   };
 
   const confirmDelete = async () => {

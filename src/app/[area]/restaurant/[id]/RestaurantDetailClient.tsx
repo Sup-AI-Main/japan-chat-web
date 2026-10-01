@@ -138,7 +138,7 @@ export default function RestaurantDetailClient({
   const handleDetailsSaved = () => {
     showToast("세부사항 저장 완료");
     setDetailsEditorOpen(false);
-    router.refresh();
+    window.location.reload();
   };
 
   const displayName = restaurant.name_kr || restaurant.name;
