@@ -8,6 +8,7 @@ import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import { resolveCategoryRoute, routes } from "@/lib/routes";
 import { useToast, Toast } from "@/components/Toast";
+import { EmojiInput } from "@/components/EmojiInput";
 
 interface AdminOption {
   id: string;
@@ -213,12 +214,10 @@ function OptionEditModal({
             </div>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-[13px] text-muted">또는 직접 입력:</span>
-              <input
-                type="text"
+              <EmojiInput
                 value={icon}
-                onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                onChange={setIcon}
                 className="w-16 border border-border rounded-[8px] px-2 py-1 text-[18px] text-center focus:outline-none focus:border-primary"
-                maxLength={4}
               />
               <span className="text-[14px]">선택: {icon}</span>
             </div>

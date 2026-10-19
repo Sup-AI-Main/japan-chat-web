@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { adminFetchJson } from "@/lib/admin-fetch";
 import { ModalShell } from "@/components/inline-cms/ModalShell";
+import { EmojiInput } from "@/components/EmojiInput";
 
 interface Props {
   entityId: string;
@@ -157,12 +158,11 @@ export default function FieldCreateModal({ entityId, entity, onCreated, onClose 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[12px] font-medium text-muted mb-1">아이콘</label>
-            <input
-              type="text"
+            <EmojiInput
               value={form.icon}
-              onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
+              onChange={(value) => setForm((p) => ({ ...p, icon: value }))}
               placeholder="예: 📍"
-              className="w-full px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
+              className="min-w-0 flex-1 px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary"
             />
           </div>
           <div>

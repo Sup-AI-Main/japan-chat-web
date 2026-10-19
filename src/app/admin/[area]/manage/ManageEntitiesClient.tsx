@@ -6,6 +6,7 @@ import { GolfEditModal } from "@/components/inline-cms/GolfEditModal";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
 import { useToast, Toast } from "@/components/Toast";
+import { EmojiInput } from "@/components/EmojiInput";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import type { TravelTime } from "@/lib/types";
 import type { EntityDetailsDocumentV1 } from "@/lib/entity-details/types";
@@ -464,11 +465,10 @@ export default function ManageEntitiesClient({
               </div>
               <div>
                 <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
-                <input
-                  type="text"
+                <EmojiInput
                   value={areaForm.icon}
-                  onChange={(e) => setAreaForm((p) => ({ ...p, icon: e.target.value }))}
-                  className="w-full border border-border rounded-[10px] px-4 py-3 text-[16px]"
+                  onChange={(value) => setAreaForm((p) => ({ ...p, icon: value }))}
+                  className="min-w-0 flex-1 border border-border rounded-[10px] px-4 py-3 text-[16px]"
                 />
               </div>
               <div className="flex gap-2 pt-2">

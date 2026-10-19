@@ -18,6 +18,7 @@
 import type { EntityDetailsSection } from "@/lib/entity-details/types";
 import { EntityDetailsItemEditor } from "./EntityDetailsItemEditor";
 import { ActionButton } from "@/components/inline-cms/ActionButton";
+import { EmojiInput } from "@/components/EmojiInput";
 
 interface EntityDetailsSectionEditorProps {
   section: EntityDetailsSection;
@@ -53,14 +54,13 @@ export function EntityDetailsSectionEditor({
         </span>
 
         <div className="flex-1 space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-[48px_1fr_1fr] gap-2">
-            <input
-              type="text"
+          <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr_1fr] gap-2">
+            <EmojiInput
               value={section.emoji ?? ""}
-              onChange={(e) => onUpdate({ emoji: e.target.value || null })}
+              onChange={(value) => onUpdate({ emoji: value || null })}
               placeholder="😀"
               disabled={disabled}
-              className="border border-border rounded px-2 py-1 text-[14px] w-[48px] text-center"
+              className="min-w-0 w-[48px] border border-border rounded px-2 py-1 text-[14px] text-center"
               title="이모지"
             />
             <input

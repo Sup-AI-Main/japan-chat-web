@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { ModalShell } from "@/components/inline-cms/ModalShell";
+import { EmojiInput } from "@/components/EmojiInput";
 
 export interface FieldDef {
   name: string;
@@ -126,6 +127,14 @@ export default function FormModal({
                   </option>
                 ))}
               </select>
+            ) : field.name === "icon" ? (
+              <EmojiInput
+                value={String(values[field.name] ?? "")}
+                onChange={(value) => handleChange(field.name, value)}
+                placeholder={field.placeholder}
+                disabled={loading}
+                className="min-w-0 flex-1 px-3 py-2 text-[14px] border border-border rounded-[8px] focus:outline-none focus:border-primary disabled:opacity-50"
+              />
             ) : (
               <input
                 type={field.type === "number" ? "number" : "text"}

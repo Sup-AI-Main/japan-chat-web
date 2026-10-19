@@ -7,6 +7,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { useToast, Toast } from "@/components/Toast";
+import { EmojiInput } from "@/components/EmojiInput";
 import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import { routes } from "@/lib/routes";
 import type { AdminOption } from "@/lib/types";
@@ -250,13 +251,11 @@ function CategoryCreateModal({
             <div>
               <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
+                <EmojiInput
                   value={icon}
-                  onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                  onChange={setIcon}
                   placeholder="(비워두면 없음)"
                   className="w-24 border border-border rounded-[8px] px-3 py-2 text-[18px] text-center focus:outline-none focus:border-primary"
-                  maxLength={4}
                 />
                 {icon && <span className="text-[18px]">{icon}</span>}
               </div>
@@ -421,13 +420,11 @@ function CategoryEditModal({
           <div>
             <label className="block text-[14px] font-medium text-text mb-1">아이콘</label>
             <div className="flex items-center gap-2">
-              <input
-                type="text"
+              <EmojiInput
                 value={icon}
-                onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                onChange={setIcon}
                 placeholder="(비워두면 없음)"
                 className="w-24 border border-border rounded-[8px] px-3 py-2 text-[18px] text-center focus:outline-none focus:border-primary"
-                maxLength={4}
               />
               {icon && <span className="text-[18px]">{icon}</span>}
             </div>

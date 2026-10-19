@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { adminFetchJson } from "@/lib/admin-fetch";
+import { EmojiInput } from "@/components/EmojiInput";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -419,14 +420,13 @@ export function GolfDetailsEditor({ entityId, onClose }: GolfDetailsEditorProps)
                 #{idx}
               </span>
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-[auto_1fr_80px_80px_auto] gap-2 items-center">
-                <input
-                  type="text"
+                <EmojiInput
                   value={section.emoji ?? ""}
-                  onChange={(e) =>
-                    updateSection(section.id, { emoji: e.target.value || null })
+                  onChange={(value) =>
+                    updateSection(section.id, { emoji: value || null })
                   }
                   placeholder="😀"
-                  className="border border-border rounded px-2 py-1 text-[14px] w-[48px] text-center"
+                  className="min-w-0 w-[48px] border border-border rounded px-2 py-1 text-[14px] text-center"
                 />
                 <input
                   type="text"
