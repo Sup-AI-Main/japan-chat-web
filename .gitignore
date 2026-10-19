@@ -21,6 +21,8 @@
 # misc
 .DS_Store
 *.pem
+# stray terminal shell integration output at repository root
+/*shellIntegration.ps1*
 
 # debug
 npm-debug.log*
