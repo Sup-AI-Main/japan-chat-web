@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getHotels, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
+import { getHotels, getFaq, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
 import HotelListClient from "./HotelListClient";
@@ -47,6 +47,7 @@ export default async function HotelListPage({
   }
 
   const dynamicLabels = await getDynamicLabels("HOTEL").catch(() => ({ sections: [], fieldMap: {} }));
+  const faqs = (await getFaq(areaCode, "HOTEL")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -59,6 +60,7 @@ export default async function HotelListPage({
         </Link>
         <HotelListClient
           hotels={hotels}
+          faqs={faqs}
           area={area}
           areaLabel={areaLabel}
           areaEmoji={getAreaEmoji(areaCode)}

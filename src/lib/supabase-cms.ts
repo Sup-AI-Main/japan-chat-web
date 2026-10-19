@@ -2775,6 +2775,24 @@ export async function getAdminFaqs(area?: string, category?: string): Promise<Fa
   return (data || []).map(mapFaqRow);
 }
 
+export async function getFaqEntityOptions(area: string, category: string): Promise<{ slug: string; name: string }[]> {
+  const areaId = await resolveAreaId(area);
+  if (!areaId || !['GOLF', 'HOTEL', 'RESTAURANT', 'ATTRACTION'].includes(category)) return [];
+
+  const { data, error } = await db()
+    .from('entities')
+    .select('slug, display_name')
+    .eq('area_id', areaId)
+    .eq('entity_type', category)
+    .eq('active', true)
+    .order('sort');
+  if (error) {
+    logError('READ', 'entities', undefined, error);
+    throw error;
+  }
+  return (data || []).map((entity) => ({ slug: entity.slug, name: entity.display_name }));
+}
+
 export async function getFaqById(id: string): Promise<FaqItem | null> {
   const { data, error } = await db()
     .from('faq')

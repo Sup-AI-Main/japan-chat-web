@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getGolfCourses, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
+import { getGolfCourses, getFaq, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
 import GolfListClient from "./GolfListClient";
@@ -47,6 +47,7 @@ export default async function GolfListPage({
   }
 
   const dynamicLabels = await getDynamicLabels("GOLF").catch(() => ({ sections: [], fieldMap: {} }));
+  const faqs = (await getFaq(areaCode, "GOLF")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -59,6 +60,7 @@ export default async function GolfListPage({
         </Link>
         <GolfListClient
           courses={courses}
+          faqs={faqs}
           area={area}
           areaLabel={areaLabel}
           areaEmoji={getAreaEmoji(areaCode)}

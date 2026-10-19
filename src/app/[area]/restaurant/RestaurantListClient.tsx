@@ -233,7 +233,7 @@ export default function RestaurantListClient({
                     <AddButton onClick={() => handleAdd(section.key)} label="추가" />
                   )}
                 </div>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {section.items.map((rest) => (
                     <div
                       key={rest.id}

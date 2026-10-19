@@ -37,7 +37,7 @@ export default async function AreaPage({
     })
     .filter((c): c is NonNullable<typeof c> => c !== null);
 
-  const popularFaqs = allFaq.slice(0, 3);
+  const areaFaqs = allFaq.filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
   const hotels = entityMap.hotels;
   const golfCourses = entityMap.golfCourses;
   return (
@@ -83,7 +83,7 @@ export default async function AreaPage({
           area={areaCode}
         />
 
-        <AreaFaqClient area={areaCode} initialFaqs={popularFaqs} />
+        <AreaFaqClient area={areaCode} initialFaqs={areaFaqs} />
       </div>
     </main>
   );

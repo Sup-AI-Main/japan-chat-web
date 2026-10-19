@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAttractions, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
+import { getAttractions, getFaq, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji } from "@/lib/display";
 import { routes } from "@/lib/routes";
+import AreaFaqClient from "@/components/AreaFaqClient";
 
 export const revalidate = 300;
 
@@ -43,6 +44,7 @@ export default async function AttractionListPage({
       </main>
     );
   }
+  const faqs = (await getFaq(areaCode, "ATTRACTION")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -57,12 +59,14 @@ export default async function AttractionListPage({
           🗾 {areaLabel} 주변 볼거리
         </h1>
 
+        <AreaFaqClient area={areaCode} category="ATTRACTION" initialFaqs={faqs} />
+
         {attractions.length === 0 ? (
           <div className="bg-surface border border-border rounded-[12px] p-8 text-center">
             <p className="text-muted">등록된 볼거리가 없습니다.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {attractions.map((attr) => (
               <Link
                 key={attr.id}

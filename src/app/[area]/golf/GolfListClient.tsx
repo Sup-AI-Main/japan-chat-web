@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { GolfCourse } from "@/lib/types";
+import type { FaqItem, GolfCourse } from "@/lib/types";
+import AreaFaqClient from "@/components/AreaFaqClient";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import {
   EditableContainer,
@@ -13,6 +14,7 @@ import {
 
 interface GolfListClientProps {
   courses: GolfCourse[];
+  faqs: FaqItem[];
   area: string;
   areaLabel: string;
   areaEmoji: string;
@@ -36,6 +38,7 @@ interface GolfData {
 
 export default function GolfListClient({
   courses: initialCourses,
+  faqs,
   area,
   areaLabel,
   areaEmoji,
@@ -78,12 +81,14 @@ export default function GolfListClient({
         <AddButton onClick={() => setEditModal({ open: true, course: null })} label="골프장 추가" />
       </div>
 
+      <AreaFaqClient area={area.toUpperCase()} category="GOLF" initialFaqs={faqs} />
+
       {courses.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted">등록된 골프장이 없습니다.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {courses.map((course) => (
             <EditableContainer
               key={course.id}

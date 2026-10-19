@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRestaurants, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
+import { getRestaurants, getFaq, resolveArea, getAdminOptions } from "@/lib/supabase-cms";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import { getDynamicLabels } from "@/lib/dynamic-labels";
 import RestaurantListClient from "./RestaurantListClient";
 import { routes } from "@/lib/routes";
+import AreaFaqClient from "@/components/AreaFaqClient";
 
 export const revalidate = 300;
 
@@ -47,6 +48,7 @@ export default async function RestaurantListPage({
   }
 
   const dynamicLabels = await getDynamicLabels("RESTAURANT").catch(() => ({ sections: [], fieldMap: {} }));
+  const faqs = (await getFaq(areaCode, "RESTAURANT")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">
@@ -61,6 +63,7 @@ export default async function RestaurantListPage({
           {getAreaEmoji(areaCode)} {areaLabel} {getCategoryEmoji("RESTAURANT")} 음식점
         </h1>
 
+        <AreaFaqClient area={areaCode} category="RESTAURANT" initialFaqs={faqs} />
         <RestaurantListClient
           restaurants={restaurants}
           area={area}

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Hotel } from "@/lib/types";
+import type { FaqItem, Hotel } from "@/lib/types";
+import AreaFaqClient from "@/components/AreaFaqClient";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import {
   EditableContainer,
@@ -13,6 +14,7 @@ import {
 
 interface HotelListClientProps {
   hotels: Hotel[];
+  faqs: FaqItem[];
   area: string;
   areaLabel: string;
   areaEmoji: string;
@@ -21,6 +23,7 @@ interface HotelListClientProps {
 
 export default function HotelListClient({
   hotels: initialHotels,
+  faqs,
   area,
   areaLabel,
   areaEmoji,
@@ -89,12 +92,14 @@ export default function HotelListClient({
         <AddButton onClick={() => setEditModal({ open: true, hotel: null })} label="호텔 추가" />
       </div>
 
+      <AreaFaqClient area={area.toUpperCase()} category="HOTEL" initialFaqs={faqs} />
+
       {hotels.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted">등록된 호텔이 없습니다.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {hotels.map((hotel) => (
             <EditableContainer
               key={hotel.id}
