@@ -918,7 +918,7 @@ export async function getRestaurantsNearEntity(
     });
 }
 
-/** Get FAQ for a specific entity (by slug) + area scope */
+/** Get only FAQ assigned to a specific entity (by slug or UUID). */
 export async function getFaqForEntity(
   area: string,
   category: string,
@@ -930,23 +930,21 @@ export async function getFaqForEntity(
     resolveEntityIdBySlug(entitySlug),
   ]);
 
+  if (!catId || !entityId) return [];
+
   let query = db()
     .from('faq')
     .select(
       'id, scope, question, answer, source_url, status, active, sort, updated_at, area:areas(code), category:categories(code), related_entity:entities!related_entity_id(slug, display_name)'
     )
-    .eq('active', true);
+    .eq('active', true)
+    .eq('scope', 'SPECIFIC')
+    .eq('category_id', catId)
+    .eq('related_entity_id', entityId);
 
   if (areaId) {
     query = query.or(`area_id.eq.${areaId},area_id.is.null`);
   }
-  if (catId) {
-    query = query.eq('category_id', catId);
-  }
-  if (entityId) {
-    query = query.or(`scope.eq.AREA,related_entity_id.eq.${entityId}`);
-  }
-
   const { data, error } = await query.order('sort');
   if (error) {
     logError('READ', 'faq', undefined, error);
