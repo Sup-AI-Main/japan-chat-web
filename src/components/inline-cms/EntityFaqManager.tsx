@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
 import type { FaqItem } from "@/lib/types";
@@ -21,7 +22,7 @@ export function EntityFaqManager({ area, entityType, entityId, initialFaqs, canM
     if (!draft.question.trim() || !draft.answer.trim()) return;
     setBusy(true);
     try {
-      const response = await fetch("/api/admin/faq", {
+      const response = await trackedAdminFetch("/api/admin/faq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -44,7 +45,7 @@ export function EntityFaqManager({ area, entityType, entityId, initialFaqs, canM
 
   async function removeFaq(id: string) {
     if (!window.confirm("이 FAQ를 삭제하시겠습니까?")) return;
-    const response = await fetch("/api/admin/faq", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    const response = await trackedAdminFetch("/api/admin/faq", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     if (response.ok) setFaqs((current) => current.filter((faq) => faq.id !== id));
   }
 

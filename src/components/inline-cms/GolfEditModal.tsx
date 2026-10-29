@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect, useRef } from "react";
@@ -232,7 +233,7 @@ export function GolfEditModal({ golf, area, open, onClose, onSaved, dynamicLabel
 
     try {
       const isEdit = !!golf?.id;
-      const res = await fetch("/api/admin/golf", {
+      const res = await trackedAdminFetch("/api/admin/golf", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

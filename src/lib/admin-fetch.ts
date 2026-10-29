@@ -2,6 +2,7 @@
  * Lightweight admin API fetch helper.
  * Handles auth, 409 conflict, empty body, and common error patterns.
  */
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 export class ConflictError extends Error {
   code: string;
@@ -39,18 +40,7 @@ export async function adminFetchJson<T = Record<string, unknown>>(
     headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
   };
-  const isReadRequest = !request.method || request.method.toUpperCase() === "GET";
-  let res: Response;
-
-  try {
-    res = await fetch(url, request);
-  } catch (error) {
-    // A transient HTTP/2 ping failure or serverless cold-start failure can
-    // reject fetch before a response exists. Safe GETs may be retried once;
-    // mutation requests must never be retried automatically.
-    if (!isReadRequest || !(error instanceof TypeError)) throw error;
-    res = await fetch(url, { ...request, cache: "no-store" });
-  }
+  const res = await trackedAdminFetch(url, request);
 
   if (res.status === 401) {
     notifyAdminAuthExpired();

@@ -2,7 +2,6 @@
 
 import { ModalShell } from "./ModalShell";
 import { ActionButton } from "./ActionButton";
-import { Toast, useToast } from "@/components/Toast";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -25,13 +24,10 @@ export function ConfirmModal({
   onCancel,
   loading = false,
 }: ConfirmModalProps) {
-  const { message: toastMessage, visible, showToast } = useToast();
-
   const handleConfirm = async () => {
     const result = await onConfirm();
     if (result === false) return;
-    showToast("삭제 완료", 300);
-    window.setTimeout(onCancel, 300);
+    onCancel();
   };
 
   return (
@@ -62,7 +58,6 @@ export function ConfirmModal({
     >
       <p className="text-[14px] text-muted leading-relaxed">{message}</p>
     </ModalShell>
-    <Toast message={toastMessage} visible={visible} />
     </>
   );
 }

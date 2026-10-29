@@ -1,10 +1,11 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { routes } from "@/lib/routes";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { EditToolbar, ConfirmModal, RestaurantEditModal, EditableContainer, ContentSectionsRenderer, IncludeExcludeSection, EntityFaqManager } from "@/components/inline-cms";
 import { isValidV1Document } from "@/lib/entity-details/validate";
 import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
@@ -43,7 +44,7 @@ export default function RestaurantDetailClient({
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const router = useRouter();
   const isAdmin = useAdmin();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   // Dynamic label helpers with fallback
   const L = dynamicLabels || { sections: [], fieldMap: {} };
@@ -61,7 +62,7 @@ export default function RestaurantDetailClient({
     try {
       const nearType = restaurant.near_type || "HOTEL";
       if (nearType === "HOTEL") {
-        const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
+        const res = await trackedAdminFetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
         if (res.ok) {
           const json = await res.json();
           const hotels = json.data?.hotels ?? [];
@@ -80,7 +81,7 @@ export default function RestaurantDetailClient({
           );
         }
       } else if (nearType === "GOLF") {
-        const res = await fetch(`/api/admin/golf?area=${area.toUpperCase()}`);
+        const res = await trackedAdminFetch(`/api/admin/golf?area=${area.toUpperCase()}`);
         if (res.ok) {
           const json = await res.json();
           const courses = json.data?.courses ?? [];
@@ -117,7 +118,7 @@ export default function RestaurantDetailClient({
   const confirmDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/restaurant?id=${restaurant.id}&area=${area}`, {
+      const res = await trackedAdminFetch(`/api/admin/restaurant?id=${restaurant.id}&area=${area}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -132,7 +133,6 @@ export default function RestaurantDetailClient({
     setRestaurant(saved as unknown as Restaurant);
     showToast("수정 완료");
     setTimeout(closeEditModal, 500);
-    router.refresh();
   };
 
   const handleDetailsSaved = () => {
@@ -382,7 +382,6 @@ export default function RestaurantDetailClient({
         onCancel={() => setDeleteModal(false)}
         loading={deleting}
       />
-      <Toast message={message} visible={visible} />
     </>
   );
 }

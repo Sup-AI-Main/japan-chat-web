@@ -1,10 +1,11 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState, useCallback } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { getCategoryBorder } from "@/lib/display";
 import type { FaqItem } from "@/lib/types";
 
@@ -144,7 +145,7 @@ export default function GuideFaqClient({
   const [deleteTarget, setDeleteTarget] = useState<FaqItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   const closeEditModal = useCallback(() => {
     setEditModal(false);
@@ -175,7 +176,7 @@ export default function GuideFaqClient({
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const res = await fetch("/api/admin/faq", {
+      const res = await trackedAdminFetch("/api/admin/faq", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: deleteTarget.id }),
@@ -264,7 +265,6 @@ export default function GuideFaqClient({
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
-      <Toast message={message} visible={visible} />
     </>
   );
 }

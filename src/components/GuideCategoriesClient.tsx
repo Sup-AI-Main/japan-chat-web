@@ -1,12 +1,12 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { EmojiInput } from "@/components/EmojiInput";
 import { getCategoryEmoji, getCategoryColor, getCategoryBg, getCategoryBorder } from "@/lib/display";
 import { routes } from "@/lib/routes";
@@ -147,7 +147,7 @@ function CategoryCreateModal({
       if (groupType === "COMMON") {
         // COMMON categories have a single canonical route: /guide/{code}
         const verifyPath = `/guide/${createdRow!.code.toLowerCase()}`;
-        const routeRes = await fetch(verifyPath, { method: "GET", cache: "no-store" });
+        const routeRes = await trackedAdminFetch(verifyPath, { method: "GET", cache: "no-store" });
         if (!routeRes.ok) {
           throw new Error(`공개 페이지 확인 실패 (${routeRes.status})`);
         }
@@ -472,8 +472,7 @@ export default function GuideCategoriesClient({
   const [deleteTarget, setDeleteTarget] = useState<AdminOption | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
-  const router = useRouter();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   const existingCodes = new Set(
     categories.map((c) => c.code?.toUpperCase()).filter(Boolean)
@@ -497,25 +496,22 @@ export default function GuideCategoriesClient({
     setCategories((prev) => [...prev, created].sort((a, b) => a.sort - b.sort));
     showToast("카테고리 생성 완료");
     setCreateModal(false);
-    router.refresh();
   };
 
   const handleSaved = (saved: AdminOption) => {
     setCategories((prev) => prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c)));
     showToast("수정 완료");
     setTimeout(closeEditModal, 500);
-    router.refresh();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/manage-categories?id=${deleteTarget.id}&confirmed=true`, { method: "DELETE" });
+      const res = await trackedAdminFetch(`/api/admin/manage-categories?id=${deleteTarget.id}&confirmed=true`, { method: "DELETE" });
       if (res.ok) {
         setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
         setDeleteTarget(null);
-        router.refresh();
       } else {
         throw new Error(`카테고리 삭제 실패 (${res.status})`);
       }
@@ -597,7 +593,6 @@ export default function GuideCategoriesClient({
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
-      <Toast message={message} visible={visible} />
     </>
   );
 }

@@ -32,11 +32,10 @@ export default async function GolfListPage({
 
   const areaCode = currentArea.code;
   const areaLabel = currentArea.label;
-
-  let courses;
-  try {
-    courses = await getGolfCourses(areaCode);
-  } catch {
+  const [coursesResult, labelsResult, faqResult] = await Promise.allSettled([
+    getGolfCourses(areaCode), getDynamicLabels("GOLF"), getFaq(areaCode, "GOLF"),
+  ]);
+  if (coursesResult.status === "rejected") {
     return (
       <main className="min-h-screen px-4 py-6">
         <div className="max-w-[720px] mx-auto">
@@ -46,8 +45,11 @@ export default async function GolfListPage({
     );
   }
 
-  const dynamicLabels = await getDynamicLabels("GOLF").catch(() => ({ sections: [], fieldMap: {} }));
-  const faqs = (await getFaq(areaCode, "GOLF")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
+  const courses = coursesResult.value;
+  const dynamicLabels = labelsResult.status === "fulfilled" ? labelsResult.value : { sections: [], fieldMap: {} };
+  if (faqResult.status === "rejected") throw faqResult.reason;
+  const faqRows = faqResult.value;
+  const faqs = faqRows.filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">

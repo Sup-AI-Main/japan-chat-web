@@ -33,11 +33,10 @@ export default async function RestaurantListPage({
 
   const areaCode = currentArea.code;
   const areaLabel = currentArea.label;
-
-  let restaurants;
-  try {
-    restaurants = await getRestaurants(areaCode);
-  } catch {
+  const [restaurantsResult, labelsResult, faqResult] = await Promise.allSettled([
+    getRestaurants(areaCode), getDynamicLabels("RESTAURANT"), getFaq(areaCode, "RESTAURANT"),
+  ]);
+  if (restaurantsResult.status === "rejected") {
     return (
       <main className="min-h-screen px-4 py-6">
         <div className="max-w-[720px] mx-auto">
@@ -47,8 +46,11 @@ export default async function RestaurantListPage({
     );
   }
 
-  const dynamicLabels = await getDynamicLabels("RESTAURANT").catch(() => ({ sections: [], fieldMap: {} }));
-  const faqs = (await getFaq(areaCode, "RESTAURANT")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
+  const restaurants = restaurantsResult.value;
+  const dynamicLabels = labelsResult.status === "fulfilled" ? labelsResult.value : { sections: [], fieldMap: {} };
+  if (faqResult.status === "rejected") throw faqResult.reason;
+  const faqRows = faqResult.value;
+  const faqs = faqRows.filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">

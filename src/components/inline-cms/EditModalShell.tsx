@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { ModalShell } from "./ModalShell";
 import { ConfirmModal } from "./ConfirmModal";
 import { ActionButton } from "./ActionButton";
-import { Toast, useToast } from "@/components/Toast";
 
 interface EditModalShellProps {
   open: boolean;
@@ -35,7 +34,6 @@ export function EditModalShell({
   children,
 }: EditModalShellProps) {
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
-  const { message, visible, showToast } = useToast();
 
   const handleClose = useCallback(() => {
     if (saving) return;
@@ -55,9 +53,7 @@ export function EditModalShell({
   const handleSave = async () => {
     const result = await onSave();
     if (result === false) return;
-    const message = title.includes("수정") ? "수정 완료" : "저장 완료";
-    showToast(message, 300);
-    window.setTimeout(onClose, 300);
+    onClose();
   };
 
   return (
@@ -89,7 +85,6 @@ export function EditModalShell({
       >
         {children}
       </ModalShell>
-      <Toast message={message} visible={visible} />
       <ConfirmModal
         open={discardConfirmOpen}
         title="변경사항 취소"

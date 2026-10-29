@@ -1,7 +1,8 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useServerList } from "@/hooks/use-server-list";
 import Link from "next/link";
 import type { FaqItem, Hotel } from "@/lib/types";
 import AreaFaqClient from "@/components/AreaFaqClient";
@@ -29,8 +30,7 @@ export default function HotelListClient({
   areaEmoji,
   dynamicLabels,
 }: HotelListClientProps) {
-  const [hotels, setHotels] = useState<Hotel[]>(initialHotels);
-  const router = useRouter();
+  const [hotels, setHotels] = useServerList(initialHotels);
   const [editModal, setEditModal] = useState<{ open: boolean; hotel: Hotel | null }>({
     open: false,
     hotel: null,
@@ -45,11 +45,10 @@ export default function HotelListClient({
       }
       return [...prev, savedHotel];
     });
-    router.refresh();
   };
 
   const handleDelete = async (hotel: Hotel): Promise<boolean> => {
-    const res = await fetch(`/api/admin/hotel?id=${hotel.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
+    const res = await trackedAdminFetch(`/api/admin/hotel?id=${hotel.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
     if (res.ok) {
       setHotels((prev) => prev.filter((h) => h.id !== hotel.id));
       return true;

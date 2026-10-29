@@ -19,6 +19,29 @@ export interface RevalidationResult {
   errors: string[];
 }
 
+/** Invalidate one entity's public list and detail after child-content CRUD. */
+export async function revalidateEntityById(entityId: string): Promise<void> {
+  const { data: entity, error } = await getSupabaseAdmin()
+    .from("entities")
+    .select("slug, entity_type, areas(code)")
+    .eq("id", entityId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!entity) return;
+  const segment = ENTITY_PATH_MAP[entity.entity_type];
+  const areaRelation = entity.areas as { code: string }[] | { code: string } | null;
+  const area = (Array.isArray(areaRelation) ? areaRelation[0]?.code : areaRelation?.code)?.toLowerCase();
+  if (!segment || !area) return;
+  revalidatePath(`/${area}/${segment}`);
+  revalidatePath(`/${area}/${segment}/${entity.slug}`);
+}
+
+export async function findContentParentId(table: "content_sections" | "includes_excludes", id: string): Promise<string | null> {
+  const { data, error } = await getSupabaseAdmin().from(table).select("parent_entity_id").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data?.parent_entity_id ?? null;
+}
+
 /**
  * Revalidate all public detail pages for a given entity type.
  * Queries the DB for all areas and slugs, then revalidates each path.

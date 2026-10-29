@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -7,7 +8,7 @@ import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
 import { resolveCategoryRoute, routes } from "@/lib/routes";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { EmojiInput } from "@/components/EmojiInput";
 
 interface AdminOption {
@@ -38,7 +39,7 @@ function OptionEditModal({
   onSaved,
 }: {
   option: AdminOption | null;
-  optionType: string;
+  optionType: "AREA" | "CATEGORY";
   group?: string;
   open: boolean;
   onClose: () => void;
@@ -93,7 +94,7 @@ function OptionEditModal({
           });
           saved = result.data;
         }
-      } else if (optionType === "AREA") {
+      } else {
         const result = await adminFetchJson<{
           success: true;
           data: {
@@ -138,29 +139,6 @@ function OptionEditModal({
           active: result.data.active ? "TRUE" : "FALSE",
           updated_at: result.data.updated_at,
         };
-      } else {
-        const result = await adminFetchJson<{ success: true; data?: AdminOption }>("/api/admin/options", {
-          method: isEdit ? "PUT" : "POST",
-          body: JSON.stringify(
-            isEdit
-              ? { id: option.id, label: label.trim(), icon: icon.trim(), description: description.trim() }
-              : { option_type: optionType, label: label.trim(), icon: icon.trim(), description: description.trim(), group: group || "" }
-          ),
-        });
-        saved = result.data || {
-          ...option,
-          id: option?.id || label.trim().replace(/\s+/g, "_").toUpperCase(),
-          option_type: optionType,
-          code: option?.code || label.trim().replace(/\s+/g, "_").toUpperCase(),
-          label: label.trim(),
-          icon: icon.trim(),
-          description: description.trim(),
-          group: group || option?.group || "",
-          sort: option?.sort || 999,
-          active: option?.active || "TRUE",
-          updated_at: new Date().toISOString(),
-          template_type: option?.template_type || "COMMON",
-        } as AdminOption;
       }
       onSaved(saved);
       // Note: Do not call onClose() here. The parent component
@@ -255,7 +233,7 @@ export default function HomeContentClient({
   const [deleteType, setDeleteType] = useState<"AREA" | "CATEGORY">("CATEGORY");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   const closeEditModal = useCallback(() => {
     setEditModal(false);
@@ -303,7 +281,7 @@ export default function HomeContentClient({
       const endpoint = deleteType === "CATEGORY"
         ? `/api/admin/manage-categories?id=${deleteTarget.id}&confirmed=true`
         : `/api/admin/areas?id=${deleteTarget.id}&confirmed=true`;
-      const res = await fetch(endpoint, { method: "DELETE" });
+      const res = await trackedAdminFetch(endpoint, { method: "DELETE" });
       if (res.ok) {
         if (deleteType === "AREA") {
           setAreas((prev) => prev.filter((a) => a.id !== deleteTarget.id));
@@ -431,7 +409,6 @@ export default function HomeContentClient({
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
-      <Toast message={message} visible={visible} />
     </>
   );
 }

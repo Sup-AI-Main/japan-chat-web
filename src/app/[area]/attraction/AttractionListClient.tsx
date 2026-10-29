@@ -1,6 +1,8 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
+import { useServerList } from "@/hooks/use-server-list";
 import Link from "next/link";
 import type { Attraction, EntityDetailsDocumentV1 } from "@/lib/types";
 import { isValidV1Document } from "@/lib/entity-details/validate";
@@ -27,7 +29,7 @@ interface Props {
 }
 
 export default function AttractionListClient({ attractions: initial, area, areaLabel, areaEmoji }: Props) {
-  const [attractions, setAttractions] = useState<Attraction[]>(initial);
+  const [attractions, setAttractions] = useServerList(initial);
   const [editModal, setEditModal] = useState<{ open: boolean; attraction: Attraction | null }>({ open: false, attraction: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; attraction: Attraction | null }>({ open: false, attraction: null });
   const [deleting, setDeleting] = useState(false);
@@ -48,7 +50,7 @@ export default function AttractionListClient({ attractions: initial, area, areaL
     if (!deleteModal.attraction) return false;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/attraction?id=${deleteModal.attraction.id}&area=${area}`, { method: "DELETE" });
+      const res = await trackedAdminFetch(`/api/admin/attraction?id=${deleteModal.attraction.id}&area=${area}`, { method: "DELETE" });
       if (res.ok) {
         setAttractions((prev) => prev.filter((a) => a.id !== deleteModal.attraction!.id));
         return true;

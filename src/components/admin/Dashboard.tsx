@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { adminFetchJson } from "@/lib/admin-fetch";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import FormModal from "@/components/admin/FormModal";
 import ImpactDeleteModal from "@/components/admin/ImpactDeleteModal";
 import { getAreaEmoji, getCategoryEmoji } from "@/lib/display";
@@ -100,7 +100,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   // -----------------------------------------------------------------------
   // Data loading
@@ -365,7 +365,6 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-6">
-      <Toast message={message} visible={visible} />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

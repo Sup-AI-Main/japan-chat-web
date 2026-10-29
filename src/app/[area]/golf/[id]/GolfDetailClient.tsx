@@ -8,7 +8,7 @@ import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getFieldLabel, getSectionLabel, isSectionVisible } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import {
   EditableContainer,
   IncludeExcludeSection,
@@ -39,7 +39,7 @@ export function GolfDetailClient({
   const course = initialCourse;
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const isAdmin = useAdmin();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
   const router = useRouter();
 
   // Dynamic label helpers with fallback — used ONLY for legacy fallback path
@@ -201,8 +201,6 @@ export function GolfDetailClient({
           />
         )}
       </div>
-
-      <Toast message={message} visible={visible} />
 
       {/* Shared EntityDetailsEditor — for variable details */}
       <EntityDetailsEditor

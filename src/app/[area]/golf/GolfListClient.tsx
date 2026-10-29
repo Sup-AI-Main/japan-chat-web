@@ -1,7 +1,8 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useServerList } from "@/hooks/use-server-list";
 import Link from "next/link";
 import type { FaqItem, GolfCourse } from "@/lib/types";
 import AreaFaqClient from "@/components/AreaFaqClient";
@@ -44,8 +45,7 @@ export default function GolfListClient({
   areaEmoji,
   dynamicLabels,
 }: GolfListClientProps) {
-  const [courses, setCourses] = useState<GolfCourse[]>(initialCourses);
-  const router = useRouter();
+  const [courses, setCourses] = useServerList(initialCourses);
   const [editModal, setEditModal] = useState<{ open: boolean; course: GolfCourse | null }>({
     open: false,
     course: null,
@@ -60,11 +60,10 @@ export default function GolfListClient({
       }
       return [...prev, savedCourse];
     });
-    router.refresh();
   };
 
   const handleDelete = async (course: GolfCourse): Promise<boolean> => {
-    const res = await fetch(`/api/admin/golf?id=${course.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
+    const res = await trackedAdminFetch(`/api/admin/golf?id=${course.id}&area=${area.toUpperCase()}`, { method: "DELETE" });
     if (res.ok) {
       setCourses((prev) => prev.filter((c) => c.id !== course.id));
       return true;

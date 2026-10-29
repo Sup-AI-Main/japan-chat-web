@@ -7,7 +7,8 @@ import {
   deleteContentSection,
 } from "@/lib/supabase-cms";
 import { ConflictError } from "@/lib/types";
-import { ok, created, badRequest, conflict, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, conflict, notFound, serverError, safeJson } from "@/lib/crud/response";
+import { findContentParentId, revalidateEntityById } from "@/lib/revalidate-labels";
 
 export async function GET(req: NextRequest) {
   const authed = await isAuthenticated();
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await safeJson<Record<string, string>>(req);
     if (!body) return badRequest("Empty request body");
-    const { parent_type, parent_id, parent_entity_id, title, content, emoji, sort } = body;
+    const { parent_type, parent_id, parent_entity_id, title, content, emoji, sort, is_visible } = body;
     if (!title) {
       return badRequest("Missing required field: title");
     }
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest) {
       content: content || "",
       emoji: emoji || "",
       sort: sort || "",
+      is_visible: is_visible || "TRUE",
     });
+    if (typeof row.parent_entity_id === "string") await revalidateEntityById(row.parent_entity_id);
     return created(row);
   } catch (err) {
     return serverError(err);
@@ -58,7 +61,9 @@ export async function PUT(req: NextRequest) {
     if (!body) return badRequest("Empty request body");
     const { id, updated_at, ...data } = body;
     if (!id) return badRequest("Missing id");
+    const parentId = await findContentParentId("content_sections", id);
     const success = await updateContentSection(id, data, updated_at);
+    if (success && parentId) await revalidateEntityById(parentId);
     return ok({ success });
   } catch (err) {
     if (err instanceof ConflictError) {
@@ -74,7 +79,10 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return badRequest("Missing id");
+    const parentId = await findContentParentId("content_sections", id);
     const success = await deleteContentSection(id);
+    if (!success) return notFound("Content section not found");
+    if (parentId) await revalidateEntityById(parentId);
     return ok({ deleted: success, id });
   } catch (err) {
     return serverError(err);

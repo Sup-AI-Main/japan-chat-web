@@ -94,6 +94,7 @@ export async function DELETE(req: NextRequest) {
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/attraction`);
     }
+    if (!success) return notFound("Attraction not found");
     return ok({ success });
   } catch (err) {
     return serverError(err);

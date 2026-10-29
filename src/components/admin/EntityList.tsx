@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { adminFetchJson } from "@/lib/admin-fetch";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import FormModal from "@/components/admin/FormModal";
 import ImpactDeleteModal from "@/components/admin/ImpactDeleteModal";
 import EntityDetailDrawer from "@/components/admin/EntityDetailDrawer";
@@ -81,7 +81,7 @@ export default function EntityList({ areaCode }: { areaCode: string }) {
   const [deleteImpact, setDeleteImpact] = useState<Record<string, number> | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editEntityId, setEditEntityId] = useState<string | null>(null);
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   // -----------------------------------------------------------------------
   // Data loading
@@ -197,7 +197,7 @@ export default function EntityList({ areaCode }: { areaCode: string }) {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await adminFetchJson(`/api/admin/manage-entities?id=${deleteTarget.id}`, { method: "DELETE" });
+      await adminFetchJson(`/api/admin/manage-entities?id=${deleteTarget.id}&confirmed=true`, { method: "DELETE" });
       setData((prev) => {
         if (!prev) return prev;
         return { ...prev, entities: prev.entities.filter((e) => e.id !== deleteTarget.id) };
@@ -288,7 +288,6 @@ export default function EntityList({ areaCode }: { areaCode: string }) {
 
   return (
     <div>
-      <Toast message={message} visible={visible} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">

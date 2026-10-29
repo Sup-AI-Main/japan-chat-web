@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs */
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -200,7 +201,7 @@ export function HotelEditModal({
         updated_at: form?.updated_at || undefined,
         area: area.toUpperCase(),
       };
-      const res = await fetch("/api/admin/hotel", {
+      const res = await trackedAdminFetch("/api/admin/hotel", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -245,7 +246,7 @@ export function HotelEditModal({
   const handleReloadCanonical = async () => {
     if (!hotel?.id) return;
     try {
-      const res = await fetch(`/api/admin/manage-entities/${hotel.id}`);
+      const res = await trackedAdminFetch(`/api/admin/manage-entities/${hotel.id}`);
       if (!res.ok) throw new Error("Failed to reload");
       const data = await res.json();
       const ent = data.data?.entity;

@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -35,7 +36,7 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
   const fetchFaqs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
+      const res = await trackedAdminFetch(
         `/api/admin/faq?area=${encodeURIComponent(area)}&category=${encodeURIComponent(category)}`,
         { cache: "no-store" }
       );
@@ -53,7 +54,7 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
   const handleToggle = async (id: string, currentActive: string) => {
     setActingId(id);
     try {
-      const res = await fetch("/api/admin/faq/toggle", {
+      const res = await trackedAdminFetch("/api/admin/faq/toggle", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +89,7 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
     const idList = ids.map((f) => f.id);
 
     try {
-      const res = await fetch("/api/admin/faq/sort", {
+      const res = await trackedAdminFetch("/api/admin/faq/sort", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: idList }),
@@ -114,7 +115,7 @@ export default function AdminFaqList({ area, category, faqs: initialFaqs, catego
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch("/api/admin/faq", {
+      const res = await trackedAdminFetch("/api/admin/faq", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: deleteTarget.id }),

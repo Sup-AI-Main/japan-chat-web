@@ -5,7 +5,7 @@ import { HotelEditModal } from "@/components/inline-cms/HotelEditModal";
 import { GolfEditModal } from "@/components/inline-cms/GolfEditModal";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import AreaTravelTimesClient from "@/components/AreaTravelTimesClient";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { EmojiInput } from "@/components/EmojiInput";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
 import type { TravelTime } from "@/lib/types";
@@ -118,7 +118,7 @@ export default function ManageEntitiesClient({
   const [areaForm, setAreaForm] = useState({ name_kr: "", name_jp: "", icon: "" });
   const [areaLoading, setAreaLoading] = useState(false);
 
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   // Hotel CRUD
   const handleAddHotel = () => {
@@ -490,8 +490,6 @@ export default function ManageEntitiesClient({
           </div>
         </div>
       )}
-
-      <Toast message={message} visible={visible} />
     </div>
   );
 }

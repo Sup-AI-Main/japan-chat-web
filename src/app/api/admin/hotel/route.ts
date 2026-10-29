@@ -93,11 +93,11 @@ export async function DELETE(req: NextRequest) {
     if (!id) return badRequest("Missing id");
     const area = req.nextUrl.searchParams.get("area") || "";
     const success = await deleteHotel(id);
-    if (!success) return notFound("Hotel not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/hotel`);
       revalidatePath("/[area]/hotel/[id]", "page");
     }
+    if (!success) return notFound("Hotel not found");
     return ok({ success });
   } catch (err) {
     return serverError(err);

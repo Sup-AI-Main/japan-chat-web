@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -105,7 +106,7 @@ export default function FaqForm({
         payload.id = initialData.id;
       }
 
-      const res = await fetch(url, {
+      const res = await trackedAdminFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

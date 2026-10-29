@@ -1,7 +1,8 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useServerList } from "@/hooks/use-server-list";
 import Link from "next/link";
 import { useAdmin } from "@/hooks/use-admin";
 import { EditToolbar, AddButton, ConfirmModal, RestaurantEditModal } from "@/components/inline-cms";
@@ -60,8 +61,7 @@ export default function RestaurantListClient({
   areaEmoji,
   dynamicLabels,
 }: RestaurantListClientProps) {
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(initialRestaurants);
-  const router = useRouter();
+  const [restaurants, setRestaurants] = useServerList(initialRestaurants);
   const [editModal, setEditModal] = useState<{ open: boolean; restaurant: Restaurant | null }>({
     open: false,
     restaurant: null,
@@ -96,7 +96,7 @@ export default function RestaurantListClient({
   const fetchNearOptions = async (nearType: string) => {
     try {
       if (nearType === "HOTEL") {
-        const res = await fetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
+        const res = await trackedAdminFetch(`/api/admin/hotel?area=${area.toUpperCase()}`);
         if (res.ok) {
           const json = await res.json();
           const hotels = json.data?.hotels ?? [];
@@ -115,7 +115,7 @@ export default function RestaurantListClient({
           );
         }
       } else if (nearType === "GOLF") {
-        const res = await fetch(`/api/admin/golf?area=${area.toUpperCase()}`);
+        const res = await trackedAdminFetch(`/api/admin/golf?area=${area.toUpperCase()}`);
         if (res.ok) {
           const json = await res.json();
           const courses = json.data?.courses ?? [];
@@ -184,7 +184,7 @@ export default function RestaurantListClient({
     if (!deleteModal.restaurant) return false;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/restaurant?id=${deleteModal.restaurant.id}&area=${area}`, {
+      const res = await trackedAdminFetch(`/api/admin/restaurant?id=${deleteModal.restaurant.id}&area=${area}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -206,7 +206,6 @@ export default function RestaurantListClient({
       }
       return [...prev, savedRest];
     });
-    router.refresh();
   };
 
   return (

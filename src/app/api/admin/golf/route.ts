@@ -90,11 +90,11 @@ export async function DELETE(req: NextRequest) {
     if (!id) return badRequest("Missing id");
     const area = req.nextUrl.searchParams.get("area") || "";
     const success = await deleteGolfCourse(id);
-    if (!success) return notFound("Golf course not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/golf`);
       revalidatePath("/[area]/golf/[id]", "page");
     }
+    if (!success) return notFound("Golf course not found");
     return ok({ success });
   } catch (err) {
     return serverError(err);

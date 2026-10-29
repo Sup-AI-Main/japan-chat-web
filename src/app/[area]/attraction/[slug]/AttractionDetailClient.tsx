@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,7 @@ import { EntityDetailsEditor } from "@/components/entity-details/EntityDetailsEd
 import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
 import { isValidV1Document } from "@/lib/entity-details/validate";
 import { getCategoryEmoji } from "@/lib/display";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 
 interface SectionDef {
   id: string;
@@ -36,7 +37,7 @@ export default function AttractionDetailClient({ attraction: initialAttraction, 
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
   const isAdmin = useAdmin();
   const router = useRouter();
 
@@ -50,7 +51,6 @@ export default function AttractionDetailClient({ attraction: initialAttraction, 
   const handleSaved = (saved: Attraction) => {
     setAttraction(saved);
     showToast("수정 완료");
-    router.refresh();
   };
 
   const handleDetailsSaved = () => {
@@ -62,7 +62,7 @@ export default function AttractionDetailClient({ attraction: initialAttraction, 
   const confirmDelete = async (): Promise<boolean> => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/attraction?id=${attraction.id}&area=${area}`, { method: "DELETE" });
+      const res = await trackedAdminFetch(`/api/admin/attraction?id=${attraction.id}&area=${area}`, { method: "DELETE" });
       if (res.ok) {
         router.push(`/${area}/attraction`);
         return true;
@@ -268,7 +268,6 @@ export default function AttractionDetailClient({ attraction: initialAttraction, 
       />
 
       {/* Toast */}
-      <Toast message={message} visible={visible} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs */
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -233,7 +234,7 @@ export function RestaurantEditModal({
 
     try {
       const isEdit = !!restaurant?.id;
-      const res = await fetch("/api/admin/restaurant", {
+      const res = await trackedAdminFetch("/api/admin/restaurant", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -278,7 +279,7 @@ export function RestaurantEditModal({
   const handleReloadCanonical = async () => {
     if (!restaurant?.id) return;
     try {
-      const res = await fetch(`/api/admin/restaurant?id=${encodeURIComponent(restaurant.id)}`);
+      const res = await trackedAdminFetch(`/api/admin/restaurant?id=${encodeURIComponent(restaurant.id)}`);
       if (!res.ok) throw new Error("Failed to reload");
       const data = await res.json();
       const r = data.data?.restaurant;

@@ -100,11 +100,11 @@ export async function DELETE(req: NextRequest) {
   const area = req.nextUrl.searchParams.get("area") || "";
   try {
     const success = await deleteRestaurantRow(id);
-    if (!success) return notFound("Restaurant not found");
     if (area) {
       revalidatePath(`/${area.toLowerCase()}/restaurant`);
       revalidatePath("/[area]/restaurant/[id]", "page");
     }
+    if (!success) return notFound("Restaurant not found");
     return ok({ success });
   } catch (err) {
     return serverError(err);

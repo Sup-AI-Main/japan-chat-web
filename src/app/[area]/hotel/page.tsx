@@ -32,11 +32,10 @@ export default async function HotelListPage({
 
   const areaCode = currentArea.code;
   const areaLabel = currentArea.label;
-
-  let hotels;
-  try {
-    hotels = await getHotels(areaCode);
-  } catch {
+  const [hotelsResult, labelsResult, faqResult] = await Promise.allSettled([
+    getHotels(areaCode), getDynamicLabels("HOTEL"), getFaq(areaCode, "HOTEL"),
+  ]);
+  if (hotelsResult.status === "rejected") {
     return (
       <main className="min-h-screen px-4 py-6">
         <div className="max-w-[720px] mx-auto">
@@ -46,8 +45,11 @@ export default async function HotelListPage({
     );
   }
 
-  const dynamicLabels = await getDynamicLabels("HOTEL").catch(() => ({ sections: [], fieldMap: {} }));
-  const faqs = (await getFaq(areaCode, "HOTEL")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
+  const hotels = hotelsResult.value;
+  const dynamicLabels = labelsResult.status === "fulfilled" ? labelsResult.value : { sections: [], fieldMap: {} };
+  if (faqResult.status === "rejected") throw faqResult.reason;
+  const faqRows = faqResult.value;
+  const faqs = faqRows.filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">

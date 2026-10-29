@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Hotel, FaqItem, ContentSection, IncludeExclude } from "@/lib/types";
 import type { DynamicLabelsResult } from "@/lib/dynamic-labels";
 import { getSectionLabel, getFieldLabel, isSectionVisible } from "@/lib/dynamic-labels";
 import { getCategoryEmoji } from "@/lib/display";
 import { useAdmin } from "@/hooks/use-admin";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { toBool } from "@/lib/restaurant-utils";
 import { isValidV1Document } from "@/lib/entity-details/validate";
 import { EntityDetailsRenderer } from "@/components/entity-details/EntityDetailsRenderer";
@@ -62,7 +61,6 @@ export function HotelDetailClient({
 }: HotelDetailClientProps) {
   const [hotel, setHotel] = useState(initialHotel);
   const isAdmin = useAdmin();
-  const router = useRouter();
 
   // Dynamic label helpers with fallback — used ONLY for legacy fallback path
   const L = dynamicLabels || { sections: [], fieldMap: {} };
@@ -74,7 +72,7 @@ export function HotelDetailClient({
 
   const [editHotelOpen, setEditHotelOpen] = useState(false);
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   const closeHotelModal = useCallback(() => {
     setEditHotelOpen(false);
@@ -89,7 +87,6 @@ export function HotelDetailClient({
     setHotel(saved as unknown as Hotel);
     showToast("수정 완료");
     setTimeout(closeHotelModal, 500);
-    router.refresh();
   };
 
   const handleDetailsSaved = () => {
@@ -367,8 +364,6 @@ export function HotelDetailClient({
         onSaved={handleHotelSaved}
         dynamicLabels={dynamicLabels}
       />
-
-      <Toast message={message} visible={visible} />
 
       {/* Shared EntityDetailsEditor — for variable details */}
       <EntityDetailsEditor

@@ -22,7 +22,7 @@ export default async function AttractionDetailPage({
   if (!attraction || attraction.area !== areaCode) notFound();
 
   const [contentSectionsResult, sectionDefsResult, faqsResult] = await Promise.allSettled([
-    getContentSections(attraction.id),
+    getContentSections("ATTRACTION", attraction.id),
     listSectionDefinitions("ATTRACTION"),
     getFaqForEntity(areaCode, "ATTRACTION", attraction.id),
   ]);

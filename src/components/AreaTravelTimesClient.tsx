@@ -1,10 +1,11 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 
 import { useState, useCallback } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { AddButton, ConfirmModal } from "@/components/inline-cms";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import type { TravelTime } from "@/lib/types";
 
 interface TravelTimeEditData {
@@ -209,7 +210,7 @@ export default function AreaTravelTimesClient({
   const [deleteTarget, setDeleteTarget] = useState<TravelTime | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const isAdmin = useAdmin();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   const closeEditModal = useCallback(() => {
     setEditModal(false);
@@ -275,7 +276,7 @@ export default function AreaTravelTimesClient({
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/travel-times?id=${deleteTarget.id}`, {
+      const res = await trackedAdminFetch(`/api/admin/travel-times?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -388,7 +389,6 @@ export default function AreaTravelTimesClient({
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
-      <Toast message={message} visible={visible} />
     </>
   );
 }

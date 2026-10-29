@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AdminLoginButton from "@/components/AdminLoginButton";
+import { AdminActivityProvider } from "@/components/AdminActivityProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,8 +21,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen antialiased">
-        <AdminLoginButton />
-        {children}
+        <AdminActivityProvider>
+          <AdminLoginButton />
+          {children}
+        </AdminActivityProvider>
       </body>
     </html>
   );

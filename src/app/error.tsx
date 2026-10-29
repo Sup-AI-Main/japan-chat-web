@@ -14,24 +14,13 @@ export default function Error({
   }, [error]);
 
   return (
-    <main className="page-bg bg-main min-h-screen flex flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[720px] mx-auto text-center">
-        <div className="bg-surface rounded-[20px] shadow-sm px-8 py-14">
-          <p className="text-[64px] mb-4">⚠️</p>
-          <h1 className="text-[24px] font-bold text-text mb-3">
-            일시적인 오류가 발생했습니다
-          </h1>
-          <p className="text-[14px] text-muted mb-8 leading-relaxed">
-            데이터를 불러오는 중 문제가 발생했습니다.
-            <br />
-            잠시 후 다시 시도해주세요.
-          </p>
-          <button
-            onClick={reset}
-            className="inline-block bg-text text-white text-[14px] font-medium px-6 py-3 rounded-full hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            다시 시도
-          </button>
+    <main className="min-h-screen bg-bg">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="render-error-title" className="fixed inset-0 flex items-center justify-center bg-black/45 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+          <h1 id="render-error-title" className="text-lg font-bold text-text">페이지를 불러오지 못했습니다</h1>
+          <p className="mt-3 text-sm leading-6 text-muted">서버에서 데이터를 읽거나 화면을 구성하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+          <p className="mt-3 rounded-lg bg-bg px-3 py-2 font-mono text-xs text-muted">오류 코드: {error.digest ?? "RENDER_ERROR"}</p>
+          <button onClick={reset} className="mt-5 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white">다시 시도</button>
         </div>
       </div>
     </main>

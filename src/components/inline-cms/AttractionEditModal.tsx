@@ -1,4 +1,5 @@
 "use client";
+import { trackedAdminFetch } from "@/lib/admin-activity";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs, react-hooks/preserve-manual-memoization */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -50,7 +51,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
   const handleReload = useCallback(async () => {
     if (!attraction?.id) return;
     try {
-      const res = await fetch(`/api/admin/attraction?id=${attraction.id}`);
+      const res = await trackedAdminFetch(`/api/admin/attraction?id=${attraction.id}`);
       if (!res.ok) return;
       const body = await res.json();
       const fresh = body.data?.attraction as Attraction | undefined;
@@ -90,7 +91,7 @@ export default function AttractionEditModal({ open, onClose, attraction, area, o
       if (isEdit && updatedAtRef.current) {
         payload.updated_at = updatedAtRef.current;
       }
-      const res = await fetch(url, {
+      const res = await trackedAdminFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

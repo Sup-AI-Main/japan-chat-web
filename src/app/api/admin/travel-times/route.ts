@@ -6,7 +6,7 @@ import {
   updateTravelTime,
   deleteTravelTime,
 } from "@/lib/supabase-cms";
-import { ok, created, badRequest, staleVersion, serverError, safeJson } from "@/lib/crud/response";
+import { ok, created, badRequest, staleVersion, notFound, serverError, safeJson } from "@/lib/crud/response";
 import { parseTravelTimeInput } from "@/lib/crud/validation";
 import { ConflictError } from "@/lib/types";
 
@@ -136,7 +136,7 @@ export async function DELETE(request: NextRequest) {
     }
     const deleted = await deleteTravelTime(id);
     if (!deleted) {
-      return serverError(new Error("삭제 실패 또는 이미 삭제됨"));
+      return notFound("삭제 대상을 찾을 수 없습니다");
     }
     return ok({ deleted: true, id });
   } catch (err) {

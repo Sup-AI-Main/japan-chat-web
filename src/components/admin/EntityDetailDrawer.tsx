@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { adminFetchJson, ConflictError } from "@/lib/admin-fetch";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import FieldPickerModal from "@/components/admin/FieldPickerModal";
 import FieldCreateModal from "@/components/admin/FieldCreateModal";
 import RestaurantLocationsEditor from "@/components/admin/RestaurantLocationsEditor";
@@ -222,7 +222,7 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
   const [fieldPickerOpen, setFieldPickerOpen] = useState(false);
   const [fieldCreateOpen, setFieldCreateOpen] = useState(false);
   const [detailsEditorOpen, setDetailsEditorOpen] = useState(false);
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   // Local edit state for entity basic info
   const [entityForm, setEntityForm] = useState({
@@ -427,7 +427,7 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
   function handleEntityDelete() {
     if (!detail) return;
     if (confirm(`"${detail.entity.display_name}"을(를) 삭제하시겠습니까?`)) {
-      adminFetchJson(`/api/admin/manage-entities?id=${entityId}`, { method: "DELETE" })
+      adminFetchJson(`/api/admin/manage-entities?id=${entityId}&confirmed=true`, { method: "DELETE" })
         .then(() => {
           onEntityDeleted(entityId);
           showToast("삭제되었습니다");
@@ -462,7 +462,6 @@ export default function EntityDetailDrawer({ entityId, areaCode, onClose, onEnti
 
       {/* Drawer */}
       <div className="fixed right-0 top-0 bottom-0 z-[1600] w-full md:w-[560px] lg:w-[640px] bg-white shadow-xl overflow-y-auto">
-        <Toast message={message} visible={visible} />
 
         {/* Drawer header */}
         <div className="sticky top-0 z-10 bg-white border-b border-border px-5 py-4 flex items-center justify-between">

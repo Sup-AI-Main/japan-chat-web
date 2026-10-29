@@ -1,4 +1,4 @@
-import { resolveAreaLayout, getAdminOptions } from "@/lib/supabase-cms";
+import { getAdminOptions } from "@/lib/supabase-cms";
 
 export const revalidate = 3600;
 
@@ -24,7 +24,7 @@ export default async function AreaLayout({
   params: Promise<{ area: string }>;
 }) {
   const { area } = await params;
-  const { bgClass } = await resolveAreaLayout(area);
+  const bgClass = area.toLowerCase() === "dos" ? "bg-dos" : area.toLowerCase() === "beppu" ? "bg-beppu" : "bg-main";
 
   return (
     <div className={`page-bg ${bgClass} min-h-screen`}>

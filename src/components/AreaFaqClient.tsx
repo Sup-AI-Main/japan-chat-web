@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAdmin } from "@/hooks/use-admin";
 import { adminFetchJson } from "@/lib/admin-fetch";
 import { ConfirmModal } from "@/components/inline-cms";
-import { useToast, Toast } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
 import { getCategoryEmoji } from "@/lib/display";
 import type { AdminOption, FaqItem } from "@/lib/types";
 
@@ -36,7 +36,7 @@ export default function AreaFaqClient({ area, category, initialFaqs }: { area: s
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const isAdmin = useAdmin();
-  const { message, visible, showToast } = useToast();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -125,7 +125,6 @@ export default function AreaFaqClient({ area, category, initialFaqs }: { area: s
         : `/${draft.area.toLowerCase()}/${categorySegment}`;
       const currentPath = window.location.pathname.replace(/\/$/, "");
       if (destination !== currentPath) router.push(destination);
-      else router.refresh();
     } catch (error) {
       showToast(error instanceof Error ? error.message : "저장에 실패했습니다.");
     } finally {
@@ -142,7 +141,6 @@ export default function AreaFaqClient({ area, category, initialFaqs }: { area: s
       setFaqs((current) => current.filter((faq) => faq.id !== deleteTarget.id));
       setDeleteTarget(null);
       showToast("질문이 삭제되었습니다.");
-      router.refresh();
     } catch (error) {
       showToast(error instanceof Error ? error.message : "삭제에 실패했습니다.");
     }
@@ -167,6 +165,5 @@ export default function AreaFaqClient({ area, category, initialFaqs }: { area: s
       <div className="flex justify-end gap-2"><button type="button" onClick={() => setModalOpen(false)} className="border border-border rounded px-4 py-2">취소</button><button type="button" disabled={saving || optionsLoading} onClick={() => void save()} className="bg-primary text-white rounded px-4 py-2 disabled:opacity-50">저장</button></div>
     </div></div>}
     <ConfirmModal open={!!deleteTarget} title="질문 삭제" message={`"${deleteTarget?.question}" 질문을 삭제하시겠습니까?`} onConfirm={() => void remove()} onCancel={() => setDeleteTarget(null)} />
-    <Toast message={message} visible={visible} />
   </>;
 }

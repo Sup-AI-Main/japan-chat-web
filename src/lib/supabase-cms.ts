@@ -472,26 +472,6 @@ function normalizeCategoryRouteCode(value: string): string {
   return decoded.trim().toUpperCase().replace(/\s+/g, '-');
 }
 
-/**
- * Resolve area from URL slug using layout-safe approach (no throw on DB error).
- * Falls back to AREA_BG lookup if DB fails.
- */
-export async function resolveAreaLayout(slug: string): Promise<{ code: string; bgClass: string }> {
-  const code = slug.toUpperCase();
-  const AREA_BG: Record<string, string> = {
-    DOS: 'bg-dos',
-    BEPPU: 'bg-beppu',
-    ALL: 'bg-main',
-  };
-  try {
-    const area = await resolveAreaBySlug(slug);
-    if (area) return { code: area.code, bgClass: AREA_BG[area.code] ?? 'bg-main' };
-  } catch {
-    // DB error: fall through to fallback
-  }
-  return { code, bgClass: AREA_BG[code] ?? 'bg-main' };
-}
-
 export async function getActiveCategories(): Promise<AdminOption[]> {
   const { data, error } = await db()
     .from('categories')
@@ -978,7 +958,7 @@ export async function getFaqForEntity(
 }
 
 export async function deleteGolfCourse(id: string): Promise<boolean> {
-  const { data: golf, error: findError } = await db()
+  const { data: golf, error: findError } = await adminDb()
     .from('golf_courses')
     .select('entity_id')
     .eq('entity_id', id)
@@ -992,11 +972,15 @@ export async function deleteGolfCourse(id: string): Promise<boolean> {
   if (!golf) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb()
+  const { error: faqError } = await adminDb()
     .from('faq')
     .delete()
     .eq('scope', 'SPECIFIC')
     .eq('related_entity_id', golf.entity_id);
+  if (faqError) {
+    logError('DELETE', 'faq', id, faqError);
+    throw faqError;
+  }
 
   // Hard delete (cascades to golf_courses)
   const { data: deleted, error } = await adminDb()
@@ -1476,7 +1460,7 @@ export async function updateHotelCore(
 }
 
 export async function deleteHotel(id: string): Promise<boolean> {
-  const { data: hotel, error: findError } = await db()
+  const { data: hotel, error: findError } = await adminDb()
     .from('hotels')
     .select('entity_id')
     .eq('entity_id', id)
@@ -1490,11 +1474,15 @@ export async function deleteHotel(id: string): Promise<boolean> {
   if (!hotel) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb()
+  const { error: faqError } = await adminDb()
     .from('faq')
     .delete()
     .eq('scope', 'SPECIFIC')
     .eq('related_entity_id', hotel.entity_id);
+  if (faqError) {
+    logError('DELETE', 'faq', id, faqError);
+    throw faqError;
+  }
 
   const { data: deleted, error } = await adminDb()
     .from('entities')
@@ -2021,7 +2009,7 @@ export async function updateRestaurant(
 }
 
 export async function deleteRestaurantRow(id: string): Promise<boolean> {
-  const { data: rest, error: findError } = await db()
+  const { data: rest, error: findError } = await adminDb()
     .from('restaurants')
     .select('entity_id')
     .eq('entity_id', id)
@@ -2035,11 +2023,15 @@ export async function deleteRestaurantRow(id: string): Promise<boolean> {
   if (!rest) return false;
 
   // Delete SPECIFIC FAQ referencing this entity (AREA FAQ preserved)
-  await adminDb()
+  const { error: faqError } = await adminDb()
     .from('faq')
     .delete()
     .eq('scope', 'SPECIFIC')
     .eq('related_entity_id', rest.entity_id);
+  if (faqError) {
+    logError('DELETE', 'faq', id, faqError);
+    throw faqError;
+  }
 
   const { data: deleted, error } = await adminDb()
     .from('entities')
@@ -2490,7 +2482,7 @@ async function saveAttractionFieldValues(
 }
 
 export async function deleteAttraction(id: string): Promise<boolean> {
-  const { data: entity, error: findError } = await db().from('entities').select('id').eq('id', id).maybeSingle();
+  const { data: entity, error: findError } = await adminDb().from('entities').select('id').eq('id', id).eq('entity_type', 'ATTRACTION').maybeSingle();
   if (findError) {
     logError('READ', 'entities', id, findError);
     throw findError;
@@ -2504,12 +2496,12 @@ export async function deleteAttraction(id: string): Promise<boolean> {
     throw faqError;
   }
 
-  const { error } = await adminDb().from('entities').delete().eq('id', entity.id);
+  const { data: deleted, error } = await adminDb().from('entities').delete().eq('id', entity.id).select('id').maybeSingle();
   if (error) {
     logError('DELETE', 'entities', id, error);
     throw error;
   }
-  return true;
+  return !!deleted;
 }
 
 // ---------------------------------------------------------------------------
@@ -2891,136 +2883,17 @@ export async function deleteFaq(id: string): Promise<boolean> {
 
 export async function updateFaqSort(ids: string[]): Promise<boolean> {
   for (let i = 0; i < ids.length; i++) {
-    const { error } = await adminDb()
+    const { data: updated, error } = await adminDb()
       .from('faq')
       .update({ sort: i + 1 })
-      .eq('id', ids[i]);
+      .eq('id', ids[i])
+      .select('id')
+      .maybeSingle();
     if (error) {
       logError('UPDATE_SORT', 'faq', ids[i], error);
       throw error;
     }
-  }
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// Admin Options CRUD
-// ---------------------------------------------------------------------------
-
-export async function appendAdminOption(
-  data: Record<string, string>
-): Promise<Record<string, unknown>> {
-  let tableName: string;
-  let insertData: Record<string, unknown>;
-
-  if (data.option_type === 'AREA') {
-    tableName = 'areas';
-    insertData = {
-      code: data.code || '',
-      name_kr: data.label || '',
-      name_jp: '',
-      icon: data.icon || '',
-      description: data.description || '',
-      active: isActive(data.active),
-      sort: parseInt(data.sort || '999') || 999,
-    };
-  } else {
-    tableName = 'categories';
-    insertData = {
-      code: data.code || '',
-      label: data.label || '',
-      icon: data.icon || '',
-      group_type: data.group || 'AREA',
-      template_type: data.template_type || 'COMMON',
-      description: data.description || '',
-      allows_specific_target: true,
-      allowed_entity_types: [],
-      navigation_visible: true,
-      active: isActive(data.active),
-      sort: parseInt(data.sort || '999') || 999,
-    };
-  }
-
-  const { data: row, error } = await adminDb()
-    .from(tableName)
-    .insert(insertData)
-    .select('*')
-    .single();
-  if (error) {
-    logError('INSERT', tableName, data.code, error);
-    throw error;
-  }
-  // Invalidate resolver caches after successful insert
-  if (tableName === 'categories') invalidateCategoryCache();
-  else if (tableName === 'areas') invalidateAreaCache();
-  return row || {};
-}
-
-export async function updateAdminOption(data: Record<string, string>): Promise<boolean> {
-  if (!data.id) return false;
-
-  // Determine table: check if ID exists in categories first, then areas
-  let table: 'categories' | 'areas' = 'categories';
-  if (!data.option_type) {
-    const { data: cat } = await adminDb()
-      .from('categories')
-      .select('id')
-      .eq('id', data.id)
-      .maybeSingle();
-    if (!cat) {
-      const { data: area } = await adminDb()
-        .from('areas')
-        .select('id')
-        .eq('id', data.id)
-        .maybeSingle();
-      if (!area) return false;
-      table = 'areas';
-    }
-  } else {
-    table = data.option_type === 'AREA' ? 'areas' : 'categories';
-  }
-
-  const updates: Record<string, unknown> = {};
-  if (table === 'areas') {
-    if (data.label !== undefined) updates.name_kr = data.label;
-  } else {
-    if (data.label !== undefined) updates.label = data.label;
-    if (data.group !== undefined) updates.group_type = data.group;
-    if (data.template_type !== undefined) updates.template_type = data.template_type;
-  }
-  if (data.icon !== undefined) updates.icon = data.icon;
-  if (data.description !== undefined) updates.description = data.description;
-  if (data.active !== undefined) updates.active = isActive(data.active);
-  if (data.sort !== undefined) updates.sort = parseInt(data.sort) || 0;
-
-  const { data: updated, error } = await adminDb()
-    .from(table)
-    .update(updates)
-    .eq('id', data.id)
-    .select('id')
-    .maybeSingle();
-  if (error) {
-    logError('UPDATE', table, data.id, error);
-    throw error;
-  }
-  if (!updated) throw new Error(`${table} not found`);
-  // Invalidate resolver caches after successful update
-  if (table === 'categories') invalidateCategoryCache();
-  else if (table === 'areas') invalidateAreaCache();
-  return true;
-}
-
-export async function updateAdminOptionSort(optionType: string, ids: string[]): Promise<boolean> {
-  const table = optionType === 'AREA' ? 'areas' : 'categories';
-  for (let i = 0; i < ids.length; i++) {
-    const { error } = await adminDb()
-      .from(table)
-      .update({ sort: i + 1 })
-      .eq('id', ids[i]);
-    if (error) {
-      logError('UPDATE_SORT', table, ids[i], error);
-      throw error;
-    }
+    if (!updated) return false;
   }
   return true;
 }
@@ -3028,6 +2901,12 @@ export async function updateAdminOptionSort(optionType: string, ids: string[]): 
 // ---------------------------------------------------------------------------
 // Content Sections
 // ---------------------------------------------------------------------------
+
+async function resolveContentParentId(value: string): Promise<string | null> {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : resolveEntityIdBySlug(value);
+}
 
 export async function getContentSections(
   parentType?: string,
@@ -3043,7 +2922,7 @@ export async function getContentSections(
   }
 
   if (parentType && parentId) {
-    const entityId = await resolveEntityIdBySlug(parentId);
+    const entityId = await resolveContentParentId(parentId);
     if (!entityId) return [];
     query = query.eq('parent_entity_id', entityId);
   } else if (parentType) {
@@ -3106,7 +2985,7 @@ export async function appendContentSection(
   if (data.parent_entity_id) {
     entityId = data.parent_entity_id;
   } else if (data.parent_id) {
-    entityId = await resolveEntityIdBySlug(data.parent_id);
+    entityId = await resolveContentParentId(data.parent_id);
   }
   if (!entityId) {
     throw new Error(`Entity not found: ${data.parent_id || data.parent_entity_id}`);
@@ -3208,7 +3087,7 @@ export async function getIncludesExcludes(
   }
 
   if (parentType && parentId) {
-    const entityId = await resolveEntityIdBySlug(parentId);
+    const entityId = await resolveContentParentId(parentId);
     if (!entityId) return [];
     query = query.eq('parent_entity_id', entityId);
   } else if (parentType) {
@@ -3269,7 +3148,7 @@ export async function appendIncludeExclude(
   if (data.parent_entity_id) {
     entityId = data.parent_entity_id;
   } else if (data.parent_id) {
-    entityId = await resolveEntityIdBySlug(data.parent_id);
+    entityId = await resolveContentParentId(data.parent_id);
   }
   if (!entityId) {
     throw new Error(`Entity not found: ${data.parent_id || data.parent_entity_id}`);

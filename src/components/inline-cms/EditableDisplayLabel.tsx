@@ -1,4 +1,5 @@
 "use client";
+import { adminFetchJson } from "@/lib/admin-fetch";
 
 import { useState } from "react";
 
@@ -20,21 +21,27 @@ export function EditableDisplayLabel({
   async function save() {
     const next = value.trim();
     if (!entityId || next === label.replace(/\s+\*$/, "")) return;
-    await fetch("/api/admin/display-labels", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entity_type: entityType, entity_id: entityId, field_key: fieldKey, section_key: sectionKey, label_ko: next }),
-    });
+    try {
+      await adminFetchJson("/api/admin/display-labels", {
+        method: "PUT",
+        body: JSON.stringify({ entity_type: entityType, entity_id: entityId, field_key: fieldKey, section_key: sectionKey, label_ko: next }),
+      });
+    } catch {
+      setValue(label.replace(/\s+\*$/, ""));
+    }
   }
 
   async function clearOverride() {
     if (!entityId) return;
-    setValue("");
-    await fetch("/api/admin/display-labels", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entity_type: entityType, entity_id: entityId, field_key: fieldKey, section_key: sectionKey, label_ko: "" }),
-    });
+    try {
+      await adminFetchJson("/api/admin/display-labels", {
+        method: "PUT",
+        body: JSON.stringify({ entity_type: entityType, entity_id: entityId, field_key: fieldKey, section_key: sectionKey, label_ko: "" }),
+      });
+      setValue("");
+    } catch {
+      setValue(label.replace(/\s+\*$/, ""));
+    }
   }
 
   return (

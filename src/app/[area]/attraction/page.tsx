@@ -31,11 +31,10 @@ export default async function AttractionListPage({
 
   const areaCode = currentArea.code;
   const areaLabel = currentArea.label;
-
-  let attractions;
-  try {
-    attractions = await getAttractions(areaCode);
-  } catch {
+  const [attractionsResult, faqResult] = await Promise.allSettled([
+    getAttractions(areaCode), getFaq(areaCode, "ATTRACTION"),
+  ]);
+  if (attractionsResult.status === "rejected") {
     return (
       <main className="min-h-screen px-4 py-6">
         <div className="max-w-[720px] mx-auto">
@@ -44,7 +43,9 @@ export default async function AttractionListPage({
       </main>
     );
   }
-  const faqs = (await getFaq(areaCode, "ATTRACTION")).filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
+  const attractions = attractionsResult.value;
+  if (faqResult.status === "rejected") throw faqResult.reason;
+  const faqs = faqResult.value.filter((faq) => faq.area === areaCode && faq.question_scope === "AREA");
 
   return (
     <main className="min-h-screen px-4 py-6">
